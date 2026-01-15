@@ -6,7 +6,7 @@ import {
   LargeSearchToggle,
   SearchToggle,
 } from '@/components/search/search-toggle';
-import { AISearch, AISearchPanel, AISearchTrigger } from '@/components/ai/searchAI';
+import { AISearch, AISearchPanel, AISearchTrigger } from '@/components/ai/AISearchLazy';
 import { Sparkles } from 'lucide-react';
 import { cn } from '@/lib/cn';
 import { buttonVariants } from '@/components/ui/button';

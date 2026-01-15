@@ -6,7 +6,7 @@ import {
   SiX
 } from "@icons-pack/react-simple-icons";
 import { LargeSearchToggle, SearchToggle } from '@/components/search/search-toggle';
-import { AISearch, AISearchPanel, AISearchTrigger } from '@/components/ai/searchAI';
+import { AISearch, AISearchPanel, AISearchTrigger } from '@/components/ai/AISearchLazy';
 import Footer from '@/components/ui/Footer';
 import { navbarLinks } from '@/components/ui/NavLinks';
 import { Sparkles, Wand2Icon } from 'lucide-react';

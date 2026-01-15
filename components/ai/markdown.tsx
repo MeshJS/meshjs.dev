@@ -15,41 +15,33 @@ import { Fragment, jsx, jsxs } from 'react/jsx-runtime';
 import { DynamicCodeBlock } from 'fumadocs-ui/components/dynamic-codeblock';
 import defaultMdxComponents from 'fumadocs-ui/mdx';
 import { visit } from 'unist-util-visit';
-import type { ElementContent, Root, RootContent } from 'hast';
+import type { Root } from 'hast';
 
 export interface Processor {
   process: (content: string) => Promise<ReactNode>;
 }
 
+/**
+ * Adds fade-in animation to block-level elements instead of individual words.
+ * This reduces DOM nodes by ~10x compared to per-word wrapping.
+ */
 export function rehypeWrapWords() {
+  const animatedTags = new Set(['p', 'li', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'blockquote']);
+
   return (tree: Root) => {
-    visit(tree, ['text', 'element'], (node, index, parent) => {
+    visit(tree, 'element', (node) => {
       if (node.type === 'element' && node.tagName === 'pre') return 'skip';
-      if (node.type !== 'text' || !parent || index === undefined) return;
 
-      const words = node.value.split(/(?=\s)/);
-
-      // Create new span nodes for each word and whitespace
-      const newNodes: ElementContent[] = words.flatMap((word) => {
-        if (word.length === 0) return [];
-
-        return {
-          type: 'element',
-          tagName: 'span',
-          properties: {
-            class: 'animate-fd-fade-in',
-          },
-          children: [{ type: 'text', value: word }],
-        };
-      });
-
-      Object.assign(node, {
-        type: 'element',
-        tagName: 'span',
-        properties: {},
-        children: newNodes,
-      } satisfies RootContent);
-      return 'skip';
+      if (animatedTags.has(node.tagName)) {
+        const existingClass = node.properties?.className;
+        const classes = Array.isArray(existingClass)
+          ? existingClass
+          : typeof existingClass === 'string'
+            ? existingClass.split(' ')
+            : [];
+        classes.push('animate-fd-fade-in');
+        node.properties = { ...node.properties, className: classes.join(' ') };
+      }
     });
   };
 }

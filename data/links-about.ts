@@ -1,6 +1,7 @@
 import {
   FilmIcon,
   HeartIcon,
+  InformationCircleIcon,
   PaintBrushIcon,
   ScaleIcon,
 } from "@heroicons/react/24/solid";
@@ -11,7 +12,7 @@ export const metaAboutUs = {
   link: `/about`,
   title: "About Us",
   desc: "",
-  icon: HeartIcon,
+  icon: InformationCircleIcon,
 };
 export const metaGovernance = {
   link: `https://gov.meshjs.dev/`,

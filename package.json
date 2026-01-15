@@ -6,6 +6,7 @@
     "build": "next build",
     "dev": "next dev --turbo",
     "start": "next start",
+    "analyze": "ANALYZE=true next build",
     "postinstall": "fumadocs-mdx"
   },
   "engines": {
@@ -39,6 +40,7 @@
     "zod": "^4.2.1"
   },
   "devDependencies": {
+    "@next/bundle-analyzer": "^15.1.0",
     "@tailwindcss/postcss": "^4.1.18",
     "@types/mdx": "^2.0.13",
     "@types/node": "25.0.3",

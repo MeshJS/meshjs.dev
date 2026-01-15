@@ -10,6 +10,7 @@ import {
   useMemo,
   useRef,
   useState,
+  memo,
 } from 'react';
 import { Loader2, MessageCircleIcon, RefreshCw, Send, X, ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/cn';
@@ -26,21 +27,30 @@ import {
   SourcesContent,
   SourcesTrigger,
 } from '@/components/ai/sources';
+import { AISearchContext } from './AISearchProvider';
 
 import { iconResolver } from "@/lib/iconResolver";
 
-const Context = createContext<{
+// Internal context for chat state - only used within panel
+const ChatContext = createContext<UseChatHelpers<UIMessage> | null>(null);
+
+function useChatContext() {
+  const ctx = use(ChatContext);
+  if (!ctx) throw new Error('useChatContext must be used within ChatContext provider');
+  return ctx;
+}
+
+// Legacy context export for backward compatibility
+export const Context = createContext<{
   open: boolean;
   setOpen: (open: boolean) => void;
   chat: UseChatHelpers<UIMessage>;
 } | null>(null);
 
-function useChatContext() {
-  return use(Context)!.chat;
-}
-
 function Header() {
-  const { setOpen } = use(Context)!;
+  const ctx = use(AISearchContext);
+  if (!ctx) throw new Error('Header must be used within AISearchProvider');
+  const { setOpen } = ctx;
 
   return (
     <div className="sticky top-0 flex items-start gap-2 z-10 pb-2">
@@ -198,14 +208,19 @@ function List(props: Omit<ComponentProps<'div'>, 'dir'>) {
 
   useEffect(() => {
     if (!containerRef.current) return;
-    function callback() {
-      const container = containerRef.current;
-      if (!container) return;
 
-      container.scrollTo({
-        top: container.scrollHeight,
-        behavior: 'instant',
-      });
+    // Debounce scroll to prevent layout thrashing during rapid updates
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
+    function callback() {
+      if (timeoutId) clearTimeout(timeoutId);
+      timeoutId = setTimeout(() => {
+        const container = containerRef.current;
+        if (!container) return;
+        container.scrollTo({
+          top: container.scrollHeight,
+          behavior: 'instant',
+        });
+      }, 50);
     }
 
     const observer = new ResizeObserver(callback);
@@ -218,6 +233,7 @@ function List(props: Omit<ComponentProps<'div'>, 'dir'>) {
     }
 
     return () => {
+      if (timeoutId) clearTimeout(timeoutId);
       observer.disconnect();
     };
   }, []);
@@ -262,7 +278,7 @@ const roleName: Record<string, string> = {
   assistant: 'Mesh AI',
 };
 
-function Message({
+const Message = memo(function Message({
   message,
   isStreaming,
   ...props
@@ -385,7 +401,7 @@ function Message({
       )}
     </div>
   );
-}
+});
 
 function getInitialChatHistory(): UIMessage[] {
   if (typeof window === 'undefined') return [];
@@ -449,6 +465,10 @@ export function AISearchTrigger({ className, children, ...props }: ComponentProp
   );
 }
 
+/**
+ * Original AISearchPanel - includes keyboard shortcuts.
+ * For lazy-loaded version, use AISearchLazy.tsx instead.
+ */
 export function AISearchPanel({ className }: { className?: string }) {
   const { open, setOpen } = use(Context)!;
   const chat = useChatContext();
@@ -543,5 +563,108 @@ export function AISearchPanel({ className }: { className?: string }) {
         </div>
       </Presence>
     </>
+  );
+}
+
+/**
+ * Panel content for lazy-loading.
+ * Self-contained - initializes useChat internally so AI SDK only loads when panel opens.
+ * Does NOT include keyboard handlers - those are in AISearchLazy.tsx.
+ */
+export function AISearchPanelContent({ className }: { className?: string }) {
+  const ctx = use(AISearchContext);
+  if (!ctx) throw new Error('AISearchPanelContent must be used within AISearchProvider');
+  const { open, setOpen } = ctx;
+
+  // Initialize chat state HERE - this is the key optimization
+  // useChat and AI SDK only load when this component renders (when panel opens)
+  const chat = useChat({
+    id: 'search',
+    transport: new DefaultChatTransport({
+      api: '/api/chat',
+    }),
+    messages: getInitialChatHistory(),
+  });
+
+  // Persist chat history
+  useEffect(() => {
+    if (chat.messages.length > 0) {
+      localStorage.setItem("mesh-ai-chat-history", JSON.stringify(chat.messages));
+    }
+  }, [chat.messages]);
+
+  return (
+    <ChatContext value={chat}>
+      <style>
+        {`
+        @keyframes ask-ai-open {
+          from {
+            width: 0px;
+          }
+          to {
+            width: var(--ai-chat-width);
+          }
+        }
+        @keyframes ask-ai-close {
+          from {
+            width: var(--ai-chat-width);
+          }
+          to {
+            width: 0px;
+          }
+        }`}
+      </style>
+      <Presence present={open}>
+        <div
+          data-state={open ? 'open' : 'closed'}
+          className="fixed inset-0 z-30 backdrop-blur-xs bg-fd-overlay data-[state=open]:animate-fd-fade-in data-[state=closed]:animate-fd-fade-out lg:hidden"
+          onClick={() => setOpen(false)}
+        />
+      </Presence>
+      <Presence present={open}>
+        <div
+          className={cn(
+            'overflow-hidden z-30 bg-fd-popover/40 backdrop-blur-2xl text-fd-popover-foreground [--ai-chat-width:400px] xl:[--ai-chat-width:460px]',
+            'max-lg:fixed max-lg:inset-x-2 max-lg:top-4 max-lg:border max-lg:rounded-2xl max-lg:shadow-xl',
+            'lg:fixed lg:right-0 lg:top-0 lg:h-dvh lg:border-s lg:shadow-2xl lg:z-50',
+            'lg:in-[#nd-docs-layout]:sticky lg:in-[#nd-docs-layout]:top-0 lg:in-[#nd-docs-layout]:h-dvh lg:in-[#nd-docs-layout]:border-s lg:in-[#nd-docs-layout]:rounded-none lg:in-[#nd-docs-layout]:shadow-none lg:in-[#nd-docs-layout]:right-0 lg:in-[#nd-docs-layout]:bottom-0 lg:in-[#nd-docs-layout]:ms-auto lg:in-[#nd-docs-layout]:[grid-area:toc] lg:in-[#nd-docs-layout]:bg-fd-popover lg:in-[#nd-docs-layout]:backdrop-blur-none',
+            'lg:in-[#nd-notebook-layout]:row-span-full lg:in-[#nd-notebook-layout]:col-start-5',
+            open
+              ? 'animate-fd-dialog-in lg:animate-[ask-ai-open_200ms]'
+              : 'animate-fd-dialog-out lg:animate-[ask-ai-close_200ms]',
+            className
+          )}
+        >
+          <div className="flex flex-col p-2 size-full max-lg:max-h-[80dvh] lg:w-(--ai-chat-width) xl:p-4">
+            <Header />
+            <List
+              className="px-3 py-4 flex-1 overscroll-contain"
+              style={{
+                maskImage:
+                  'linear-gradient(to bottom, transparent, white 1rem, white calc(100% - 1rem), transparent 100%)',
+              }}
+            >
+              <div className="flex flex-col gap-4">
+                {chat.messages
+                  .filter((msg) => msg.role !== 'system')
+                  .map((item, index, array) => (
+                    <Message
+                      key={item.id}
+                      message={item}
+                      isStreaming={index === array.length - 1 && (chat.status === 'streaming' || chat.status === 'submitted')}
+                    />
+                  ))}
+              </div>
+            </List>
+            <div className="rounded-xl border bg-fd-card/50 backdrop-blur-md text-fd-card-foreground has-focus-visible:ring-2 has-focus-visible:ring-fd-ring shadow-sm mt-2">
+              <SearchAIInput />
+              <div className="flex items-center gap-1.5 p-1 empty:hidden">
+                <SearchAIActions />
+              </div>
+            </div>
+          </div>
+        </div>
+      </Presence>
+    </ChatContext>
   );
 }

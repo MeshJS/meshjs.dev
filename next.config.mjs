@@ -1,6 +1,10 @@
 import { createMDX } from 'fumadocs-mdx/next';
+import bundleAnalyzer from '@next/bundle-analyzer';
 
 const withMDX = createMDX();
+const withBundleAnalyzer = bundleAnalyzer({
+  enabled: process.env.ANALYZE === 'true',
+});
 
 /** @type {import('next').NextConfig} */
 const config = {
@@ -61,6 +65,16 @@ const config = {
           },
         ],
       },
+      // Cache static assets for 1 year (immutable)
+      {
+        source: '/:path*.(ico|png|jpg|jpeg|gif|svg|webp|avif|woff|woff2|mp4|webm)',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=31536000, immutable'
+          },
+        ],
+      },
     ];
   },
 
@@ -92,4 +106,4 @@ const config = {
   },
 };
 
-export default withMDX(config);
+export default withBundleAnalyzer(withMDX(config));
