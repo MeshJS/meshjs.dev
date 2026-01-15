@@ -64,10 +64,19 @@ const wallet = new MeshWallet({
 Next, we create a transaction and send 1 ADA to the recipient address.
 
 ```tsx
-const tx = new Transaction({ initiator: wallet });
-tx.sendLovelace('<recipient address>', "1000000");
+const utxos = await wallet.getUtxos();
+const changeAddress = await wallet.getChangeAddress();
 
-const unsignedTx = await tx.build();
+const txBuilder = new MeshTxBuilder({
+  fetcher: provider,
+});
+
+const unsignedTx = await txBuilder
+  .txOut('<recipient address>', [{ unit: 'lovelace', quantity: '1000000' }])
+  .changeAddress(changeAddress)
+  .selectUtxosFrom(utxos)
+  .complete();
+
 const signedTx = await wallet.signTx(unsignedTx);
 const txHash = await wallet.submitTx(signedTx);
 ```

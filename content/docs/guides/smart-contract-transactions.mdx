@@ -50,26 +50,23 @@ const datumConstr: Data = {
 };
 ```
 
-Create a transaction using `sendAssets()` to send the asset to the script address with the defined datum. `policyId + assetId` is the asset name in hex. Build, sign, and submit the transaction.
+Create a transaction using MeshTxBuilder to send the asset to the script address with the defined datum. `policyId + assetId` is the asset name in hex. Build, sign, and submit the transaction.
 
 ```tsx
-const tx = new Transaction({ initiator: wallet })
-.sendAssets(
-  {
-    address: scriptAddress,
-    datum: {
-      value: datumConstr,
-    },
-  },
-  [
-    {
-      unit: policyId + assetId,
-      quantity: '1',
-    },
-  ]
-);
+import { MeshTxBuilder } from "@meshsdk/core";
 
-const unsignedTx = await tx.build();
+const utxos = await wallet.getUtxos();
+const changeAddress = await wallet.getChangeAddress();
+
+const txBuilder = new MeshTxBuilder();
+
+const unsignedTx = await txBuilder
+  .txOut(scriptAddress, [{ unit: policyId + assetId, quantity: "1" }])
+  .txOutDatumHashValue(datumConstr)
+  .changeAddress(changeAddress)
+  .selectUtxosFrom(utxos)
+  .complete();
+
 const signedTx = await wallet.signTx(unsignedTx);
 const txHash = await wallet.submitTx(signedTx);
 ```
@@ -80,6 +77,8 @@ Full code for listing an asset:
 
 ```tsx
 const addr = (await wallet.getUsedAddresses())[0];
+const utxos = await wallet.getUtxos();
+const changeAddress = await wallet.getChangeAddress();
 
 const datumConstr: Data = {
   alternative: 0,
@@ -91,23 +90,15 @@ const datumConstr: Data = {
   ],
 };
 
-const tx = new Transaction({ initiator: wallet })
-.sendAssets(
-  {
-    address: scriptAddress,
-    datum: {
-      value: datumConstr,
-    },
-  },
-  [
-    {
-      unit: policyId + assetId,
-      quantity: '1',
-    },
-  ]
-);
+const txBuilder = new MeshTxBuilder();
 
-const unsignedTx = await tx.build();
+const unsignedTx = await txBuilder
+  .txOut(scriptAddress, [{ unit: policyId + assetId, quantity: "1" }])
+  .txOutDatumHashValue(datumConstr)
+  .changeAddress(changeAddress)
+  .selectUtxosFrom(utxos)
+  .complete();
+
 const signedTx = await wallet.signTx(unsignedTx);
 const txHash = await wallet.submitTx(signedTx);
 ```
@@ -155,20 +146,33 @@ Define the redeemer for cancellation:
 const redeemer = { data: { alternative: 1, fields: [] } };
 ```
 
-Build the transaction. Use `redeemValue()` to redeem the UTxO and send the value back to the seller. Set required signers to the seller's address.
+Build the transaction. Use MeshTxBuilder to redeem the UTxO and send the value back to the seller. Set required signers to the seller's address.
 
 ```tsx
-const tx = new Transaction({ initiator: wallet })
-  .redeemValue({
-    value: assetUtxo,
-    script: script,
-    datum: datumConstr,
-    redeemer: redeemer,
-  })
-  .sendValue(addr, assetUtxo)
-  .setRequiredSigners([addr]);
+const utxos = await wallet.getUtxos();
+const changeAddress = await wallet.getChangeAddress();
+const collateral = await wallet.getCollateral();
 
-const unsignedTx = await tx.build();
+const txBuilder = new MeshTxBuilder();
+
+const unsignedTx = await txBuilder
+  .spendingPlutusScriptV2()
+  .txIn(assetUtxo.input.txHash, assetUtxo.input.outputIndex)
+  .txInDatumValue(datumConstr)
+  .txInRedeemerValue(redeemer.data)
+  .txInScript(script.code)
+  .txOut(addr, assetUtxo.output.amount)
+  .requiredSignerHash(resolvePaymentKeyHash(addr))
+  .txInCollateral(
+    collateral[0].input.txHash,
+    collateral[0].input.outputIndex,
+    collateral[0].output.amount,
+    collateral[0].output.address,
+  )
+  .changeAddress(changeAddress)
+  .selectUtxosFrom(utxos)
+  .complete();
+
 const signedTx = await wallet.signTx(unsignedTx, true);
 const txHash = await wallet.submitTx(signedTx);
 ```
@@ -177,6 +181,9 @@ Full code for cancellation:
 
 ```tsx
 const addr = (await wallet.getUsedAddresses())[0];
+const utxos = await wallet.getUtxos();
+const changeAddress = await wallet.getChangeAddress();
+const collateral = await wallet.getCollateral();
 
 const datumConstr: Data = {
   alternative: 0,
@@ -200,17 +207,26 @@ if (assetUtxo === undefined) {
 
 const redeemer = { data: { alternative: 1, fields: [] } };
 
-const tx = new Transaction({ initiator: wallet })
-  .redeemValue({
-    value: assetUtxo,
-    script: script,
-    datum: datumConstr,
-    redeemer: redeemer,
-  })
-  .sendValue(addr, assetUtxo)
-  .setRequiredSigners([addr]);
+const txBuilder = new MeshTxBuilder();
 
-const unsignedTx = await tx.build();
+const unsignedTx = await txBuilder
+  .spendingPlutusScriptV2()
+  .txIn(assetUtxo.input.txHash, assetUtxo.input.outputIndex)
+  .txInDatumValue(datumConstr)
+  .txInRedeemerValue(redeemer.data)
+  .txInScript(script.code)
+  .txOut(addr, assetUtxo.output.amount)
+  .requiredSignerHash(resolvePaymentKeyHash(addr))
+  .txInCollateral(
+    collateral[0].input.txHash,
+    collateral[0].input.outputIndex,
+    collateral[0].output.amount,
+    collateral[0].output.address,
+  )
+  .changeAddress(changeAddress)
+  .selectUtxosFrom(utxos)
+  .complete();
+
 const signedTx = await wallet.signTx(unsignedTx, true);
 const txHash = await wallet.submitTx(signedTx);
 ```
@@ -245,21 +261,34 @@ Define the redeemer:
 const redeemer = { data: { alternative: 0, fields: [] } };
 ```
 
-Build and submit the transaction. Use `redeemValue()` to redeem the asset, `sendValue()` to transfer to the buyer, and `sendLovelace()` to pay the seller:
+Build and submit the transaction. Use MeshTxBuilder to redeem the asset, transfer to the buyer, and pay the seller:
 
 ```tsx
-const tx = new Transaction({ initiator: wallet })
-  .redeemValue({
-    value: assetUtxo,
-    script: script,
-    datum: datumConstr,
-    redeemer: redeemer,
-  })
-  .sendValue(addr, assetUtxo)
-  .sendLovelace(sellerAddr, listPriceInLovelace.toString())
-  .setRequiredSigners([addr]);
+const utxos = await wallet.getUtxos();
+const changeAddress = await wallet.getChangeAddress();
+const collateral = await wallet.getCollateral();
 
-const unsignedTx = await tx.build();
+const txBuilder = new MeshTxBuilder();
+
+const unsignedTx = await txBuilder
+  .spendingPlutusScriptV2()
+  .txIn(assetUtxo.input.txHash, assetUtxo.input.outputIndex)
+  .txInDatumValue(datumConstr)
+  .txInRedeemerValue(redeemer.data)
+  .txInScript(script.code)
+  .txOut(addr, assetUtxo.output.amount)
+  .txOut(sellerAddr, [{ unit: "lovelace", quantity: listPriceInLovelace.toString() }])
+  .requiredSignerHash(resolvePaymentKeyHash(addr))
+  .txInCollateral(
+    collateral[0].input.txHash,
+    collateral[0].input.outputIndex,
+    collateral[0].output.amount,
+    collateral[0].output.address,
+  )
+  .changeAddress(changeAddress)
+  .selectUtxosFrom(utxos)
+  .complete();
+
 const signedTx = await wallet.signTx(unsignedTx, true);
 const txHash = await wallet.submitTx(signedTx);
 ```
@@ -268,6 +297,9 @@ Full code for purchase:
 
 ```tsx
 const addr = (await wallet.getUsedAddresses())[0]; // buyer's address
+const utxos = await wallet.getUtxos();
+const changeAddress = await wallet.getChangeAddress();
+const collateral = await wallet.getCollateral();
 
 const datumConstr: Data = {
   alternative: 0,
@@ -287,18 +319,27 @@ const assetUtxo = await _getAssetUtxo({
 
 const redeemer = { data: { alternative: 0, fields: [] } };
 
-const tx = new Transaction({ initiator: wallet })
-  .redeemValue({
-    value: assetUtxo,
-    script: script,
-    datum: datumConstr,
-    redeemer: redeemer,
-  })
-  .sendValue(addr, assetUtxo)
-  .sendLovelace(sellerAddr, listPriceInLovelace.toString())
-  .setRequiredSigners([addr]);
+const txBuilder = new MeshTxBuilder();
 
-const unsignedTx = await tx.build();
+const unsignedTx = await txBuilder
+  .spendingPlutusScriptV2()
+  .txIn(assetUtxo.input.txHash, assetUtxo.input.outputIndex)
+  .txInDatumValue(datumConstr)
+  .txInRedeemerValue(redeemer.data)
+  .txInScript(script.code)
+  .txOut(addr, assetUtxo.output.amount)
+  .txOut(sellerAddr, [{ unit: "lovelace", quantity: listPriceInLovelace.toString() }])
+  .requiredSignerHash(resolvePaymentKeyHash(addr))
+  .txInCollateral(
+    collateral[0].input.txHash,
+    collateral[0].input.outputIndex,
+    collateral[0].output.amount,
+    collateral[0].output.address,
+  )
+  .changeAddress(changeAddress)
+  .selectUtxosFrom(utxos)
+  .complete();
+
 const signedTx = await wallet.signTx(unsignedTx, true);
 const txHash = await wallet.submitTx(signedTx);
 ```
@@ -339,33 +380,34 @@ Define the redeemer for update:
 const redeemer = { data: { alternative: 1, fields: [] } };
 ```
 
-Build the transaction. Redeem the UTxO with the original datum and send the NFT to the script address with the new datum using `sendAssets()`.
+Build the transaction. Redeem the UTxO with the original datum and send the NFT to the script address with the new datum.
 
 ```tsx
-const tx = new Transaction({ initiator: wallet })
-  .redeemValue({
-    value: assetUtxo,
-    script: script,
-    datum: datumConstr,
-    redeemer: redeemer,
-  })
-  .setRequiredSigners([addr])
-  .sendAssets(
-    {
-      address: scriptAddress,
-      datum: {
-        value: datumConstrNew,
-      },
-    },
-    [
-      {
-        unit: 'd9312da562da182b02322fd8acb536f37eb9d29fba7c49dc172555274d657368546f6b656e',
-        quantity: '1',
-      },
-    ]
-  );
+const utxos = await wallet.getUtxos();
+const changeAddress = await wallet.getChangeAddress();
+const collateral = await wallet.getCollateral();
 
-const unsignedTx = await tx.build();
+const txBuilder = new MeshTxBuilder();
+
+const unsignedTx = await txBuilder
+  .spendingPlutusScriptV2()
+  .txIn(assetUtxo.input.txHash, assetUtxo.input.outputIndex)
+  .txInDatumValue(datumConstr)
+  .txInRedeemerValue(redeemer.data)
+  .txInScript(script.code)
+  .txOut(scriptAddress, [{ unit: 'd9312da562da182b02322fd8acb536f37eb9d29fba7c49dc172555274d657368546f6b656e', quantity: '1' }])
+  .txOutDatumHashValue(datumConstrNew)
+  .requiredSignerHash(resolvePaymentKeyHash(addr))
+  .txInCollateral(
+    collateral[0].input.txHash,
+    collateral[0].input.outputIndex,
+    collateral[0].output.amount,
+    collateral[0].output.address,
+  )
+  .changeAddress(changeAddress)
+  .selectUtxosFrom(utxos)
+  .complete();
+
 const signedTx = await wallet.signTx(unsignedTx, true);
 const txHash = await wallet.submitTx(signedTx);
 ```
@@ -374,6 +416,9 @@ Full code for update:
 
 ```tsx
 const addr = (await wallet.getUsedAddresses())[0];
+const utxos = await wallet.getUtxos();
+const changeAddress = await wallet.getChangeAddress();
+const collateral = await wallet.getCollateral();
 
 const datumConstr: Data = {
   alternative: 0,
@@ -403,30 +448,27 @@ const assetUtxo = await _getAssetUtxo({
 
 const redeemer = { data: { alternative: 1, fields: [] } };
 
-const tx = new Transaction({ initiator: wallet })
-  .redeemValue({
-    value: assetUtxo,
-    script: script,
-    datum: datumConstr,
-    redeemer: redeemer,
-  })
-  .setRequiredSigners([addr])
-  .sendAssets(
-    {
-      address: scriptAddress,
-      datum: {
-        value: datumConstrNew,
-      },
-    },
-    [
-      {
-        unit: 'd9312da562da182b02322fd8acb536f37eb9d29fba7c49dc172555274d657368546f6b656e',
-        quantity: '1',
-      },
-    ]
-  );
+const txBuilder = new MeshTxBuilder();
 
-const unsignedTx = await tx.build();
+const unsignedTx = await txBuilder
+  .spendingPlutusScriptV2()
+  .txIn(assetUtxo.input.txHash, assetUtxo.input.outputIndex)
+  .txInDatumValue(datumConstr)
+  .txInRedeemerValue(redeemer.data)
+  .txInScript(script.code)
+  .txOut(scriptAddress, [{ unit: 'd9312da562da182b02322fd8acb536f37eb9d29fba7c49dc172555274d657368546f6b656e', quantity: '1' }])
+  .txOutDatumHashValue(datumConstrNew)
+  .requiredSignerHash(resolvePaymentKeyHash(addr))
+  .txInCollateral(
+    collateral[0].input.txHash,
+    collateral[0].input.outputIndex,
+    collateral[0].output.amount,
+    collateral[0].output.address,
+  )
+  .changeAddress(changeAddress)
+  .selectUtxosFrom(utxos)
+  .complete();
+
 const signedTx = await wallet.signTx(unsignedTx, true);
 const txHash = await wallet.submitTx(signedTx);
 ```

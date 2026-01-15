@@ -1,0 +1,335 @@
+---
+title: "Cardano Transaction Builder That Just Works"
+description: "Build Cardano transactions without wrestling with UTXOs, fees, or change calculation. Mesh SDK's transaction builder handles the complexity so you can focus on what you're sending, not how to send it."
+---
+import Link from "next/link";
+import { HowToSchema, FAQSchema } from "@/components/seo";
+
+<HowToSchema
+  name="Build Cardano Transactions with Mesh SDK"
+  description="Create and submit Cardano transactions with automatic UTXO selection, fee calculation, and change handling."
+  totalTime="PT5M"
+  steps={[
+    { name: "Install Mesh core package", text: "Run npm install @meshsdk/core to add transaction building capabilities." },
+    { name: "Configure a blockchain provider", text: "Set up Blockfrost or another provider to fetch UTXOs and submit transactions." },
+    { name: "Create MeshTxBuilder instance", text: "Initialize MeshTxBuilder with your provider for fetching and submitting." },
+    { name: "Build and submit transaction", text: "Define outputs, call complete() for automatic building, then sign and submit." }
+  ]}
+/>
+
+<FAQSchema
+  faqs={[
+    {
+      question: "How does Mesh handle UTXO selection automatically?",
+      answer: "Mesh's transaction builder analyzes your outputs and selects optimal UTXOs from your wallet to cover the transaction. It considers token requirements, minimizes inputs for lower fees, and handles change output creation automatically."
+    },
+    {
+      question: "Does Mesh calculate transaction fees automatically?",
+      answer: "Yes. When you call complete() on a transaction, Mesh calculates the exact fee based on transaction size and current protocol parameters. No manual fee estimation or adjustment is required."
+    },
+    {
+      question: "Can I build complex transactions with multiple outputs?",
+      answer: "Absolutely. MeshTxBuilder supports multiple outputs, native token transfers, metadata attachment, smart contract interactions, and multi-signature requirements. Chain methods together for readable transaction construction."
+    },
+    {
+      question: "How do I send native tokens with Mesh?",
+      answer: "Include native tokens in the asset array of your output. Mesh handles the required minimum ADA calculation automatically. For example: txOut(address, [{ unit: policyId + assetName, quantity: '1' }])."
+    },
+    {
+      question: "What happens if my transaction fails?",
+      answer: "Mesh provides descriptive error messages for common issues like insufficient funds, invalid addresses, or missing collateral. The SDK validates transactions client-side before submission, catching most errors early."
+    }
+  ]}
+/>
+
+Cardano transaction building should be straightforward: specify what you want to send and where. Mesh SDK's MeshTxBuilder delivers exactly this experience. Describe your transaction intent, and Mesh handles UTXO selection, fee calculation, change management, and output balancing automatically. Stop debugging transaction construction and start shipping features.
+
+## Quick Start
+
+Build and submit your first Cardano transaction:
+
+**Step 1: Install Mesh**
+
+```bash
+npm install @meshsdk/core @meshsdk/react
+```
+
+**Step 2: Configure a provider**
+
+```typescript
+import { BlockfrostProvider } from "@meshsdk/core";
+
+const provider = new BlockfrostProvider("<your-api-key>");
+```
+
+**Step 3: Build a transaction**
+
+```typescript
+import { MeshTxBuilder } from "@meshsdk/core";
+
+const txBuilder = new MeshTxBuilder({
+  fetcher: provider,
+  submitter: provider,
+});
+
+// Send 5 ADA to an address
+const unsignedTx = await txBuilder
+  .txOut(recipientAddress, [{ unit: "lovelace", quantity: "5000000" }])
+  .changeAddress(await wallet.getChangeAddress())
+  .selectUtxosFrom(await wallet.getUtxos())
+  .complete();
+
+// Sign and submit
+const signedTx = await wallet.signTx(unsignedTx);
+const txHash = await wallet.submitTx(signedTx);
+```
+
+That's it. Mesh handles UTXO selection, fee calculation, and change output creation automatically.
+
+## Features
+
+MeshTxBuilder provides comprehensive transaction capabilities:
+
+- **Automatic UTXO Selection**: Optimal input selection based on output requirements
+- **Fee Calculation**: Precise fee computation using current protocol parameters
+- **Change Handling**: Automatic change output with correct address and minimum ADA
+- **Native Token Support**: Send any Cardano native token with automatic minimum ADA
+- **Metadata Attachment**: Add transaction metadata for any use case
+- **Smart Contract Interaction**: Build transactions that interact with Plutus scripts
+- **Multi-Signature Support**: Create transactions requiring multiple signers
+- **Validity Intervals**: Set transaction validity windows
+- **Reference Inputs**: Include reference inputs for efficient script execution
+
+## Transaction Patterns
+
+### Send ADA
+
+The simplest transaction—send ADA to an address:
+
+```typescript
+const tx = await txBuilder
+  .txOut(recipientAddress, [{ unit: "lovelace", quantity: "10000000" }])
+  .changeAddress(changeAddress)
+  .selectUtxosFrom(utxos)
+  .complete();
+```
+
+### Send Native Tokens
+
+Transfer NFTs or fungible tokens:
+
+```typescript
+const tx = await txBuilder
+  .txOut(recipientAddress, [
+    { unit: policyId + assetName, quantity: "1" },
+    { unit: "lovelace", quantity: "2000000" } // Minimum ADA
+  ])
+  .changeAddress(changeAddress)
+  .selectUtxosFrom(utxos)
+  .complete();
+```
+
+### Multiple Outputs
+
+Send to multiple recipients in one transaction:
+
+```typescript
+const tx = await txBuilder
+  .txOut(address1, [{ unit: "lovelace", quantity: "5000000" }])
+  .txOut(address2, [{ unit: "lovelace", quantity: "3000000" }])
+  .txOut(address3, [{ unit: "lovelace", quantity: "7000000" }])
+  .changeAddress(changeAddress)
+  .selectUtxosFrom(utxos)
+  .complete();
+```
+
+### Add Metadata
+
+Attach metadata to any transaction:
+
+```typescript
+const tx = await txBuilder
+  .txOut(recipientAddress, [{ unit: "lovelace", quantity: "5000000" }])
+  .metadataValue("674", { msg: ["Transaction message"] })
+  .changeAddress(changeAddress)
+  .selectUtxosFrom(utxos)
+  .complete();
+```
+
+### Minting Tokens
+
+Create new native tokens:
+
+```typescript
+const tx = await txBuilder
+  .mint("1", policyId, tokenName)
+  .mintingScript(mintingScript)
+  .mintRedeemerValue(redeemer)
+  .txOut(recipientAddress, [
+    { unit: policyId + tokenName, quantity: "1" },
+    { unit: "lovelace", quantity: "2000000" }
+  ])
+  .changeAddress(changeAddress)
+  .selectUtxosFrom(utxos)
+  .complete();
+```
+
+### Smart Contract Interaction
+
+Interact with Plutus scripts:
+
+```typescript
+const tx = await txBuilder
+  .spendingPlutusScriptV2()
+  .txIn(scriptUtxo.input.txHash, scriptUtxo.input.outputIndex)
+  .txInInlineDatumPresent()
+  .txInRedeemerValue(redeemer)
+  .txInScript(script)
+  .txOut(recipientAddress, scriptUtxo.output.amount)
+  .txOutInlineDatumValue(newDatum)
+  .requiredSignerHash(signerPkh)
+  .changeAddress(changeAddress)
+  .txInCollateral(collateralUtxo.input.txHash, collateralUtxo.input.outputIndex)
+  .selectUtxosFrom(utxos)
+  .complete();
+```
+
+## Why Mesh Transaction Builder
+
+### Eliminates UTXO Complexity
+
+Cardano's UTXO model requires selecting specific transaction inputs. Mesh's algorithm chooses optimal UTXOs automatically, minimizing transaction size and fees while ensuring all outputs are covered.
+
+### Prevents Common Errors
+
+Failed transactions waste time and frustrate users. Mesh validates transactions before submission, catching issues like insufficient funds, invalid addresses, or missing collateral early with clear error messages.
+
+### Simplifies Smart Contract Calls
+
+Interacting with Plutus scripts requires datums, redeemers, collateral, and script references. Mesh provides dedicated methods for each, making contract interaction as straightforward as simple transfers.
+
+### Handles Protocol Changes
+
+Cardano protocol updates can affect transaction construction. Mesh stays current with protocol parameters, ensuring your transactions build correctly across network upgrades.
+
+## Advanced Usage
+
+### Custom UTXO Selection
+
+When needed, specify exact inputs:
+
+```typescript
+const tx = await txBuilder
+  .txIn(specificUtxo.input.txHash, specificUtxo.input.outputIndex)
+  .txOut(recipientAddress, [{ unit: "lovelace", quantity: "5000000" }])
+  .changeAddress(changeAddress)
+  .complete();
+```
+
+### Set Validity Interval
+
+Control when transactions are valid:
+
+```typescript
+const slot = await provider.resolveSlotNo("now");
+
+const tx = await txBuilder
+  .txOut(recipientAddress, [{ unit: "lovelace", quantity: "5000000" }])
+  .invalidBefore(slot)
+  .invalidHereafter(slot + 600) // Valid for ~10 minutes
+  .changeAddress(changeAddress)
+  .selectUtxosFrom(utxos)
+  .complete();
+```
+
+### Required Signers
+
+Specify additional required signatures:
+
+```typescript
+const tx = await txBuilder
+  .txOut(recipientAddress, [{ unit: "lovelace", quantity: "5000000" }])
+  .requiredSignerHash(additionalSignerPkh)
+  .changeAddress(changeAddress)
+  .selectUtxosFrom(utxos)
+  .complete();
+```
+
+## Error Handling
+
+Handle transaction errors gracefully:
+
+```typescript
+try {
+  const tx = await txBuilder
+    .txOut(recipientAddress, amount)
+    .changeAddress(changeAddress)
+    .selectUtxosFrom(utxos)
+    .complete();
+
+  const signedTx = await wallet.signTx(tx);
+  const txHash = await wallet.submitTx(signedTx);
+
+  console.log("Transaction submitted:", txHash);
+} catch (error) {
+  if (error.message.includes("Insufficient")) {
+    showError("Not enough ADA to complete this transaction");
+  } else if (error.message.includes("User")) {
+    showInfo("Transaction cancelled");
+  } else {
+    showError("Transaction failed. Please try again.");
+  }
+}
+```
+
+## Integration with Wallets
+
+MeshTxBuilder works seamlessly with Mesh wallet components:
+
+```tsx
+import { useWallet } from "@meshsdk/react";
+import { MeshTxBuilder, BlockfrostProvider } from "@meshsdk/core";
+
+function SendButton({ recipient, amount }) {
+  const { wallet } = useWallet();
+  const provider = new BlockfrostProvider("<api-key>");
+
+  async function handleSend() {
+    const txBuilder = new MeshTxBuilder({
+      fetcher: provider,
+      submitter: provider,
+    });
+
+    const tx = await txBuilder
+      .txOut(recipient, [{ unit: "lovelace", quantity: amount }])
+      .changeAddress(await wallet.getChangeAddress())
+      .selectUtxosFrom(await wallet.getUtxos())
+      .complete();
+
+    const signedTx = await wallet.signTx(tx);
+    const txHash = await wallet.submitTx(signedTx);
+
+    return txHash;
+  }
+
+  return <button onClick={handleSend}>Send {amount / 1_000_000} ADA</button>;
+}
+```
+
+## Related Resources
+
+- <Link href="/solutions/wallet-integration">Wallet Integration</Link>: Connect wallets to sign transactions
+- <Link href="/solutions/react-components">React Components</Link>: UI components for transaction interfaces
+- <Link href="/challenges/transaction-failures">Transaction Failures</Link>: Understanding why transactions fail
+- <Link href="/challenges/utxo-model">UTXO Model</Link>: Deep dive into Cardano's transaction model
+- <Link href="/docs/transactions">Transaction Documentation</Link>: Complete API reference
+
+## Get Started
+
+Build transactions that just work:
+
+```bash
+npm install @meshsdk/core
+```
+
+MeshTxBuilder handles the complexity of Cardano transactions so you can focus on your application logic. Describe what you want to accomplish, and Mesh figures out how to make it happen.

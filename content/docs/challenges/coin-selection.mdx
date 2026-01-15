@@ -1,0 +1,267 @@
+---
+title: "Solving Cardano Coin Selection Problems"
+description: "Coin selection on Cardano determines which UTXOs fund your transaction. Poor selection causes failures, bloated transactions, or stuck funds. Learn how Mesh SDK implements optimal selection strategies automatically."
+---
+import Link from "next/link";
+import { HowToSchema, FAQSchema } from "@/components/seo";
+
+<HowToSchema
+  name="Solve Cardano Coin Selection with Mesh SDK"
+  description="Implement effective coin selection for Cardano transactions using Mesh SDK's automatic UTXO selection algorithms."
+  totalTime="PT8M"
+  steps={[
+    { name: "Install Mesh SDK", text: "Run npm install @meshsdk/core @meshsdk/react to add the SDK to your project." },
+    { name: "Fetch available UTXOs", text: "Use wallet.getUtxos() to retrieve all spendable UTXOs from the connected wallet." },
+    { name: "Use selectUtxosFrom", text: "Pass UTXOs to MeshTxBuilder's selectUtxosFrom method for automatic optimal selection." }
+  ]}
+/>
+
+<FAQSchema
+  faqs={[
+    {
+      question: "What is coin selection in Cardano and why does it matter?",
+      answer: "Coin selection is the algorithm that chooses which UTXOs to use as inputs for a transaction. It matters because poor selection can cause transaction failures due to insufficient funds, create oversized transactions that exceed limits, fragment your wallet into many small UTXOs, or lock valuable tokens in change outputs unnecessarily."
+    },
+    {
+      question: "Why do I get 'insufficient funds' errors when my wallet has enough ADA?",
+      answer: "This happens when your ADA is distributed across UTXOs in a way that makes efficient selection impossible. For example, if you have 100 ADA spread across 50 small UTXOs, selecting them all might exceed transaction size limits. Or your ADA might be locked alongside native tokens in UTXOs that cannot be spent without moving those tokens."
+    },
+    {
+      question: "What coin selection algorithm does Mesh SDK use?",
+      answer: "Mesh SDK implements a largest-first selection strategy with optimizations for minimizing transaction size, avoiding unnecessary token movements, meeting minimum UTXO requirements, and handling change outputs efficiently. It automatically retries with different strategies if initial selection fails."
+    },
+    {
+      question: "How do I handle coin selection for native tokens on Cardano?",
+      answer: "Native tokens on Cardano always accompany ADA in UTXOs. Mesh SDK handles this by selecting UTXOs containing required tokens first, then adding ADA-only UTXOs to meet the total value. Change outputs automatically include any tokens from inputs that aren't being sent elsewhere."
+    },
+    {
+      question: "Can bad coin selection cause wallet fragmentation?",
+      answer: "Yes. If coin selection creates many small change outputs, your wallet becomes fragmented over time. This makes future transactions harder to build. Mesh SDK minimizes fragmentation by creating efficient change outputs and consolidating when beneficial."
+    }
+  ]}
+/>
+
+Coin selection determines which UTXOs from your wallet fund a transaction. Poor selection algorithms cause failures, oversized transactions, wallet fragmentation, and locked funds. Mesh SDK solves this with intelligent selection strategies that automatically choose optimal inputs, handle native tokens correctly, and create efficient change outputs—freeing you from implementing complex selection logic yourself.
+
+## Why This Happens
+
+The UTXO model gives you discrete "coins" instead of a fungible balance. When building a transaction, you must explicitly choose which coins to spend. This selection significantly impacts transaction success, size, fees, and your wallet's future usability.
+
+### The Fundamental Challenge
+
+Unlike account-based blockchains where you simply debit an amount, Cardano requires selecting specific UTXOs whose combined value meets or exceeds your spending needs. This creates several non-obvious challenges:
+
+**Value Distribution**: If you have 100 ADA, it might be a single 100 ADA UTXO or one hundred 1 ADA UTXOs. Spending 50 ADA requires different strategies for each case. The first case needs one input with change; the second might need 50+ inputs, potentially exceeding transaction limits.
+
+**Native Token Coupling**: Native tokens always exist alongside ADA in UTXOs. If you have 5 ADA locked with an NFT, you cannot access that ADA without also moving the NFT. Selection algorithms must understand these constraints.
+
+**Minimum UTXO Values**: Every UTXO must contain a minimum amount of ADA (roughly 1-2 ADA depending on contents). Change outputs must meet this threshold, affecting how much value you can actually extract from your inputs.
+
+### Common Selection Failures
+
+**Greedy Selection Gone Wrong**: A naive approach picks the largest UTXOs first. This can work but often creates problems—you might select a 1000 ADA UTXO for a 5 ADA payment, then fail to create valid change because of token constraints.
+
+**Random Selection**: Picking UTXOs randomly leads to unpredictable transaction sizes and frequent failures when selected UTXOs don't actually satisfy requirements.
+
+**Ignoring Token Presence**: Algorithms that ignore native tokens select UTXOs containing tokens the user doesn't want to move, then fail when those tokens need somewhere to go.
+
+**Fragmentation Spiral**: Poor change output strategies create many small UTXOs. Over time, the wallet becomes filled with dust that's expensive or impossible to spend, reducing effective balance.
+
+### The Change Output Problem
+
+When your inputs exceed your outputs, the difference becomes change. But change isn't just subtraction:
+
+- Change must include any native tokens from inputs not being sent elsewhere
+- Change must meet minimum UTXO value requirements
+- Multiple change outputs might be needed for different token bundles
+- Change calculation affects transaction size, which affects fees, which affects change amount—a circular dependency
+
+## How Mesh Solves This
+
+Mesh SDK's MeshTxBuilder implements sophisticated coin selection that handles all these complexities transparently.
+
+```typescript
+import { MeshTxBuilder, BlockfrostProvider, BrowserWallet } from "@meshsdk/core";
+
+const provider = new BlockfrostProvider("<your-api-key>");
+const wallet = await BrowserWallet.enable("eternl");
+
+const txBuilder = new MeshTxBuilder({
+  fetcher: provider,
+  submitter: provider,
+});
+
+// Mesh automatically selects optimal UTXOs
+const unsignedTx = await txBuilder
+  .txOut(recipientAddress, [{ unit: "lovelace", quantity: "10000000" }])
+  .changeAddress(await wallet.getChangeAddress())
+  .selectUtxosFrom(await wallet.getUtxos())
+  .complete();
+```
+
+### Intelligent UTXO Selection
+
+When you call `selectUtxosFrom()`, Mesh analyzes your available UTXOs and desired outputs to select inputs that:
+
+- **Minimize transaction size**: Fewer inputs means smaller transactions, lower fees, and reduced failure risk
+- **Avoid token entanglement**: Prefers UTXOs without tokens when only spending ADA
+- **Satisfy minimum requirements**: Ensures selected value covers outputs, fees, and valid change
+- **Handle edge cases**: Retries with alternative strategies if initial selection fails
+
+### Automatic Change Handling
+
+Mesh calculates change outputs that:
+
+- Meet minimum UTXO value thresholds
+- Properly distribute tokens that aren't being sent
+- Minimize the number of change outputs to prevent fragmentation
+- Adjust dynamically as fee calculations converge
+
+### Native Token Awareness
+
+For transactions involving native tokens, Mesh:
+
+```typescript
+const tx = await txBuilder
+  .txOut(recipient, [
+    { unit: "lovelace", quantity: "2000000" },
+    { unit: policyId + assetName, quantity: "100" }
+  ])
+  .changeAddress(changeAddress)
+  .selectUtxosFrom(utxos)
+  .complete();
+```
+
+The selection algorithm identifies UTXOs containing the required tokens, ensures sufficient ADA accompanies them, and routes remaining tokens to appropriate change outputs.
+
+## Quick Start
+
+Implement proper coin selection in three steps:
+
+**Step 1: Install Mesh SDK**
+
+```bash
+npm install @meshsdk/core @meshsdk/react
+```
+
+**Step 2: Fetch available UTXOs from the wallet**
+
+```typescript
+import { MeshTxBuilder, BlockfrostProvider, BrowserWallet } from "@meshsdk/core";
+
+const provider = new BlockfrostProvider("<your-blockfrost-api-key>");
+const wallet = await BrowserWallet.enable("eternl");
+
+// Get all spendable UTXOs
+const utxos = await wallet.getUtxos();
+const changeAddress = await wallet.getChangeAddress();
+```
+
+**Step 3: Let Mesh select optimal inputs**
+
+```typescript
+const txBuilder = new MeshTxBuilder({
+  fetcher: provider,
+  submitter: provider,
+});
+
+const unsignedTx = await txBuilder
+  .txOut(recipientAddress, [{ unit: "lovelace", quantity: "5000000" }])
+  .changeAddress(changeAddress)
+  .selectUtxosFrom(utxos)  // Automatic optimal selection
+  .complete();
+
+const signedTx = await wallet.signTx(unsignedTx);
+const txHash = await wallet.submitTx(signedTx);
+```
+
+## Advanced Selection Scenarios
+
+### Sending Multiple Native Tokens
+
+When sending various tokens, Mesh selects UTXOs containing each required token and ensures proper value coverage:
+
+```typescript
+const tx = await txBuilder
+  .txOut(recipient, [
+    { unit: "lovelace", quantity: "3000000" },
+    { unit: policyId1 + assetName1, quantity: "50" },
+    { unit: policyId2 + assetName2, quantity: "1" }
+  ])
+  .changeAddress(changeAddress)
+  .selectUtxosFrom(utxos)
+  .complete();
+```
+
+### Consolidating Fragmented Wallets
+
+If your wallet has become fragmented with many small UTXOs, you can consolidate by sending to yourself:
+
+```typescript
+const allUtxos = await wallet.getUtxos();
+const totalLovelace = allUtxos.reduce((sum, utxo) =>
+  sum + BigInt(utxo.output.amount.find(a => a.unit === "lovelace")?.quantity || 0),
+  BigInt(0)
+);
+
+const tx = await txBuilder
+  .txOut(changeAddress, [{ unit: "lovelace", quantity: (totalLovelace - BigInt(500000)).toString() }])
+  .changeAddress(changeAddress)
+  .selectUtxosFrom(allUtxos)
+  .complete();
+```
+
+### Manual UTXO Selection
+
+For specific use cases, you can specify exact UTXOs:
+
+```typescript
+const specificUtxo = utxos.find(u => /* your criteria */);
+
+const tx = await txBuilder
+  .txIn(specificUtxo.input.txHash, specificUtxo.input.outputIndex)
+  .txOut(recipient, [{ unit: "lovelace", quantity: "5000000" }])
+  .changeAddress(changeAddress)
+  .complete();
+```
+
+## Preventing Future Problems
+
+### Avoid Wallet Fragmentation
+
+- Consolidate small UTXOs periodically during low-fee periods
+- Avoid creating transactions with unnecessarily many outputs
+- Use Mesh's automatic selection which creates efficient change outputs
+
+### Handle Selection Failures Gracefully
+
+```typescript
+async function buildTransaction(amount: string) {
+  try {
+    const utxos = await wallet.getUtxos();
+    return await txBuilder
+      .txOut(recipient, [{ unit: "lovelace", quantity: amount }])
+      .changeAddress(await wallet.getChangeAddress())
+      .selectUtxosFrom(utxos)
+      .complete();
+  } catch (error) {
+    if (error.message.includes("Insufficient")) {
+      // Show user-friendly message about available balance
+      throw new Error("Unable to build transaction with available funds. Try a smaller amount.");
+    }
+    throw error;
+  }
+}
+```
+
+## Related Challenges
+
+Coin selection connects to other fundamental Cardano concepts:
+
+- <Link href="/challenges/utxo-model">Understanding the UTXO Model</Link> explains the architecture that makes coin selection necessary
+- <Link href="/challenges/transaction-failures">Transaction Failures</Link> covers failures that can result from poor coin selection
+- <Link href="/challenges/wallet-integration">Wallet Integration Issues</Link> addresses getting reliable UTXO data from wallets
+
+## Next Steps
+
+With proper coin selection, your transactions will be more reliable and your wallet will remain healthy over time. Explore the <Link href="/challenges">Challenges Hub</Link> for solutions to other common obstacles, or dive into the full Mesh documentation for advanced transaction building techniques.

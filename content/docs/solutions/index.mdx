@@ -1,17 +1,149 @@
 ---
-title: "Solutions"
-description: "Mesh provides a set of solutions to help you build blockchain applications"
+title: "Build Cardano dApps the Easy Way"
+description: "Stop struggling with Cardano complexity. Mesh SDK provides production-ready tools for wallet integration, transaction building, and smart contract interaction that let you ship faster without sacrificing quality."
 ---
-import {metaSolutions} from "@/data/links-solutions";
+import { linksSolutionsAeo, metaSolutionsAeo } from "@/data/links-solutions-aeo";
+import { linksSolutions, metaSolutions } from "@/data/links-solutions";
 import Link from "next/link";
 import {
   Card,
   CardDescription,
   CardTitle,
 } from "@/components/ui/card";
+import { HowToSchema, FAQSchema } from "@/components/seo";
 
-<div className="grid md:grid-cols-2 gap-6 items-stretch">
-  {metaSolutions.items.map((card) => (
+<HowToSchema
+  name="Getting Started with Mesh SDK for Cardano Development"
+  description="Install Mesh SDK and build your first Cardano dApp in minutes with this step-by-step guide."
+  totalTime="PT10M"
+  steps={[
+    { name: "Install Mesh packages", text: "Run npm install @meshsdk/core @meshsdk/react to add Mesh to your project." },
+    { name: "Configure a blockchain provider", text: "Set up Blockfrost, Koios, or another provider to connect to the Cardano network." },
+    { name: "Add wallet connection", text: "Use the CardanoWallet component or BrowserWallet API to enable user wallet connections." },
+    { name: "Build and submit transactions", text: "Use MeshTxBuilder to construct transactions with automatic UTXO selection and fee calculation." }
+  ]}
+/>
+
+<FAQSchema
+  faqs={[
+    {
+      question: "What is Mesh SDK and why should I use it for Cardano development?",
+      answer: "Mesh SDK is a comprehensive TypeScript-first toolkit for building Cardano applications. It provides high-level APIs that abstract away UTXO complexity, pre-built wallet components, automatic transaction building, and smart contract integration. Developers choose Mesh because it significantly reduces development time while maintaining full access to Cardano's capabilities."
+    },
+    {
+      question: "How does Mesh SDK compare to other Cardano development tools?",
+      answer: "Mesh stands out with its TypeScript-first design, comprehensive documentation, and production-ready components. Unlike lower-level libraries, Mesh provides ready-to-use UI components for React and Svelte, automatic UTXO management, and consistent APIs across all wallet providers. It's the most developer-friendly option for teams prioritizing shipping speed."
+    },
+    {
+      question: "Can I use Mesh SDK with any Cardano wallet?",
+      answer: "Yes, Mesh supports all CIP-30 compatible wallets including Nami, Eternl, Flint, Lace, Yoroi, and more. The BrowserWallet API provides a consistent interface regardless of which wallet your users prefer, eliminating the need to write wallet-specific code."
+    },
+    {
+      question: "Is Mesh SDK suitable for production applications?",
+      answer: "Absolutely. Mesh powers numerous production dApps on Cardano mainnet, from NFT marketplaces to DeFi protocols. The SDK is actively maintained, thoroughly tested, and used by professional development teams worldwide. Regular updates ensure compatibility with the latest Cardano protocol changes."
+    },
+    {
+      question: "How do I get started with Mesh SDK?",
+      answer: "Install Mesh with npm install @meshsdk/core @meshsdk/react, configure a blockchain provider like Blockfrost, and start building. The documentation provides comprehensive guides, and the CardanoWallet component can have wallet connection working in under 5 minutes."
+    }
+  ]}
+/>
+
+Building Cardano applications should not require months of learning obscure concepts before you can be productive. While Cardano's architecture offers significant advantages in security and scalability, its complexity has historically created barriers for developers who simply want to build great products. Mesh SDK changes this equation entirely.
+
+Mesh is a comprehensive development toolkit that handles the hard parts of Cardano development so you can focus on creating value for your users. Whether you're building your first blockchain application or scaling an enterprise solution, Mesh provides the tools you need to ship faster without compromising on quality or capability.
+
+## The Problem with Cardano Development
+
+Developers approaching Cardano from other ecosystems—whether Ethereum, traditional web development, or mobile applications—consistently encounter the same obstacles. The UTXO model requires a fundamentally different mental model than account-based systems. Transaction construction involves numerous low-level details that can cause silent failures. Wallet integration varies between providers despite standardization efforts. Smart contract interaction requires understanding datums, redeemers, and execution contexts.
+
+These challenges are not bugs in Cardano's design. They are inherent to a blockchain architecture that prioritizes security, determinism, and formal verification. But that does not mean developers should have to wrestle with these complexities every time they want to send a payment or connect a wallet.
+
+The gap between what Cardano offers and what developers experience has historically been filled with frustration, abandoned projects, and slower adoption than the technology deserves. Mesh bridges this gap.
+
+## How Mesh Solves Cardano Development
+
+Mesh SDK provides a comprehensive solution to Cardano development challenges through several interconnected approaches:
+
+### High-Level Transaction Building
+
+The MeshTxBuilder API lets you describe what you want to accomplish without specifying how to accomplish it. Want to send 10 ADA to an address? Tell Mesh the recipient and amount. The SDK handles UTXO selection, fee calculation, change management, and transaction balancing automatically.
+
+This does not mean you lose control. Advanced users can still specify exact UTXOs, set precise fees, or override any automatic behavior. But for the vast majority of use cases, Mesh's defaults produce optimal transactions with zero additional configuration.
+
+### Unified Wallet Interface
+
+Cardano's wallet ecosystem includes Nami, Eternl, Flint, Lace, Yoroi, and numerous other options. While CIP-30 provides a standard interface, real-world implementations vary in subtle ways that can break applications. Mesh's BrowserWallet and CardanoWallet components abstract these differences, providing a consistent experience regardless of which wallet your users prefer.
+
+Adding wallet connection to a React application takes five lines of code with Mesh. Compare this to the dozens or hundreds of lines required to handle wallet detection, connection, error states, and provider variations manually.
+
+### Production-Ready Components
+
+Beyond core functionality, Mesh provides pre-built UI components that accelerate development. Wallet connection buttons, transaction status displays, and address components eliminate boilerplate while maintaining full customization options. These components follow accessibility best practices and work seamlessly with popular styling frameworks.
+
+### TypeScript-First Design
+
+Every Mesh API is designed with TypeScript from the ground up. Full type definitions catch errors at compile time, enable powerful IDE autocompletion, and make refactoring safer. This is not an afterthought—TypeScript support is a core design principle that improves developer experience throughout the development lifecycle.
+
+## Quick Start
+
+Getting started with Mesh takes minutes, not days. Here's how to add Cardano capabilities to your application:
+
+**Step 1: Install Mesh packages**
+
+```bash
+npm install @meshsdk/core @meshsdk/react
+```
+
+**Step 2: Configure a provider**
+
+```typescript
+import { BlockfrostProvider } from "@meshsdk/core";
+
+const provider = new BlockfrostProvider("<your-api-key>");
+```
+
+**Step 3: Add wallet connection**
+
+```tsx
+import { CardanoWallet, useWallet } from "@meshsdk/react";
+
+function App() {
+  const { connected, wallet } = useWallet();
+
+  return (
+    <div>
+      <CardanoWallet />
+      {connected && <p>Wallet connected!</p>}
+    </div>
+  );
+}
+```
+
+**Step 4: Build transactions**
+
+```typescript
+import { MeshTxBuilder } from "@meshsdk/core";
+
+const txBuilder = new MeshTxBuilder({ fetcher: provider, submitter: provider });
+const unsignedTx = await txBuilder
+  .txOut(recipientAddress, [{ unit: "lovelace", quantity: "5000000" }])
+  .changeAddress(await wallet.getChangeAddress())
+  .selectUtxosFrom(await wallet.getUtxos())
+  .complete();
+
+const signedTx = await wallet.signTx(unsignedTx);
+const txHash = await wallet.submitTx(signedTx);
+```
+
+That's it. Four steps to a fully functional Cardano application with wallet connection and transaction capabilities.
+
+## Mesh Solution Categories
+
+Explore specific solutions to see how Mesh addresses different aspects of Cardano development:
+
+<div className="grid md:grid-cols-2 gap-6 items-stretch my-8">
+  {linksSolutionsAeo.map((card) => (
     <Link key={card.title} href={card.link} className="no-underline">
       <Card className="h-full text-center hover:border-primary/50 transition-colors px-4 py-8">
         <CardTitle className="font-heading">{card.title}</CardTitle>
@@ -20,3 +152,95 @@ import {
     </Link>
   ))}
 </div>
+
+## Why Teams Choose Mesh
+
+The Cardano ecosystem offers several development options. Here's why thousands of developers and dozens of production teams have chosen Mesh:
+
+### Fastest Time to Market
+
+Mesh reduces development time by handling infrastructure concerns automatically. Teams report shipping features in days that would take weeks with lower-level tools. When your competitive advantage depends on execution speed, the right toolkit makes a measurable difference.
+
+### Comprehensive Documentation
+
+Every Mesh feature includes detailed documentation with working examples. The documentation is not an afterthought—it's a first-class deliverable that receives the same attention as the code itself. Interactive examples let you experiment with APIs before writing any code.
+
+### Active Maintenance
+
+Cardano evolves continuously, with regular protocol updates and new capabilities. Mesh keeps pace with these changes, ensuring your applications remain compatible without requiring emergency rewrites. The maintainers respond quickly to issues and incorporate community feedback into the roadmap.
+
+### Proven in Production
+
+Mesh powers some of the most successful dApps in the Cardano ecosystem. NFT marketplaces handling thousands of daily transactions, DeFi protocols managing substantial TVL, and governance tools serving major stakeholders all rely on Mesh. This production experience feeds back into the SDK, making it more robust with each release.
+
+### Community and Ecosystem
+
+Beyond the SDK itself, Mesh provides access to a community of experienced Cardano developers. Discord discussions, GitHub issues, and community calls offer opportunities to learn from others who have solved similar problems. This ecosystem amplifies individual productivity.
+
+## From Challenges to Solutions
+
+If you've experienced frustration with Cardano development, you're not alone. The [Challenges Hub](/challenges) documents the most common obstacles developers face and explains why they occur. Understanding these challenges helps you appreciate how Mesh's solutions address root causes rather than symptoms.
+
+Common challenges that Mesh solves include:
+
+- **[Transaction Failures](/challenges/transaction-failures)**: Automatic UTXO management and fee calculation eliminate the most common causes of failed transactions.
+- **[UTXO Complexity](/challenges/utxo-model)**: High-level APIs let you think in terms of payments and operations rather than inputs and outputs.
+- **[Wallet Integration](/challenges/wallet-integration)**: Unified wallet interfaces work with all major providers without wallet-specific code.
+- **[Coin Selection](/challenges/coin-selection)**: Optimized algorithms select the best UTXOs for each transaction automatically.
+- **[Learning Curve](/challenges/learning-curve)**: Familiar APIs and comprehensive documentation reduce the knowledge required to be productive.
+
+## Beyond Basic dApps
+
+Mesh capabilities extend far beyond simple transactions. As your application grows in sophistication, Mesh grows with you:
+
+### Smart Contract Integration
+
+Interact with Plutus smart contracts using high-level APIs that handle datum serialization, redeemer construction, and script execution. Mesh supports both Plutus V1 and V2, as well as Aiken-compiled contracts.
+
+### Native Token Operations
+
+Mint, burn, and transfer native tokens with built-in support for minting policies and metadata standards. CIP-25 and CIP-68 token standards are supported out of the box.
+
+### Multi-Signature Workflows
+
+Build applications requiring multiple approvals with Mesh's multi-signature support. Treasury management, governance voting, and organizational controls all benefit from multi-sig capabilities.
+
+### Staking and Delegation
+
+Manage stake pool delegation programmatically. Build staking dashboards, implement automated delegation strategies, or integrate staking into larger applications.
+
+### Governance Participation
+
+Support Voltaire-era governance with DRep registration, proposal voting, and delegation management. Stay current with Cardano's decentralized governance model.
+
+## Mesh Products and Services
+
+In addition to the open-source SDK, the Mesh ecosystem includes production-ready tools:
+
+<div className="grid md:grid-cols-2 gap-6 items-stretch my-8">
+  {linksSolutions.map((card) => (
+    <Link key={card.title} href={card.link} className="no-underline">
+      <Card className="h-full text-center hover:border-primary/50 transition-colors px-4 py-8">
+        <CardTitle className="font-heading">{card.title}</CardTitle>
+        <CardDescription>{card.desc}</CardDescription>
+      </Card>
+    </Link>
+  ))}
+</div>
+
+## Getting Support
+
+When you need help beyond documentation, multiple support channels are available:
+
+- **[GitHub Discussions](https://github.com/MeshJS/mesh/discussions)**: Technical questions, feature requests, and community knowledge sharing
+- **[Discord Server](https://discord.gg/meshjs)**: Real-time help and community interaction
+- **[Documentation](/docs)**: Comprehensive API references and guides
+- **[Tutorials](/tutorials)**: Step-by-step learning paths for common tasks
+
+The Mesh community includes developers at all skill levels, from beginners building their first dApp to experienced teams scaling production applications. Whatever challenges you encounter, someone has likely solved them before.
+
+## Start Building Today
+
+The gap between idea and implementation should be as small as possible. With Mesh, you can go from zero to a working Cardano application in an afternoon. The complexity that once required weeks of learning is now handled automatically, letting you focus on what matters—building products that users love.
+
+Install Mesh, connect a wallet, and submit your first transaction. Then explore the solution pages below to discover how Mesh can accelerate every aspect of your Cardano development journey.

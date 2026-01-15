@@ -153,7 +153,7 @@ Open `pages/index.tsx` and import the packages:
 ```tsx
 import {
   resolvePlutusScriptAddress,
-  Transaction,
+  MeshTxBuilder,
   KoiosProvider,
   resolveDataHash,
   resolvePaymentKeyHash,
@@ -188,26 +188,31 @@ We encode the compiled validator code with cbor because the validator uses a fla
 Create the transaction to lock assets:
 
 ```tsx
+const utxos = await wallet.getUtxos();
+const changeAddress = await wallet.getChangeAddress();
+
 const hash = resolvePaymentKeyHash((await wallet.getUsedAddresses())[0]);
 const datum: Data = {
   alternative: 0,
   fields: [hash],
 };
 
-const tx = new Transaction({ initiator: wallet }).sendLovelace(
-  {
-    address: scriptAddress,
-    datum: { value: datum },
-  },
-  "5000000"
-);
+const txBuilder = new MeshTxBuilder({
+  fetcher: koios,
+});
 
-const unsignedTx = await tx.build();
+const unsignedTx = await txBuilder
+  .txOut(scriptAddress, [{ unit: "lovelace", quantity: "5000000" }])
+  .txOutDatumHashValue(datum)
+  .changeAddress(changeAddress)
+  .selectUtxosFrom(utxos)
+  .complete();
+
 const signedTx = await wallet.signTx(unsignedTx);
 const txHash = await wallet.submitTx(signedTx);
 ```
 
-This transaction locks assets. `resolvePaymentKeyHash` resolves the wallet's key hash. `sendLovelace` sends lovelace to the script address.
+This transaction locks assets. `resolvePaymentKeyHash` resolves the wallet's key hash. `txOut` sends lovelace to the script address with `txOutDatumHashValue` attaching the datum.
 
 The contract requires the owner's address in the datum. We build, sign, and submit the transaction.
 
@@ -249,27 +254,42 @@ const assetUtxo = await _getAssetUtxo({
   datum: datum,
 });
 
-const redeemer = { data: { alternative: 0, fields: ['Hello, World!'] } };
+const redeemer: Data = { alternative: 0, fields: ['Hello, World!'] };
+
+const utxos = await wallet.getUtxos();
+const changeAddress = await wallet.getChangeAddress();
+const collateral = await wallet.getCollateral();
+
+const txBuilder = new MeshTxBuilder({
+  fetcher: koios,
+});
 
 // create the unlock asset transaction
-const tx = new Transaction({ initiator: wallet })
-  .redeemValue({
-    value: assetUtxo,
-    script: script,
-    datum: datum,
-    redeemer: redeemer,
-  })
-  .sendValue(address, assetUtxo)
-  .setRequiredSigners([address]);
+const unsignedTx = await txBuilder
+  .spendingPlutusScriptV2()
+  .txIn(assetUtxo.input.txHash, assetUtxo.input.outputIndex)
+  .txInDatumValue(datum)
+  .txInRedeemerValue(redeemer)
+  .txInScript(script.code)
+  .txOut(address, assetUtxo.output.amount)
+  .requiredSignerHash(hash)
+  .txInCollateral(
+    collateral[0].input.txHash,
+    collateral[0].input.outputIndex,
+    collateral[0].output.amount,
+    collateral[0].output.address,
+  )
+  .changeAddress(changeAddress)
+  .selectUtxosFrom(utxos)
+  .complete();
 
-const unsignedTx = await tx.build();
 const signedTx = await wallet.signTx(unsignedTx, true);
 const txHash = await wallet.submitTx(signedTx);
 ```
 
 This transaction unlocks assets. `resolvePlutusScriptAddress` resolves the script address. `resolvePaymentKeyHash` resolves the wallet's key hash.
 
-`_getAssetUtxo` retrieves the locked asset UTXO. `redeemValue` redeems the assets. `sendValue` sends assets to the owner. `setRequiredSigners` sets the required signers.
+`_getAssetUtxo` retrieves the locked asset UTXO. `spendingPlutusScriptV2` indicates we're spending from a Plutus V2 script. `txInDatumValue` provides the datum, `txInRedeemerValue` provides the redeemer, and `txInScript` provides the script. `requiredSignerHash` sets the required signer.
 
 The validator requires "Hello, World!" as the redeemer message. We build, sign, and submit the transaction.
 

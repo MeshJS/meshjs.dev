@@ -1,0 +1,441 @@
+---
+title: "Solving Cardano Wallet Integration Issues"
+description: "Cardano wallet integration involves handling multiple wallet providers, CIP-30 variations, and connection states. Learn common pitfalls and how Mesh SDK provides unified, reliable wallet connectivity."
+---
+import Link from "next/link";
+import { HowToSchema, FAQSchema } from "@/components/seo";
+
+<HowToSchema
+  name="Integrate Cardano Wallets Using Mesh SDK"
+  description="Connect any Cardano wallet to your dApp reliably using Mesh SDK's unified wallet API and pre-built React components."
+  totalTime="PT10M"
+  steps={[
+    { name: "Install Mesh packages", text: "Run npm install @meshsdk/core @meshsdk/react to add wallet support to your project." },
+    { name: "Add CardanoWallet component", text: "Use the pre-built CardanoWallet component for instant multi-wallet support with no configuration." },
+    { name: "Access wallet methods", text: "Use the useWallet hook to access connected wallet methods like getUtxos, signTx, and submitTx." }
+  ]}
+/>
+
+<FAQSchema
+  faqs={[
+    {
+      question: "Why is Cardano wallet integration harder than Ethereum?",
+      answer: "Cardano has multiple wallet providers (Nami, Eternl, Flint, Lace, etc.) with slight CIP-30 implementation differences. Unlike Ethereum's standardized window.ethereum, Cardano wallets register under different window.cardano properties, requiring detection and handling logic for each."
+    },
+    {
+      question: "What is CIP-30 for Cardano wallets?",
+      answer: "CIP-30 is the Cardano Improvement Proposal that standardizes how web-based dApps interact with Cardano wallets. It defines methods for connecting, signing transactions, and querying wallet state. While it provides a standard, implementations vary slightly between wallet providers."
+    },
+    {
+      question: "How do I detect which Cardano wallets are installed?",
+      answer: "Wallets inject themselves into window.cardano with their identifier (e.g., window.cardano.nami, window.cardano.eternl). Mesh SDK provides getInstalledWallets() to automatically detect all installed CIP-30 compatible wallets."
+    },
+    {
+      question: "Why does my Cardano wallet connection keep disconnecting?",
+      answer: "Wallet connections are session-based and don't persist across page reloads by default. Some wallets require explicit reconnection. Mesh provides connection state management and can store connection preferences for smoother user experience."
+    },
+    {
+      question: "Can I support all Cardano wallets with one integration?",
+      answer: "Yes. Mesh SDK provides a unified API that works with all CIP-30 compatible wallets. The CardanoWallet React component handles wallet detection, connection UI, and state management automatically, supporting 10+ wallets out of the box."
+    }
+  ]}
+/>
+
+Cardano wallet integration challenges developers due to multiple wallet providers with varying CIP-30 implementations, connection state management across page reloads, and inconsistent error handling. Mesh SDK provides a unified wallet API and pre-built UI components that handle these variations automatically. Instead of writing separate code for each wallet, you use one interface that works with Nami, Eternl, Flint, Lace, and all other CIP-30 wallets.
+
+## Why This Happens
+
+Wallet integration seems straightforward until you encounter real-world complexity. The Cardano ecosystem's strength—multiple wallet options giving users choice—creates integration challenges for developers.
+
+### The CIP-30 Standard
+
+CIP-30 defines how dApps communicate with Cardano wallets through injected browser APIs. A wallet should:
+
+- Register itself at `window.cardano.<walletName>`
+- Provide `enable()` to request connection
+- Expose methods like `getUtxos()`, `signTx()`, `submitTx()`
+- Return consistent data structures
+
+In theory, code written for one wallet should work with all others. In practice, subtle differences emerge:
+
+### Implementation Variations
+
+Different wallets handle edge cases differently:
+
+**API Method Availability**: Some wallets implement optional CIP-30 methods, others don't. Calling unavailable methods crashes your app.
+
+**Return Value Formats**: Some wallets return hex-encoded strings, others return byte arrays. Address formats vary between wallets.
+
+**Error Handling**: Each wallet throws different error types with inconsistent messages. A user rejection might be "User declined" in one wallet and error code 2 in another.
+
+**Connection State**: Some wallets maintain connections across page reloads, others require fresh authorization each time.
+
+**Network Detection**: Getting the connected network (mainnet/testnet) works differently across wallets.
+
+### Detection Challenges
+
+Unlike Ethereum where `window.ethereum` is (mostly) standard, Cardano wallets register under their own names:
+
+```javascript
+window.cardano.nami      // Nami
+window.cardano.eternl    // Eternl
+window.cardano.flint     // Flint
+window.cardano.lace      // Lace
+window.cardano.typhon    // Typhon
+// ... and more
+```
+
+Detecting installed wallets requires checking each possible property. New wallets emerge regularly, requiring code updates to support them.
+
+### User Experience Issues
+
+Poor wallet integration creates frustrating user experiences:
+
+- Users don't know which wallets are supported
+- Connection failures show cryptic errors
+- Wallet popups get blocked by browsers
+- Users must reconnect after every page refresh
+- Multi-wallet users accidentally use the wrong wallet
+
+## How Mesh Solves This
+
+Mesh SDK provides multiple abstraction layers for wallet integration, from low-level API access to complete UI components.
+
+### BrowserWallet Class
+
+The `BrowserWallet` class provides a unified interface to any CIP-30 wallet:
+
+```typescript
+import { BrowserWallet } from "@meshsdk/core";
+
+// Detect all installed wallets
+const installedWallets = BrowserWallet.getInstalledWallets();
+console.log(installedWallets); // [{ id: 'eternl', name: 'Eternl', ... }, ...]
+
+// Connect to a specific wallet
+const wallet = await BrowserWallet.enable("eternl");
+
+// Use consistent API regardless of wallet
+const utxos = await wallet.getUtxos();
+const address = await wallet.getChangeAddress();
+const balance = await wallet.getBalance();
+const network = await wallet.getNetworkId();
+```
+
+Mesh normalizes return values, handles missing methods gracefully, and provides consistent error types.
+
+### CardanoWallet Component
+
+For React applications, the `CardanoWallet` component handles everything:
+
+```tsx
+import { CardanoWallet, MeshProvider } from "@meshsdk/react";
+
+function App() {
+  return (
+    <MeshProvider>
+      <CardanoWallet />
+    </MeshProvider>
+  );
+}
+```
+
+This single component:
+
+- Detects all installed wallets
+- Shows a wallet selection dropdown
+- Handles connection flow with proper UX
+- Manages connection state
+- Displays connected wallet address
+- Provides disconnect functionality
+
+### useWallet Hook
+
+Access wallet state and methods anywhere in your app:
+
+```tsx
+import { useWallet } from "@meshsdk/react";
+
+function TransactionButton() {
+  const { connected, wallet, connect, disconnect } = useWallet();
+
+  if (!connected) {
+    return <button onClick={() => connect("eternl")}>Connect</button>;
+  }
+
+  return (
+    <div>
+      <button onClick={handleTransaction}>Send Transaction</button>
+      <button onClick={disconnect}>Disconnect</button>
+    </div>
+  );
+
+  async function handleTransaction() {
+    const utxos = await wallet.getUtxos();
+    // Build and submit transaction
+  }
+}
+```
+
+### Custom Wallet UI
+
+Build custom interfaces using Mesh's wallet utilities:
+
+```tsx
+import { BrowserWallet } from "@meshsdk/core";
+import { useWallet } from "@meshsdk/react";
+
+function CustomWalletSelector() {
+  const { connect, connected, wallet } = useWallet();
+  const installedWallets = BrowserWallet.getInstalledWallets();
+
+  if (connected) {
+    return <ConnectedWalletDisplay wallet={wallet} />;
+  }
+
+  return (
+    <div className="wallet-grid">
+      {installedWallets.map((w) => (
+        <button
+          key={w.id}
+          onClick={() => connect(w.id)}
+          className="wallet-option"
+        >
+          <img src={w.icon} alt={w.name} />
+          <span>{w.name}</span>
+        </button>
+      ))}
+    </div>
+  );
+}
+```
+
+## Quick Start
+
+Follow these steps to add wallet connectivity to your Cardano dApp:
+
+**Step 1: Install Mesh packages**
+
+```bash
+npm install @meshsdk/core @meshsdk/react
+```
+
+**Step 2: Wrap your app with MeshProvider**
+
+```tsx
+import { MeshProvider } from "@meshsdk/react";
+
+function App() {
+  return (
+    <MeshProvider>
+      <YourApp />
+    </MeshProvider>
+  );
+}
+```
+
+**Step 3: Add the CardanoWallet component**
+
+```tsx
+import { CardanoWallet } from "@meshsdk/react";
+
+function Navbar() {
+  return (
+    <nav>
+      <Logo />
+      <Navigation />
+      <CardanoWallet />
+    </nav>
+  );
+}
+```
+
+That's it. Users can now connect any installed Cardano wallet.
+
+## Handling Common Issues
+
+### Connection Persistence
+
+By default, connections don't persist. Implement persistence with local storage:
+
+```tsx
+import { useEffect } from "react";
+import { useWallet } from "@meshsdk/react";
+
+function WalletManager() {
+  const { connected, connect, wallet } = useWallet();
+
+  // Restore connection on mount
+  useEffect(() => {
+    const savedWallet = localStorage.getItem("connectedWallet");
+    if (savedWallet && !connected) {
+      connect(savedWallet);
+    }
+  }, []);
+
+  // Save connection choice
+  useEffect(() => {
+    if (connected && wallet) {
+      localStorage.setItem("connectedWallet", wallet.walletId);
+    }
+  }, [connected, wallet]);
+
+  return <CardanoWallet />;
+}
+```
+
+### Network Validation
+
+Ensure users are on the correct network:
+
+```tsx
+import { useWallet } from "@meshsdk/react";
+
+function NetworkGuard({ children, requiredNetwork }) {
+  const { wallet, connected } = useWallet();
+  const [networkId, setNetworkId] = useState(null);
+
+  useEffect(() => {
+    if (connected) {
+      wallet.getNetworkId().then(setNetworkId);
+    }
+  }, [connected, wallet]);
+
+  if (connected && networkId !== requiredNetwork) {
+    return (
+      <div className="network-error">
+        Please switch to {requiredNetwork === 1 ? "Mainnet" : "Testnet"}
+      </div>
+    );
+  }
+
+  return children;
+}
+```
+
+### Popup Blocking
+
+Browser popup blockers can prevent wallet connections. Handle this gracefully:
+
+```tsx
+async function connectWallet(walletId) {
+  try {
+    await connect(walletId);
+  } catch (error) {
+    if (error.message.includes("popup")) {
+      showNotification(
+        "Please allow popups for this site to connect your wallet"
+      );
+    } else {
+      showNotification("Failed to connect wallet. Please try again.");
+    }
+  }
+}
+```
+
+### Error Handling
+
+Wrap wallet operations with proper error handling:
+
+```tsx
+async function signAndSubmit(txBuilder) {
+  const { wallet } = useWallet();
+
+  try {
+    const unsignedTx = await txBuilder.complete();
+    const signedTx = await wallet.signTx(unsignedTx);
+    const txHash = await wallet.submitTx(signedTx);
+    return { success: true, txHash };
+  } catch (error) {
+    if (error.code === 2 || error.message.includes("User")) {
+      return { success: false, error: "Transaction cancelled by user" };
+    }
+    if (error.message.includes("insufficient")) {
+      return { success: false, error: "Insufficient funds in wallet" };
+    }
+    return { success: false, error: "Transaction failed. Please try again." };
+  }
+}
+```
+
+## Advanced Integration
+
+### Multiple Wallet Support
+
+Allow users to connect multiple wallets:
+
+```tsx
+const [wallets, setWallets] = useState([]);
+
+async function addWallet(walletId) {
+  const newWallet = await BrowserWallet.enable(walletId);
+  setWallets(prev => [...prev, { id: walletId, instance: newWallet }]);
+}
+
+function selectWalletForTransaction(walletId) {
+  const wallet = wallets.find(w => w.id === walletId);
+  setActiveWallet(wallet);
+}
+```
+
+### Hardware Wallet Support
+
+Mesh supports hardware wallets through the browser extension:
+
+```tsx
+// Hardware wallets work through their browser extensions
+// No special code needed - they appear in getInstalledWallets()
+const wallets = BrowserWallet.getInstalledWallets();
+// Includes hardware wallet extensions like Ledger, Trezor when available
+```
+
+### Server-Side Wallet Generation
+
+For backend applications or testing, use MeshWallet:
+
+```typescript
+import { MeshWallet, BlockfrostProvider } from "@meshsdk/core";
+
+const provider = new BlockfrostProvider("<api-key>");
+
+// Generate from mnemonic
+const wallet = new MeshWallet({
+  networkId: 0,
+  fetcher: provider,
+  submitter: provider,
+  key: {
+    type: "mnemonic",
+    words: ["your", "mnemonic", "words", "..."],
+  },
+});
+
+// Use same API as BrowserWallet
+const address = wallet.getChangeAddress();
+const utxos = await wallet.getUtxos();
+```
+
+## Wallet Features Comparison
+
+Different wallets offer different features. Mesh normalizes the core API but some features vary:
+
+| Feature | Most Wallets | Notes |
+|---------|--------------|-------|
+| Basic CIP-30 | Yes | Connect, sign, submit |
+| Collateral | Most | Required for smart contracts |
+| Multi-account | Some | Eternl, Flint support |
+| dApp connector | All | Core CIP-30 feature |
+| Hardware wallet | Via extension | Ledger, Trezor support varies |
+
+Mesh provides fallbacks for missing features where possible.
+
+## Related Challenges
+
+Wallet integration connects to other Cardano development challenges:
+
+- <Link href="/challenges/transaction-failures">Transaction Failures</Link> often manifest after wallet connection
+- <Link href="/challenges/utxo-model">Understanding UTXOs</Link> helps debug wallet balance issues
+- <Link href="/challenges/coin-selection">Coin Selection</Link> affects what transactions wallets can sign
+
+## Next Steps
+
+With reliable wallet integration, you can build user-facing Cardano applications. Explore the <Link href="/challenges">Challenges Hub</Link> for solutions to other common obstacles, or check the Mesh documentation for advanced wallet features like multi-signature support and stake delegation.

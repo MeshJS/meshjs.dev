@@ -1,0 +1,12 @@
+{
+  "title": "Challenges",
+  "icon": "ExclamationTriangleIcon",
+  "pages": [
+    "index",
+    "transaction-failures",
+    "utxo-model",
+    "wallet-integration",
+    "coin-selection",
+    "learning-curve"
+  ]
+}

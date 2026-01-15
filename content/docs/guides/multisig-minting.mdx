@@ -100,36 +100,33 @@ const assetMetadata: AssetMetadata = {
 };
 ```
 
-Create the `Mint` object:
+Create the transaction using MeshTxBuilder. Set inputs, mint asset, send lovelace, set change address, and build:
 
 ```tsx
-const asset: Mint = {
-  assetName: assetName,
-  assetQuantity: '1',
-  metadata: assetMetadata,
-  label: '721',
-  recipient: recipientAddress,
-};
+import { MeshTxBuilder, resolveScriptHash, stringToHex } from '@meshsdk/core';
+
+const policyId = resolveScriptHash(forgingScript);
+const tokenNameHex = stringToHex(assetName);
+const metadata = { [policyId]: { [assetName]: assetMetadata } };
+
+const txBuilder = new MeshTxBuilder({
+  fetcher: provider,
+});
+
+// Add user's UTXOs as inputs
+userUtxos.forEach(utxo => {
+  txBuilder.txIn(utxo.input.txHash, utxo.input.outputIndex, utxo.output.amount, utxo.output.address);
+});
+
+const unsignedTx = await txBuilder
+  .mint("1", policyId, tokenNameHex)
+  .mintingScript(forgingScript)
+  .txOut(recipientAddress, [{ unit: policyId + tokenNameHex, quantity: "1" }])
+  .txOut(bankWalletAddress, [{ unit: "lovelace", quantity: mintingFee }])
+  .metadataValue(721, metadata)
+  .changeAddress(recipientAddress)
+  .complete();
 ```
-
-Create the transaction. Set inputs, mint asset, send lovelace, set change address, and build:
-
-```tsx
-const tx = new Transaction({ initiator: meshWallet });
-tx.setTxInputs(userUtxos);
-tx.mintAsset(forgingScript, asset);
-tx.sendLovelace(bankWalletAddress, mintingFee);
-tx.setChangeAddress(recipientAddress);
-const unsignedTx = await tx.build();
-```
-
-Optionally, mask metadata:
-
-```tsx
-originalMetadata = Transaction.readMetadata(unsignedTx);
-```
-
-Store `originalMetadata` to merge after user signature.
 
 Send the transaction to the client.
 
@@ -146,20 +143,7 @@ const signedTx = await wallet.signTx(unsignedTx, true);
 The backend signs with the application wallet:
 
 ```tsx
-const meshWalletSignedTx = await systemWallet.signTx(unsignedTx, true);
-```
-
-Merge masked metadata if applicable:
-
-```tsx
-const signedOriginalTx = Transaction.writeMetadata(
-  unsignedTx,
-  originalMetadata,
-);
-const meshWalletSignedTx = await systemWallet.signTx(
-  signedOriginalTx,
-  true,
-);
+const meshWalletSignedTx = await meshWallet.signTx(signedTx, true);
 ```
 
 ## Submit transaction (application)
@@ -167,7 +151,7 @@ const meshWalletSignedTx = await systemWallet.signTx(
 Submit the transaction:
 
 ```tsx
-const txHash = await wallet.submitTx(signedTx);
+const txHash = await meshWallet.submitTx(meshWalletSignedTx);
 ```
 
 You can now build multi-sig transactions.

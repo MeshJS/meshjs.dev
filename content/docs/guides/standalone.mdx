@@ -78,7 +78,7 @@ npm install tsx @meshsdk/core
 Create `index.ts` and add the following code:
 
 ```tsx
-import { BlockfrostProvider, MeshWallet, Transaction } from "@meshsdk/core";
+import { BlockfrostProvider, MeshWallet, MeshTxBuilder } from "@meshsdk/core";
 
 // Set up the blockchain provider with your key
 const provider = new BlockfrostProvider("YOUR_KEY_HERE");
@@ -96,13 +96,21 @@ const wallet = new MeshWallet({
   },
 });
 
-// Create and send a transaction
-const tx = new Transaction({ initiator: wallet }).sendLovelace(
-  "addr_test1qp2k7wnshzngpqw0xmy33hvexw4aeg60yr79x3yeeqt3s2uvldqg2n2p8y4kyjm8sqfyg0tpq9042atz0fr8c3grjmysdp6yv3",
-  "1000000"
-);
+// Get UTxOs and change address
+const utxos = await wallet.getUtxos();
+const changeAddress = await wallet.getChangeAddress();
 
-const unsignedTx = await tx.build();
+// Create and send a transaction
+const txBuilder = new MeshTxBuilder({
+  fetcher: provider,
+});
+
+const unsignedTx = await txBuilder
+  .txOut("addr_test1qp2k7wnshzngpqw0xmy33hvexw4aeg60yr79x3yeeqt3s2uvldqg2n2p8y4kyjm8sqfyg0tpq9042atz0fr8c3grjmysdp6yv3", [{ unit: "lovelace", quantity: "1000000" }])
+  .changeAddress(changeAddress)
+  .selectUtxosFrom(utxos)
+  .complete();
+
 const signedTx = await wallet.signTx(unsignedTx);
 const txHash = await wallet.submitTx(signedTx);
 ```

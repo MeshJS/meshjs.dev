@@ -115,12 +115,13 @@ Create `main.ts` and import the required packages and files:
 ```tsx
 import {
   MeshWallet,
-  Transaction,
+  MeshTxBuilder,
   ForgeScript,
   BlockfrostProvider,
-  resolveTxHash,
+  resolveScriptHash,
+  stringToHex,
 } from '@meshsdk/core';
-import type { Mint, AssetMetadata } from '@meshsdk/core';
+import type { AssetMetadata } from '@meshsdk/core';
 
 
 import { metadata } from './metadata.js';
@@ -171,30 +172,45 @@ const walletAddress = wallet.getPaymentAddress();
 const forgingScript = ForgeScript.withOneSignature(walletAddress);
 ```
 
-Create a new Transaction, loop through each recipient, and mint assets with **mintAsset** (<Link href="/apis/txbuilder/minting">Learn more about minting transactions</Link>):
+Create a new MeshTxBuilder, loop through each recipient, and mint assets (<Link href="/apis/txbuilder/minting">Learn more about minting transactions</Link>):
 
 ```tsx
-const tx = new Transaction({ initiator: wallet });
+const utxos = await wallet.getUtxos();
+const policyId = resolveScriptHash(forgingScript);
+
+const txBuilder = new MeshTxBuilder({
+  fetcher: provider,
+  verbose: true,
+});
+
+const txMetadata: { [policyId: string]: { [assetName: string]: AssetMetadata } } = {};
+txMetadata[policyId] = {};
+
 for (let recipient in recipients) {
   const recipientAddress = recipient;
   const assetName = recipients[recipient];
   const assetMetadata: AssetMetadata = metadata[assetName];
-  const asset: Mint = {
-    assetName: assetName,
-    assetQuantity: '1',
-    metadata: assetMetadata,
-    label: '721',
-    recipient: recipientAddress
-  };
-  tx.mintAsset(forgingScript, asset);
+  const tokenNameHex = stringToHex(assetName);
+
+  txMetadata[policyId][assetName] = assetMetadata;
+
+  txBuilder
+    .mint("1", policyId, tokenNameHex)
+    .mintingScript(forgingScript)
+    .txOut(recipientAddress, [{ unit: policyId + tokenNameHex, quantity: "1" }]);
 }
+
+txBuilder
+  .metadataValue(721, txMetadata)
+  .changeAddress(walletAddress)
+  .selectUtxosFrom(utxos);
 ```
 
 Sign and submit the transaction:
 
 ```tsx
-const unsignedTx = await tx.build();
-const signedTx = await wallet.signTx(unsignedTx, false);
+const unsignedTx = await txBuilder.complete();
+const signedTx = await wallet.signTx(unsignedTx);
 const txHash = await wallet.submitTx(signedTx);
 ```
 

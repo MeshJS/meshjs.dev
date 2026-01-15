@@ -298,7 +298,7 @@ await provider.fetchGovernanceProposal('372d688faa77e146798b581b322c0f2981a90237
 `evaluateTx()` accepts an unsigned transaction (`unsignedTx`) and it evaluates the resources required to execute the transaction. Note that, this is only valid for transaction interacting with redeemer (smart contract). By knowing the budget required, you can use this to adjust the redeemer's budget so you don't spend more than you need to execute transactions for this smart contract.
 
 ```tsx
-const unsignedTx = await tx.build();
+const unsignedTx = await txBuilder.complete();
 const evaluateTx = await provider.evaluateTx(unsignedTx);
 ```
 
@@ -344,10 +344,19 @@ await provider.submitTx(signedTx);
 Allow you to listen to a transaction confirmation. Upon confirmation, the callback will be called.
 
 ```tsx
-const tx = new Transaction({ initiator: wallet });
-tx.sendLovelace('addr_test1vpvx0sacufuypa2k4sngk7q40zc5c4npl337uusdh64kv0c7e4cxr', '5000000');
+const utxos = await wallet.getUtxos();
+const changeAddress = await wallet.getChangeAddress();
 
-const unsignedTx = await tx.build();
+const txBuilder = new MeshTxBuilder({
+  fetcher: provider,
+});
+
+const unsignedTx = await txBuilder
+  .txOut('addr_test1vpvx0sacufuypa2k4sngk7q40zc5c4npl337uusdh64kv0c7e4cxr', [{ unit: 'lovelace', quantity: '5000000' }])
+  .changeAddress(changeAddress)
+  .selectUtxosFrom(utxos)
+  .complete();
+
 const signedTx = await wallet.signTx(unsignedTx);
 const txHash = await wallet.submitTx(signedTx);
 

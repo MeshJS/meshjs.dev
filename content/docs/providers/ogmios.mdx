@@ -19,7 +19,7 @@ const provider = new OgmiosProvider('<URL>');
 `evaluateTx()` accepts an unsigned transaction (`unsignedTx`) and it evaluates the resources required to execute the transaction. Note that, this is only valid for transaction interacting with redeemer (smart contract). By knowing the budget required, you can use this to adjust the redeemer's budget so you don't spend more than you need to execute transactions for this smart contract.
 
 ```tsx
-const unsignedTx = await tx.build();
+const unsignedTx = await txBuilder.complete();
 const evaluateTx = await provider.evaluateTx(unsignedTx);
 ```
 
