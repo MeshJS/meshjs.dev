@@ -1,13 +1,33 @@
 ---
-title: "Smart Contract Transactions"
+title: "How to Build NFT Marketplace Transactions with Cardano Smart Contracts"
+description: "Build Cardano smart contract transactions for an NFT marketplace using the Mesh TypeScript blockchain SDK for dApp development."
 ---
 import Link from "fumadocs-core/link";
+import { HowToSchema } from "@/components/seo";
 
-Build a marketplace where users list assets for sale and purchase listed assets. Sellers can update or cancel listings.
+<HowToSchema
+  name="Build NFT Marketplace Transactions with Cardano Smart Contracts"
+  description="Construct listing, purchasing, canceling, and updating transactions for an NFT marketplace on Cardano."
+  totalTime="PT60M"
+  steps={[
+    { name: "Initialize Plutus script", text: "Load the compiled Plutus smart contract as CBOR and resolve the script address." },
+    { name: "List an asset for sale", text: "Create a transaction sending the asset to the script address with a datum containing seller address, price, and asset info." },
+    { name: "Cancel a listing", text: "Build a transaction with redeemer alternative 1, spending from the script and returning the asset to the seller." },
+    { name: "Purchase a listed asset", text: "Build a transaction with redeemer alternative 0, paying the seller and transferring the asset to the buyer." },
+    { name: "Update listing price", text: "Redeem the UTxO with original datum and send back to script with new datum containing updated price." }
+  ]}
+/>
 
-## Initialize the Plutus script
+Building an NFT marketplace on Cardano requires interacting with Cardano smart contracts for listing, purchasing, and managing assets. This guide shows you how to construct each transaction type using the Mesh Cardano SDK for JavaScript Web3 development.
 
-Initialize the Plutus script. The compiled Plutus smart contract script CBOR is:
+**What you'll learn:**
+- Listing assets for sale with datum-locked UTxOs
+- Purchasing listed assets with proper redeemer construction
+- Canceling and updating listings as the seller
+
+## How Do You Initialize the Plutus Script?
+
+Load the compiled Plutus smart contract as CBOR:
 
 ```tsx
 const scriptCbor = '59079559079201000033232323232323232323232323232332232323232323232222232325335333006300800530070043333573466e1cd55cea80124000466442466002006004646464646464646464646464646666ae68cdc39aab9d500c480008cccccccccccc88888888888848cccccccccccc00403403002c02802402001c01801401000c008cd4060064d5d0a80619a80c00c9aba1500b33501801a35742a014666aa038eb9406cd5d0a804999aa80e3ae501b35742a01066a0300466ae85401cccd54070091d69aba150063232323333573466e1cd55cea801240004664424660020060046464646666ae68cdc39aab9d5002480008cc8848cc00400c008cd40b9d69aba15002302f357426ae8940088c98c80c8cd5ce01981901809aab9e5001137540026ae854008c8c8c8cccd5cd19b8735573aa004900011991091980080180119a8173ad35742a004605e6ae84d5d1280111931901919ab9c033032030135573ca00226ea8004d5d09aba2500223263202e33573805e05c05826aae7940044dd50009aba1500533501875c6ae854010ccd540700808004d5d0a801999aa80e3ae200135742a00460446ae84d5d1280111931901519ab9c02b02a028135744a00226ae8940044d5d1280089aba25001135744a00226ae8940044d5d1280089aba25001135744a00226ae8940044d55cf280089baa00135742a00460246ae84d5d1280111931900e19ab9c01d01c01a101b13263201b3357389201035054350001b135573ca00226ea80054049404448c88c008dd6000990009aa80a911999aab9f0012500a233500930043574200460066ae880080548c8c8cccd5cd19b8735573aa004900011991091980080180118061aba150023005357426ae8940088c98c8054cd5ce00b00a80989aab9e5001137540024646464646666ae68cdc39aab9d5004480008cccc888848cccc00401401000c008c8c8c8cccd5cd19b8735573aa0049000119910919800801801180a9aba1500233500f014357426ae8940088c98c8068cd5ce00d80d00c09aab9e5001137540026ae854010ccd54021d728039aba150033232323333573466e1d4005200423212223002004357426aae79400c8cccd5cd19b875002480088c84888c004010dd71aba135573ca00846666ae68cdc3a801a400042444006464c6403866ae700740700680640604d55cea80089baa00135742a00466a016eb8d5d09aba2500223263201633573802e02c02826ae8940044d5d1280089aab9e500113754002266aa002eb9d6889119118011bab00132001355012223233335573e0044a010466a00e66442466002006004600c6aae754008c014d55cf280118021aba200301313574200222440042442446600200800624464646666ae68cdc3a800a40004642446004006600a6ae84d55cf280191999ab9a3370ea0049001109100091931900899ab9c01201100f00e135573aa00226ea80048c8c8cccd5cd19b875001480188c848888c010014c01cd5d09aab9e500323333573466e1d400920042321222230020053009357426aae7940108cccd5cd19b875003480088c848888c004014c01cd5d09aab9e500523333573466e1d40112000232122223003005375c6ae84d55cf280311931900899ab9c01201100f00e00d00c135573aa00226ea80048c8c8cccd5cd19b8735573aa004900011991091980080180118029aba15002375a6ae84d5d1280111931900699ab9c00e00d00b135573ca00226ea80048c8cccd5cd19b8735573aa002900011bae357426aae7940088c98c802ccd5ce00600580489baa001232323232323333573466e1d4005200c21222222200323333573466e1d4009200a21222222200423333573466e1d400d2008233221222222233001009008375c6ae854014dd69aba135744a00a46666ae68cdc3a8022400c4664424444444660040120106eb8d5d0a8039bae357426ae89401c8cccd5cd19b875005480108cc8848888888cc018024020c030d5d0a8049bae357426ae8940248cccd5cd19b875006480088c848888888c01c020c034d5d09aab9e500b23333573466e1d401d2000232122222223005008300e357426aae7940308c98c8050cd5ce00a80a00900880800780700680609aab9d5004135573ca00626aae7940084d55cf280089baa0012323232323333573466e1d400520022333222122333001005004003375a6ae854010dd69aba15003375a6ae84d5d1280191999ab9a3370ea0049000119091180100198041aba135573ca00c464c6401a66ae7003803402c0284d55cea80189aba25001135573ca00226ea80048c8c8cccd5cd19b875001480088c8488c00400cdd71aba135573ca00646666ae68cdc3a8012400046424460040066eb8d5d09aab9e500423263200a33573801601401000e26aae7540044dd500089119191999ab9a3370ea00290021091100091999ab9a3370ea00490011190911180180218031aba135573ca00846666ae68cdc3a801a400042444004464c6401666ae7003002c02402001c4d55cea80089baa0012323333573466e1d40052002212200223333573466e1d40092000212200123263200733573801000e00a00826aae74dd5000891999ab9a3370e6aae74dd5000a40004008464c6400866ae700140100092612001490103505431001123230010012233003300200200122212200201';
@@ -28,7 +48,7 @@ Resolve the Plutus script address using `resolvePlutusScriptAddress`. Input the 
 const scriptAddress = resolvePlutusScriptAddress(script, 0);
 ```
 
-## Listing Asset for Sale
+## How Do You List an Asset for Sale?
 
 Get the seller's address from the connected wallet:
 
@@ -71,9 +91,9 @@ const signedTx = await wallet.signTx(unsignedTx);
 const txHash = await wallet.submitTx(signedTx);
 ```
 
-Implement your own marketplace. Note: A database may be required to store listing information.
+**Note:** In production, you'll need a database to store listing information for easy querying.
 
-Full code for listing an asset:
+### Complete Listing Code
 
 ```tsx
 const addr = (await wallet.getUsedAddresses())[0];
@@ -103,9 +123,9 @@ const signedTx = await wallet.signTx(unsignedTx);
 const txHash = await wallet.submitTx(signedTx);
 ```
 
-## Cancel the Listing
+## How Do You Cancel a Listing?
 
-Cancel the listing. Only the seller can cancel. Define the datum:
+Only the seller can cancel. First, reconstruct the original datum:
 
 ```tsx
 const datumConstr: Data = {
@@ -119,9 +139,7 @@ const datumConstr: Data = {
 };
 ```
 
-Cancel, update, and purchase endpoints require the UTxO in the script address. Use `fetchAddressUTxOs()` to query UTxOs containing the asset. Filter by datum hash using `resolveDataHash()` (see <Link href="/apis/utilities/resolvers">resolvers</Link>).
-
-Implementation for `_getAssetUtxo()`:
+Find the UTxO containing the listed asset. This helper function queries the script address and filters by datum hash:
 
 ```tsx
 async function _getAssetUtxo({ scriptAddress, asset, datum }) {
@@ -140,44 +158,9 @@ async function _getAssetUtxo({ scriptAddress, asset, datum }) {
 }
 ```
 
-Define the redeemer for cancellation:
+Build the cancellation transaction with redeemer `alternative: 1` (cancel action):
 
-```tsx
-const redeemer = { data: { alternative: 1, fields: [] } };
-```
-
-Build the transaction. Use MeshTxBuilder to redeem the UTxO and send the value back to the seller. Set required signers to the seller's address.
-
-```tsx
-const utxos = await wallet.getUtxos();
-const changeAddress = await wallet.getChangeAddress();
-const collateral = await wallet.getCollateral();
-
-const txBuilder = new MeshTxBuilder();
-
-const unsignedTx = await txBuilder
-  .spendingPlutusScriptV2()
-  .txIn(assetUtxo.input.txHash, assetUtxo.input.outputIndex)
-  .txInDatumValue(datumConstr)
-  .txInRedeemerValue(redeemer.data)
-  .txInScript(script.code)
-  .txOut(addr, assetUtxo.output.amount)
-  .requiredSignerHash(resolvePaymentKeyHash(addr))
-  .txInCollateral(
-    collateral[0].input.txHash,
-    collateral[0].input.outputIndex,
-    collateral[0].output.amount,
-    collateral[0].output.address,
-  )
-  .changeAddress(changeAddress)
-  .selectUtxosFrom(utxos)
-  .complete();
-
-const signedTx = await wallet.signTx(unsignedTx, true);
-const txHash = await wallet.submitTx(signedTx);
-```
-
-Full code for cancellation:
+### Complete Cancellation Code
 
 ```tsx
 const addr = (await wallet.getUsedAddresses())[0];
@@ -231,69 +214,13 @@ const signedTx = await wallet.signTx(unsignedTx, true);
 const txHash = await wallet.submitTx(signedTx);
 ```
 
-## Purchase the Listed Asset
+## How Do You Purchase a Listed Asset?
 
-Purchase the listed asset. The endpoint requires the asset, price, and seller address to create the validator datum. Successful purchase transfers the asset to the buyer and price to the seller.
+The buyer needs the asset details, price, and seller address to reconstruct the datum. Upon successful purchase, the asset transfers to the buyer and payment goes to the seller.
 
-Get the buyer's address:
+The purchase transaction uses redeemer `alternative: 0` (buy action) and must include an output paying the seller:
 
-```tsx
-const addr = (await wallet.getUsedAddresses())[0]; // buyer's address
-```
-
-Create the validator datum using the seller's address:
-
-```tsx
-const datumConstr: Data = {
-  alternative: 0,
-  fields: [
-    resolvePaymentKeyHash(sellerAddr), // seller address as pubkeyhash
-    listPriceInLovelace, // price
-    policyId, // policy ID of token
-    assetId, // asset name of token in hex
-  ],
-};
-```
-
-Define the redeemer:
-
-```tsx
-const redeemer = { data: { alternative: 0, fields: [] } };
-```
-
-Build and submit the transaction. Use MeshTxBuilder to redeem the asset, transfer to the buyer, and pay the seller:
-
-```tsx
-const utxos = await wallet.getUtxos();
-const changeAddress = await wallet.getChangeAddress();
-const collateral = await wallet.getCollateral();
-
-const txBuilder = new MeshTxBuilder();
-
-const unsignedTx = await txBuilder
-  .spendingPlutusScriptV2()
-  .txIn(assetUtxo.input.txHash, assetUtxo.input.outputIndex)
-  .txInDatumValue(datumConstr)
-  .txInRedeemerValue(redeemer.data)
-  .txInScript(script.code)
-  .txOut(addr, assetUtxo.output.amount)
-  .txOut(sellerAddr, [{ unit: "lovelace", quantity: listPriceInLovelace.toString() }])
-  .requiredSignerHash(resolvePaymentKeyHash(addr))
-  .txInCollateral(
-    collateral[0].input.txHash,
-    collateral[0].input.outputIndex,
-    collateral[0].output.amount,
-    collateral[0].output.address,
-  )
-  .changeAddress(changeAddress)
-  .selectUtxosFrom(utxos)
-  .complete();
-
-const signedTx = await wallet.signTx(unsignedTx, true);
-const txHash = await wallet.submitTx(signedTx);
-```
-
-Full code for purchase:
+### Complete Purchase Code
 
 ```tsx
 const addr = (await wallet.getUsedAddresses())[0]; // buyer's address
@@ -344,75 +271,11 @@ const signedTx = await wallet.signTx(unsignedTx, true);
 const txHash = await wallet.submitTx(signedTx);
 ```
 
-## Update the Listing
+## How Do You Update a Listing Price?
 
-Update the listing. Only the seller can update. Define the original datum:
+Only the seller can update. The transaction redeems the UTxO with the original datum and sends the asset back to the script with a new datum containing the updated price.
 
-```tsx
-const datumConstr: Data = {
-  alternative: 0,
-  fields: [
-    resolvePaymentKeyHash(addr), // seller address as pubkeyhash
-    listPriceInLovelace, // listed price
-    policyId, // policy ID of token
-    assetId, // asset name of token in hex
-  ],
-};
-```
-
-Create the updated datum with the new price:
-
-```tsx
-const datumConstrNew: Data = {
-  alternative: 0,
-  fields: [
-    resolvePaymentKeyHash(addr), // seller address as pubkeyhash
-    updatedPriceInLovelace, // updated price
-    policyId, // policy ID of token
-    assetId, // asset name of token in hex
-  ],
-};
-```
-
-Define the redeemer for update:
-
-```tsx
-const redeemer = { data: { alternative: 1, fields: [] } };
-```
-
-Build the transaction. Redeem the UTxO with the original datum and send the NFT to the script address with the new datum.
-
-```tsx
-const utxos = await wallet.getUtxos();
-const changeAddress = await wallet.getChangeAddress();
-const collateral = await wallet.getCollateral();
-
-const txBuilder = new MeshTxBuilder();
-
-const unsignedTx = await txBuilder
-  .spendingPlutusScriptV2()
-  .txIn(assetUtxo.input.txHash, assetUtxo.input.outputIndex)
-  .txInDatumValue(datumConstr)
-  .txInRedeemerValue(redeemer.data)
-  .txInScript(script.code)
-  .txOut(scriptAddress, [{ unit: 'd9312da562da182b02322fd8acb536f37eb9d29fba7c49dc172555274d657368546f6b656e', quantity: '1' }])
-  .txOutDatumHashValue(datumConstrNew)
-  .requiredSignerHash(resolvePaymentKeyHash(addr))
-  .txInCollateral(
-    collateral[0].input.txHash,
-    collateral[0].input.outputIndex,
-    collateral[0].output.amount,
-    collateral[0].output.address,
-  )
-  .changeAddress(changeAddress)
-  .selectUtxosFrom(utxos)
-  .complete();
-
-const signedTx = await wallet.signTx(unsignedTx, true);
-const txHash = await wallet.submitTx(signedTx);
-```
-
-Full code for update:
+### Complete Update Code
 
 ```tsx
 const addr = (await wallet.getUsedAddresses())[0];
@@ -473,4 +336,15 @@ const signedTx = await wallet.signTx(unsignedTx, true);
 const txHash = await wallet.submitTx(signedTx);
 ```
 
-This serves as a starting point for building apps with smart contracts.
+## What Should You Explore Next?
+
+This marketplace example demonstrates the core patterns for Cardano smart contract transactions in Cardano dApp development:
+
+- **Locking assets** — Send to script address with datum
+- **Spending from scripts** — Provide datum, redeemer, and script
+- **Authorization** — Use `requiredSignerHash` for seller-only actions
+
+Extend this foundation to build:
+- <Link href="/guides/aiken">Custom validators with Aiken</Link>
+- <Link href="/guides/vesting">Time-locked vesting contracts</Link>
+- <Link href="/apis/txbuilder">Advanced transaction patterns</Link>

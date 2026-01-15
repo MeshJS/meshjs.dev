@@ -1,40 +1,44 @@
 ---
-title: "Prove Wallet Ownership"
+title: "How to Prove Wallet Ownership with Cardano Message Signing"
+description: "Implement wallet authentication in your Cardano dApp development using CIP-8 message signing and the Mesh TypeScript blockchain SDK."
 ---
-import Link from  "fumadocs-core/link";
+import Link from "fumadocs-core/link";
+import { HowToSchema } from "@/components/seo";
 
-Cryptographically prove account ownership by signing data with a private key. Use the public address as an identifier and build authentication based on message signing.
+<HowToSchema
+  name="Prove Wallet Ownership with Cardano Message Signing"
+  description="Implement Sign in with Cardano authentication using CIP-8 message signing."
+  totalTime="PT30M"
+  steps={[
+    { name: "Get user wallet address", text: "Connect the user's wallet and retrieve their staking address as a unique identifier." },
+    { name: "Generate nonce on server", text: "Create a random nonce using generateNonce() and store it in your database." },
+    { name: "Sign nonce with wallet", text: "Prompt the user to sign the nonce using wallet.signData() for CIP-8 message signing." },
+    { name: "Verify signature on server", text: "Use checkSignature() to verify the signature matches the claimed address, then issue JWT or session." }
+  ]}
+/>
 
-Use JSON Web Tokens (JWT) to pass authenticated user identity.
+Wallet ownership verification lets users prove they control a Cardano address by signing a message with their private key. This is the foundation for "Sign in with Cardano" authentication in JavaScript Web3 applications—similar to "Sign in with Ethereum" but using <Link href="https://cips.cardano.org/cip/CIP-8">CIP-8</Link> message signing with the Mesh Cardano SDK.
 
-Example uses:
+**Common use cases:**
+- **User authentication** — Replace passwords with wallet-based sign-in
+- **Action authorization** — Verify user consent for off-chain operations
+- **Access control** — Gate content or features to specific wallet holders
 
-- **Authenticate sign-in**: Prove account ownership.
-- **Authenticate actions**: Authorize off-chain actions.
-- **Off-chain data**: Display user-specific off-chain data.
-
-## How it works
+## How Does Wallet Authentication Work?
 
 ![cryptographically-prove-wallet-ownership-process](/guides/cryptographically-prove-wallet-ownership-process.png)
 
-Signing a message affirms control of the wallet address.
+The authentication flow requires four components:
+1. **User wallet address** — Unique identifier for the user
+2. **Private key** — Held securely in the user's wallet (never transmitted)
+3. **Public key** — Used to verify signatures
+4. **Message (nonce)** — Random string that prevents replay attacks
 
-Four ingredients are required:
+The server generates a unique nonce, the user signs it with their wallet, and the server verifies the signature matches the claimed address.
 
-- User wallet address
-- Private key
-- Public key
-- Message to sign
+## Step 1: How Do You Get the User's Wallet Address?
 
-To verify ownership, provide a message for the user to sign. Validate the signature using the public key.
-
-## Client: Connect Wallet and Get Staking Address
-
-The backend User model requires `public address` and `nonce` fields. The address must be unique.
-
-On Cardano, use the wallet's staking address as the identifier. Retrieve it using `wallet.getUsedAddresses()`.
-
-Get the user's staking address and send it to the backend:
+Use the wallet's staking address as the user identifier since it remains constant across transactions. Your backend User model needs `address` and `nonce` fields:
 
 ```tsx
 const { wallet, connected } = useWallet();
@@ -48,11 +52,9 @@ async function frontendStartLoginProcess() {
 }
 ```
 
-## Server: Generate Nonce and Store in Database
+## Step 2: How Do You Generate a Nonce on the Server?
 
-Generate a random nonce in the backend to create a unique authentication message. Use `generateNonce()` from Mesh.
-
-Check the database for the `userAddress`. Create a new entry for new users. Store the new nonce for existing users.
+The server generates a random nonce that the user must sign. This prevents replay attacks—each authentication attempt requires a fresh signature. Use `generateNonce()` from Mesh:
 
 ```tsx
 import { generateNonce } from '@meshsdk/core';
@@ -68,13 +70,11 @@ async function backendGetNonce(userAddress) {
 }
 ```
 
-Return the `nonce` for signing.
+Store the nonce in your database associated with the user's address. Create a new user record if this is their first sign-in attempt.
 
-## Client: Verify ownership by signing the nonce
+## Step 3: How Does the Wallet Sign the Nonce?
 
-Sign the nonce using the wallet's private key with `wallet.signData(nonce, userAddress)` (<Link href="https://cips.cardano.org/cip/CIP-8">CIP-8</Link>).
-
-Request authorization. The app processes the generated signature.
+The frontend prompts the user to sign the nonce using CIP-8 message signing. This proves they control the private key for the claimed address:
 
 ```tsx
 async function frontendSignMessage(nonce) {
@@ -89,15 +89,11 @@ async function frontendSignMessage(nonce) {
 }
 ```
 
-## Server: Verify Signature
+The wallet prompts the user to approve the signature. Handle the case where users reject the signing request.
 
-The backend retrieves the user and nonce from the database.
+## Step 4: How Do You Verify the Signature on the Server?
 
-Verify the signature using `checkSignature`.
-
-If verified, issue a JWT or session identifier.
-
-Prevent replay attacks by regenerating the nonce after verification.
+Retrieve the stored nonce from your database and verify the signature using `checkSignature`. If valid, issue a JWT or session token. Always regenerate the nonce after verification to prevent replay attacks:
 
 ```tsx
 import { checkSignature } from '@meshsdk/core';
@@ -116,9 +112,9 @@ async function backendVerifySignature(userAddress, signature) {
 }
 ```
 
-## Putting It All Together
+## Complete Implementation Example
 
-Frontend implementation:
+Here's a complete React blockchain component using Mesh's `CardanoWallet` for a "Sign in with Cardano" flow:
 
 ```tsx
 import { CardanoWallet, useWallet } from '@meshsdk/react';
@@ -155,7 +151,7 @@ export default function Page() {
 }
 ```
 
-Server-side implementation:
+Server-side functions:
 
 ```tsx
 import { checkSignature, generateNonce } from '@meshsdk/core';
@@ -178,5 +174,11 @@ async function backendVerifySignature(userAddress, signature) {
 }
 ```
 
-This technique authenticates sign-ins or any user action.
+## What Security Considerations Apply?
 
+When building Cardano dApp development authentication flows, follow these security best practices:
+
+- **Always regenerate nonces** — A used nonce should never be valid again
+- **Set nonce expiration** — Implement a timeout (e.g., 5 minutes) for unused nonces
+- **Use HTTPS** — Protect the signature during transmission
+- **Validate addresses** — Ensure the address format is valid before database operations

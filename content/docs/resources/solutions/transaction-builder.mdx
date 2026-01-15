@@ -1,6 +1,6 @@
 ---
 title: "Cardano Transaction Builder That Just Works"
-description: "Build Cardano transactions without wrestling with UTXOs, fees, or change calculation. Mesh SDK's transaction builder handles the complexity so you can focus on what you're sending, not how to send it."
+description: "Build Cardano transactions without wrestling with UTXOs, fees, or change calculation. Mesh SDK handles the complexity automatically."
 ---
 import Link from "next/link";
 import { HowToSchema, FAQSchema } from "@/components/seo";
@@ -42,9 +42,13 @@ import { HowToSchema, FAQSchema } from "@/components/seo";
   ]}
 />
 
-Cardano transaction building should be straightforward: specify what you want to send and where. Mesh SDK's MeshTxBuilder delivers exactly this experience. Describe your transaction intent, and Mesh handles UTXO selection, fee calculation, change management, and output balancing automatically. Stop debugging transaction construction and start shipping features.
+**TL;DR:** MeshTxBuilder is a TypeScript blockchain SDK that simplifies Cardano transaction construction. Specify outputs, and Mesh automatically handles UTXO selection, fee calculation, and change management. Install with `npm install @meshsdk/core` and build production-ready transactions in minutes.
 
-## Quick Start
+---
+
+MeshTxBuilder solves the <Link href="/resources/challenges/utxo-model">UTXO complexity</Link> and <Link href="/resources/challenges/transaction-failures">transaction failure challenges</Link> that make Cardano dApp development difficult. This Cardano SDK handles the low-level details—UTXO selection, fee calculation, change outputs, minimum ADA requirements—so you describe what you want to send and Mesh figures out how. Stop debugging transaction construction and start shipping features.
+
+## How Do I Build My First Cardano Transaction?
 
 Build and submit your first Cardano transaction:
 
@@ -86,9 +90,9 @@ const txHash = await wallet.submitTx(signedTx);
 
 That's it. Mesh handles UTXO selection, fee calculation, and change output creation automatically.
 
-## Features
+## What Features Does MeshTxBuilder Provide?
 
-MeshTxBuilder provides comprehensive transaction capabilities:
+MeshTxBuilder provides comprehensive transaction capabilities for Cardano dApp development:
 
 - **Automatic UTXO Selection**: Optimal input selection based on output requirements
 - **Fee Calculation**: Precise fee computation using current protocol parameters
@@ -100,13 +104,14 @@ MeshTxBuilder provides comprehensive transaction capabilities:
 - **Validity Intervals**: Set transaction validity windows
 - **Reference Inputs**: Include reference inputs for efficient script execution
 
-## Transaction Patterns
+## What Are Common Transaction Patterns?
 
-### Send ADA
+### How Do I Send ADA?
 
 The simplest transaction—send ADA to an address:
 
 ```typescript
+// Send 10 ADA (10,000,000 lovelace) to recipient
 const tx = await txBuilder
   .txOut(recipientAddress, [{ unit: "lovelace", quantity: "10000000" }])
   .changeAddress(changeAddress)
@@ -114,22 +119,23 @@ const tx = await txBuilder
   .complete();
 ```
 
-### Send Native Tokens
+### How Do I Send Native Tokens?
 
 Transfer NFTs or fungible tokens:
 
 ```typescript
+// Send 1 token with minimum required ADA (2 ADA)
 const tx = await txBuilder
   .txOut(recipientAddress, [
     { unit: policyId + assetName, quantity: "1" },
-    { unit: "lovelace", quantity: "2000000" } // Minimum ADA
+    { unit: "lovelace", quantity: "2000000" }
   ])
   .changeAddress(changeAddress)
   .selectUtxosFrom(utxos)
   .complete();
 ```
 
-### Multiple Outputs
+### How Do I Send to Multiple Recipients?
 
 Send to multiple recipients in one transaction:
 
@@ -143,7 +149,7 @@ const tx = await txBuilder
   .complete();
 ```
 
-### Add Metadata
+### How Do I Add Metadata?
 
 Attach metadata to any transaction:
 
@@ -156,7 +162,7 @@ const tx = await txBuilder
   .complete();
 ```
 
-### Minting Tokens
+### How Do I Mint Tokens?
 
 Create new native tokens:
 
@@ -174,9 +180,9 @@ const tx = await txBuilder
   .complete();
 ```
 
-### Smart Contract Interaction
+### How Do I Interact with Smart Contracts?
 
-Interact with Plutus scripts:
+Interact with Cardano smart contracts (Plutus scripts):
 
 ```typescript
 const tx = await txBuilder
@@ -194,27 +200,27 @@ const tx = await txBuilder
   .complete();
 ```
 
-## Why Mesh Transaction Builder
+## Why Choose Mesh Transaction Builder?
 
-### Eliminates UTXO Complexity
+### How Does Mesh Eliminate UTXO Complexity?
 
 Cardano's UTXO model requires selecting specific transaction inputs. Mesh's algorithm chooses optimal UTXOs automatically, minimizing transaction size and fees while ensuring all outputs are covered.
 
-### Prevents Common Errors
+### How Does Mesh Prevent Common Errors?
 
 Failed transactions waste time and frustrate users. Mesh validates transactions before submission, catching issues like insufficient funds, invalid addresses, or missing collateral early with clear error messages.
 
-### Simplifies Smart Contract Calls
+### How Does Mesh Simplify Smart Contract Calls?
 
-Interacting with Plutus scripts requires datums, redeemers, collateral, and script references. Mesh provides dedicated methods for each, making contract interaction as straightforward as simple transfers.
+Interacting with Cardano smart contracts requires datums, redeemers, collateral, and script references. Mesh provides dedicated methods for each, making contract interaction as straightforward as simple transfers.
 
-### Handles Protocol Changes
+### How Does Mesh Handle Protocol Changes?
 
 Cardano protocol updates can affect transaction construction. Mesh stays current with protocol parameters, ensuring your transactions build correctly across network upgrades.
 
-## Advanced Usage
+## What Are Advanced Transaction Patterns?
 
-### Custom UTXO Selection
+### How Do I Use Custom UTXO Selection?
 
 When needed, specify exact inputs:
 
@@ -226,7 +232,7 @@ const tx = await txBuilder
   .complete();
 ```
 
-### Set Validity Interval
+### How Do I Set Validity Intervals?
 
 Control when transactions are valid:
 
@@ -242,7 +248,7 @@ const tx = await txBuilder
   .complete();
 ```
 
-### Required Signers
+### How Do I Require Additional Signers?
 
 Specify additional required signatures:
 
@@ -255,7 +261,7 @@ const tx = await txBuilder
   .complete();
 ```
 
-## Error Handling
+## How Do I Handle Transaction Errors?
 
 Handle transaction errors gracefully:
 
@@ -282,9 +288,9 @@ try {
 }
 ```
 
-## Integration with Wallets
+## How Do I Integrate with Wallets?
 
-MeshTxBuilder works seamlessly with Mesh wallet components:
+MeshTxBuilder works seamlessly with Mesh React blockchain components:
 
 ```tsx
 import { useWallet } from "@meshsdk/react";
@@ -318,13 +324,13 @@ function SendButton({ recipient, amount }) {
 
 ## Related Resources
 
-- <Link href="/solutions/wallet-integration">Wallet Integration</Link>: Connect wallets to sign transactions
-- <Link href="/solutions/react-components">React Components</Link>: UI components for transaction interfaces
-- <Link href="/challenges/transaction-failures">Transaction Failures</Link>: Understanding why transactions fail
-- <Link href="/challenges/utxo-model">UTXO Model</Link>: Deep dive into Cardano's transaction model
-- <Link href="/docs/transactions">Transaction Documentation</Link>: Complete API reference
+- <Link href="/resources/solutions/wallet-integration">Wallet Integration</Link>: Connect wallets to sign transactions
+- <Link href="/resources/solutions/react-components">React Components</Link>: UI components for transaction interfaces
+- <Link href="/resources/challenges/transaction-failures">Transaction Failures</Link>: Understanding why transactions fail
+- <Link href="/resources/challenges/utxo-model">UTXO Model</Link>: Deep dive into Cardano's transaction model
+- <Link href="/transactions">Transaction Documentation</Link>: Complete API reference
 
-## Get Started
+## How Do I Get Started?
 
 Build transactions that just work:
 
@@ -332,4 +338,4 @@ Build transactions that just work:
 npm install @meshsdk/core
 ```
 
-MeshTxBuilder handles the complexity of Cardano transactions so you can focus on your application logic. Describe what you want to accomplish, and Mesh figures out how to make it happen.
+MeshTxBuilder handles the complexity of Cardano transactions so you can focus on your dApp logic. This TypeScript blockchain SDK lets you describe what you want to accomplish, and Mesh figures out how to make it happen—whether you're building JavaScript Web3 applications or production Cardano dApps.

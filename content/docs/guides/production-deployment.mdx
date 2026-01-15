@@ -1,19 +1,34 @@
 ---
-title: "Production Deployment Guide"
-description: "Security best practices, deployment checklists, and error handling patterns for deploying Cardano dApps to production with Mesh SDK."
+title: "How to Deploy Cardano dApps to Production"
+description: "Security best practices, deployment checklists, and error handling for production Cardano dApp development with the Mesh TypeScript blockchain SDK."
 ---
-
 import Link from "fumadocs-core/link";
+import { HowToSchema } from "@/components/seo";
 
-Deploying Cardano applications to production requires careful attention to security, reliability, and user experience. This guide covers essential practices for enterprise-grade dApp deployment.
+<HowToSchema
+  name="Deploy Cardano dApps to Production"
+  description="Comprehensive checklist for deploying secure, reliable Cardano dApps to production environments."
+  totalTime="PT90M"
+  steps={[
+    { name: "Secure private keys", text: "Use browser wallets for user keys, isolate server-side signing, implement audit logging." },
+    { name: "Validate transactions", text: "Check amount bounds, address formats, asset verification, and metadata limits." },
+    { name: "Audit smart contracts", text: "Have contracts professionally audited, test thoroughly with TxTester and testnets." },
+    { name: "Protect API keys", text: "Proxy blockchain requests through backend, implement rate limiting, rotate keys periodically." },
+    { name: "Configure providers", text: "Set up primary and fallback providers with health checks for redundancy." },
+    { name: "Implement error handling", text: "Handle transaction failures gracefully, manage UTxO contention, implement provider failover." },
+    { name: "Set up monitoring", text: "Track transaction metrics, user metrics, and infrastructure metrics with alerting." }
+  ]}
+/>
 
-## Security Best Practices
+Deploying Cardano dApps to production requires careful attention to security, reliability, and user experience. This guide covers essential practices for enterprise-grade Cardano dApp development and JavaScript Web3 deployment—from private key management to monitoring and disaster recovery using the Mesh Cardano SDK.
+
+## What Are the Security Best Practices?
 
 ### Private Key Management
 
 Never expose private keys in client-side code. For production applications:
 
-**Browser wallets only** - Let users manage their own keys through wallet extensions. Mesh's `BrowserWallet` class handles CIP-30 wallet connections securely without your application touching private keys.
+**Browser wallets only** - Let users manage their own keys through wallet extensions. The Mesh Cardano SDK's `BrowserWallet` class handles CIP-30 wallet connections securely without your application touching private keys.
 
 **Server-side signing** - When your application must sign transactions (automated systems, treasury management), isolate signing in secure backend services:
 
@@ -26,19 +41,19 @@ Never expose private keys in client-side code. For production applications:
 
 Validate all transaction parameters before building:
 
-- **Amount bounds** - Check that values are positive and within expected ranges
-- **Address format** - Validate recipient addresses before sending funds
-- **Asset verification** - Confirm policy IDs and asset names match expectations
-- **Metadata limits** - Ensure metadata fits within protocol limits
+- **Amount bounds** — Check that values are positive and within expected ranges
+- **Address format** — Validate recipient addresses before sending funds
+- **Asset verification** — Confirm policy IDs and asset names match expectations
+- **Metadata limits** — Ensure metadata fits within protocol limits
 
 ### Smart Contract Security
 
-For applications interacting with Plutus contracts:
+For applications interacting with Cardano smart contracts:
 
-- **Audit contracts** - Have smart contracts professionally audited before mainnet deployment
-- **Test thoroughly** - Use Mesh's `TxTester` and testnet deployments
-- **Validate datums** - Check datum structure matches contract expectations
-- **Monitor contracts** - Track contract interactions post-deployment
+- **Audit contracts** — Have Cardano smart contracts professionally audited before mainnet deployment
+- **Test thoroughly** — Use the Mesh SDK's `TxTester` and testnet deployments
+- **Validate datums** — Check datum structure matches contract expectations
+- **Monitor contracts** — Track contract interactions post-deployment
 
 ### API Key Protection
 
@@ -49,7 +64,7 @@ Never expose provider API keys in client-side code:
 - Use separate API keys for development and production
 - Rotate keys periodically and after any potential exposure
 
-## Deployment Checklist
+## What Should Your Deployment Checklist Include?
 
 ### Pre-Launch
 
@@ -95,11 +110,11 @@ Consider provider characteristics:
 
 **Network Selection:**
 
-- **Preview** - Testing new features, unstable
-- **Preprod** - Production-like testing, recommended for staging
-- **Mainnet** - Production deployment
+- **Preview** — Testing new features, unstable
+- **Preprod** — Production-like testing, recommended for staging
+- **Mainnet** — Production deployment
 
-## Error Handling Patterns
+## How Should You Handle Errors?
 
 ### Transaction Failures
 
@@ -148,7 +163,7 @@ Implement automatic failover when providers fail:
 - Switch to backup on primary failure
 - Auto-recover to primary when healthy
 
-## Performance Optimization
+## How Do You Optimize Performance?
 
 ### Bundle Size
 
@@ -177,7 +192,7 @@ Build efficient transactions:
 - Minimize datum sizes in smart contract interactions
 - Consider inline datums for frequently accessed data
 
-## Monitoring and Observability
+## What Should You Monitor?
 
 ### Key Metrics
 
@@ -217,9 +232,9 @@ Structure logs for analysis:
 - Avoid logging sensitive data (addresses may be semi-sensitive)
 - Retain logs for compliance requirements
 
-## Compliance Considerations
+## What Are the Compliance Requirements?
 
-For enterprise deployments, consider:
+For enterprise Cardano dApp deployments, consider:
 
 **Regulatory:**
 - Know Your Customer (KYC) requirements
@@ -238,7 +253,7 @@ For enterprise deployments, consider:
 - Access control documentation
 - Change management records
 
-## Disaster Recovery
+## How Do You Plan for Disaster Recovery?
 
 ### Backup Strategies
 
@@ -258,7 +273,7 @@ Prepare for security incidents:
 - Prepare communication templates for users
 - Test recovery procedures periodically
 
-## Next Steps
+## What Should You Do Next?
 
 After completing this checklist:
 

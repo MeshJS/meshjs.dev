@@ -1,31 +1,38 @@
 ---
-title: "Implement Custom Provider"
+title: "Build a Custom Blockchain Provider for Your Cardano dApp"
+description: "Learn how to create custom providers for the Mesh Cardano SDK using TypeScript interfaces. Connect any data source to your Cardano dApp development workflow."
 ---
 import Link from "fumadocs-core/link";
+import { HowToSchema } from "@/components/seo";
 
-Mesh offers options like <Link href="https://blockfrost.io/">Blockfrost</Link> or <Link href="https://www.koios.rest/">Koios</Link> (see <Link href="/providers">Providers</Link>). These providers access the Cardano blockchain to retrieve data, such as smart contract UTXOs, or submit signed transactions.
+<HowToSchema
+  name="Build a Custom Blockchain Provider for Cardano"
+  description="Create a custom provider class that implements Mesh SDK interfaces to connect your Cardano dApp to any blockchain data source."
+  totalTime="PT60M"
+  steps={[
+    { name: "Understand provider interfaces", text: "Review IFetcher and ISubmitter interfaces that define the contract your custom class must follow." },
+    { name: "Create provider class template", text: "Start with the provider template implementing required interfaces." },
+    { name: "Initialize constructor", text: "Set up network endpoints, API keys, and HTTP client configuration." },
+    { name: "Implement data mapping", text: "Map data between your source and Mesh's expected types for each interface method." },
+    { name: "Test and document", text: "Verify each method returns correctly typed data and document your implementation." }
+  ]}
+/>
 
-Customize a provider to utilize GraphQL, cardano-cli, or websocket with Mesh SDK. Any query method works if the output conforms to the interface.
+A custom provider is a TypeScript class that implements Mesh SDK interfaces to connect your Cardano dApp to any blockchain data source. Whether you're using GraphQL endpoints, cardano-cli, websockets, or your own infrastructure, custom providers give you complete control over how your application fetches UTxOs, retrieves protocol parameters, and submits transactions.
 
-This guide demonstrates how to create a custom provider and integrate it with Mesh to work with the transaction builder.
+This TypeScript blockchain SDK pattern lets you replace built-in providers like <Link href="https://blockfrost.io/">Blockfrost</Link> or <Link href="https://www.koios.rest/">Koios</Link> with custom implementations while maintaining full compatibility with Mesh's transaction builder. This guide walks through building a custom provider from scratch.
 
-## How it works
+## What Are Provider Interfaces?
 
-JavaScript interfaces define the application structure and syntax for classes. Classes based on an interface must abide by its structure.
+Provider interfaces define the contract your custom class must follow in the Mesh Cardano SDK. Any class implementing an interface must include all specified methods with matching signatures—this ensures your custom provider works seamlessly with Mesh's transaction builder and other Cardano dApp development features.
 
-Providers implement one or more interfaces. For example, the **KoiosProvider** Class implements **IFetcher** and **ISubmitter**. It must strictly conform to their structures.
-
-**KoiosProvider** implements **IFetcher** and **ISubmitter** using the **implement** keyword:
+For example, `KoiosProvider` implements both `IFetcher` and `ISubmitter`:
 
 ```tsx
 export class KoiosProvider implements IFetcher, ISubmitter {}
 ```
 
-Visit the GitHub repo at <Link href="https://github.com/MeshJS/mesh/tree/main/packages/module/src/common/contracts">packages/module/src/common/contracts</Link> for the latest interfaces.
-
-Create a custom provider class by creating functions with the same name, input parameters, and return type as the defined methods for each interface. This ensures compatibility with Mesh functions.
-
-IFetcher has 6 functions (see packages/module/src/common/contracts/fetcher.ts):
+The `IFetcher` interface requires six methods for querying blockchain data:
 
 ```tsx
 import type { AccountInfo, AssetMetadata, Protocol, UTxO } from '@mesh/common/types';
@@ -40,13 +47,11 @@ export interface IFetcher {
 }
 ```
 
-**KoiosProvider** must implement these functions as defined in **IFetcher**.
+See the <Link href="https://github.com/MeshJS/mesh/tree/main/packages/mesh-provider/src/types">latest interface definitions on GitHub</Link> for the complete API.
 
-## Implement your own provider
+## How Do You Create a Custom Provider?
 
-Review existing providers to get started. Visit <Link href="https://github.com/MeshJS/mesh/tree/main/packages/module/src/providers">packages/module/src/providers</Link>.
-
-Use this codebase as a starting point:
+Start by reviewing <Link href="https://github.com/MeshJS/mesh/tree/main/packages/mesh-provider/src">existing provider implementations</Link> in the Mesh repository. Use the following template as your starting point:
 
 ```tsx
 import { IFetcher, ISubmitter } from "@mesh/common/contracts";
@@ -132,17 +137,11 @@ export class NAMEProvider implements IFetcher, ISubmitter {
 }
 ```
 
-This code may change if the interface updates. Your provider may require different interfaces depending on its purpose.
+This template may change as interfaces evolve. Choose which interfaces to implement based on your Cardano dApp development needs—use `IFetcher` alone for read-only access, or add `ISubmitter` to submit transactions.
 
-## Implement constructor and functions
+## How Do You Initialize the Provider Constructor?
 
-Define the constructor.
-
-A constructor creates and initializes a class. It runs when creating an object using the **new** keyword.
-
-Providers usually require basic information, such as the network or API key.
-
-**KoiosProvider** requires **network** and **version** (optional):
+The constructor initializes your provider with network endpoints, API keys, and any HTTP client configuration required for your TypeScript blockchain SDK integration. Here's how `KoiosProvider` sets up its Axios instance:
 
 ```tsx
 private readonly _axiosInstance: AxiosInstance;
@@ -154,19 +153,16 @@ constructor(network: 'api' | 'preview' | 'preprod' | 'guild', version = 0) {
 }
 ```
 
-This constructor initializes the Axios instance with user-provided parameters.
+## How Do You Map Data Between Your Source and Mesh Types?
 
-Define each function required by the interface. Understand the following:
+Each interface method requires mapping data between your source and Mesh's expected types. Consider these factors:
 
-- Query method for the blockchain provider.
-- Interface input parameters.
-- Blockchain provider input parameters.
-- Expected interface outputs.
-- Blockchain provider return values.
+1. **Query method** — How does your data source expose this information?
+2. **Input mapping** — Transform Mesh's input parameters to your provider's format
+3. **Output mapping** — Convert your provider's response to Mesh's expected types
+4. **Error handling** — Wrap errors consistently using `parseHttpError`
 
-Map data correctly from the blockchain provider to the interface's required data type.
-
-For example, **KoiosProvider** implements **fetchProtocolParameters()** to map Koios responses to the Protocol data type:
+Here's how `KoiosProvider` implements `fetchProtocolParameters()`, mapping Koios API responses to Mesh's `Protocol` type:
 
 ```tsx
 async fetchProtocolParameters(epoch: number): Promise<Protocol> {
@@ -206,6 +202,12 @@ async fetchProtocolParameters(epoch: number): Promise<Protocol> {
 }
 ```
 
-Implement every function specified by the interface and test them.
+## What Should You Do After Implementation?
 
-<Link href="https://github.com/MeshJS/mesh/pulls">Create a pull request</Link> if your provider benefits the Cardano developer community.
+After implementing all required interface methods for your Cardano SDK integration:
+
+1. **Test thoroughly** — Verify each method returns correctly typed data
+2. **Handle edge cases** — Account for missing data, network errors, and rate limits
+3. **Document your provider** — Help others understand your implementation
+
+Built a provider that could benefit other Cardano developers? <Link href="https://github.com/MeshJS/mesh/pulls">Submit a pull request</Link> to share it with the community.

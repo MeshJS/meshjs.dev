@@ -1,5 +1,6 @@
 ---
-title: "Mint an NFT Collection"
+title: "How to Mint an NFT Collection on Cardano with TypeScript"
+description: "Mint native NFT assets on Cardano using the Mesh TypeScript blockchain SDK and Bun. Learn CIP-25 metadata, native scripts, and transaction building for dApp development."
 ---
 import Youtube from "@/components/ui/Youtube";
 import { HowToSchema } from "@/components/seo";
@@ -23,31 +24,29 @@ import { HowToSchema } from "@/components/seo";
 
 <Youtube id="KewdzkAqsvw" />
 
-### Course Materials: [!toc]
+Minting an NFT collection on Cardano means creating native assets with CIP-25 compliant metadata—no smart contract required. This guide walks you through the complete Cardano dApp development process using the Mesh TypeScript blockchain SDK: wallet generation, native script creation, and submitting your mint transaction on the Cardano preprod testnet.
 
-1. Install Bun (https://bun.sh/docs/installation)
-2. Fund Your Preprod Wallet (https://docs.cardano.org/cardano-testnets/tools/faucet)
-3. Create a Blockfrost Preprod Project (https://blockfrost.io/dashboard)
-4. CIP-20 Definition (https://cips.cardano.org/cip/CIP-20)
+**What you'll learn:**
+- How Cardano native tokens work without smart contracts
+- Building minting transactions with the Mesh Cardano SDK
+- Implementing CIP-25 metadata standards for NFTs
 
-Learn how to mint native assets on the Cardano blockchain. You will:
+**Resources:**
+- [Install Bun](https://bun.sh/docs/installation) — JavaScript runtime
+- [Cardano Testnet Faucet](https://docs.cardano.org/cardano-testnets/tools/faucet) — Fund your wallet
+- [Blockfrost Dashboard](https://blockfrost.io/dashboard) — API provider
+- [CIP-25 Specification](https://cips.cardano.org/cip/CIP-25) — NFT metadata standard
 
-1. Understand tokens on Cardano.
-2. Build simple minting transactions.
-3. Understand community standards for NFTs.
+## How Do You Set Up the Project?
 
-## Project Setup
-
-Install Bun (see course material #1).
-
-Initialize a new directory and run:
+First, install Bun from [bun.sh](https://bun.sh/docs/installation), then initialize your project:
 
 ```tsx
 bun init
 bun install @meshsdk/core
 ```
 
-Generate and fund a Cardano wallet. Create `/scripts/brew.ts` and use MeshSDK to generate a wallet and log information.
+Next, generate a Cardano wallet. Create `scripts/brew.ts` to generate a new wallet and display its address:
 
 ```tsx
 import { MeshWallet } from "@meshsdk/core";
@@ -71,13 +70,16 @@ Run the script:
 bun run scripts/brew.ts
 ```
 
-Copy your public address and fund the wallet (course material #2). Obtain a Blockfrost Preprod project (course material #3).
+Copy the public address and fund it using the [Cardano testnet faucet](https://docs.cardano.org/cardano-testnets/tools/faucet). Then create a [Blockfrost preprod project](https://blockfrost.io/dashboard) and save both credentials to a `.env` file:
 
-Copy your mnemonic and Blockfrost key into a `.env` file.
+```
+MNEMONIC=your twelve word mnemonic phrase here
+BLOCKFROST_KEY=your_blockfrost_api_key
+```
 
-## Mint Your Collection
+## How Do You Build the Minting Transaction?
 
-In `index.ts`, use Mesh building blocks to interact with the blockchain.
+Create `index.ts` and import the Mesh Cardano SDK components:
 
 ```tsx
 import {
@@ -103,7 +105,9 @@ const utxos = await wallet.getUtxos();
 const { pubKeyHash } = deserializeAddress(address);
 ```
 
-Create a minting ruleset using a native script to derive the policy ID.
+## What Is a Native Script for Minting?
+
+A native script defines the minting policy—the rules controlling who can mint tokens and when. In Cardano dApp development, native scripts are simpler than Plutus smart contracts while still providing secure minting controls. This example combines a time lock (minting expires after a certain slot) with a signature requirement:
 
 ```tsx
 const nativeScript: NativeScript = {
@@ -121,7 +125,11 @@ const forgeScript = ForgeScript.fromNativeScript(nativeScript);
 const policyId = resolveScriptHash(forgeScript);
 ```
 
-Write a function to generate on-chain metadata for image and attributes.
+The `slot` value must be in the future—adjust it based on the current preprod slot number.
+
+## How Do You Create CIP-25 NFT Metadata?
+
+CIP-25 is the Cardano standard for NFT metadata. Create a function that generates compliant metadata with image references and attributes:
 
 ```tsx
 type AssetMetadata = {
@@ -155,7 +163,9 @@ function get721Metadata(
 }
 ```
 
-Loop to create 9 unique tokens using the forge script. Commit, sign, and submit the transaction.
+## How Do You Mint Multiple NFTs in One Transaction?
+
+Loop through your collection to mint multiple tokens in a single transaction. This is more efficient and cost-effective than individual minting transactions:
 
 ```tsx
 const metadata: {
@@ -183,4 +193,12 @@ const txHash = await wallet.submitTx(signedTx);
 console.log("Submitted TX Hash:", txHash);
 ```
 
-Read the transaction hash and view the transaction on a chain explorer.
+Run the script with `bun run index.ts`. After submission, view your transaction on a Cardano explorer like [CardanoScan](https://preprod.cardanoscan.io/) using the returned transaction hash.
+
+## What Should You Do Next?
+
+Now that you've minted your first NFT collection using this TypeScript blockchain SDK:
+
+- **Add unique images** — Replace the placeholder IPFS hash with your own artwork
+- **Expand metadata** — Add more attributes following the CIP-25 specification
+- **Deploy to mainnet** — Switch `networkId` to `1` and use mainnet providers for production Cardano dApp development

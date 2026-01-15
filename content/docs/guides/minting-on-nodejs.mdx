@@ -1,71 +1,71 @@
 ---
-title: "Minting Application"
+title: "How to Mint NFTs on Cardano with Node.js"
+description: "Build a server-side NFT minting application using the Mesh TypeScript blockchain SDK and Node.js for Cardano dApp development."
 ---
 import Link from "fumadocs-core/link";
+import { HowToSchema } from "@/components/seo";
 
-Mint assets with **MeshWallet** on Node.js.
+<HowToSchema
+  name="Mint NFTs on Cardano with Node.js"
+  description="Build a server-side NFT minting application that creates multiple tokens and distributes them to different recipients."
+  totalTime="PT30M"
+  steps={[
+    { name: "Set up Node.js project", text: "Create a new folder, initialize npm, install TypeScript and @meshsdk/core." },
+    { name: "Configure TypeScript", text: "Update tsconfig.json with ES module settings and add start script to package.json." },
+    { name: "Define NFT metadata", text: "Create metadata.ts with CIP-25 compliant NFT metadata for each token." },
+    { name: "Specify recipients", text: "Create recipients.ts mapping wallet addresses to token names." },
+    { name: "Initialize wallet and provider", text: "Configure BlockfrostProvider and MeshWallet with your credentials." },
+    { name: "Build minting transaction", text: "Loop through recipients to mint tokens and send to addresses using MeshTxBuilder." },
+    { name: "Sign and submit", text: "Sign the transaction with the wallet and submit to the blockchain." }
+  ]}
+/>
 
-## System setup
+Server-side minting lets you create Cardano NFTs without a browser—ideal for automated token distribution, airdrops, and backend JavaScript Web3 services. This guide shows you how to build a Node.js application using the Mesh Cardano SDK that mints multiple NFTs and sends them to different recipients in a single transaction.
 
-### 1. Visual Studio Code [!toc]
+## What Do You Need?
 
-Download and install <Link href="https://code.visualstudio.com/">Visual Studio Code</Link>.
+**Prerequisites:**
+- <Link href="https://code.visualstudio.com/">Visual Studio Code</Link> or any code editor
+- <Link href="https://nodejs.org/en">Node.js</Link> LTS version
 
-### 2. Node.js [!toc]
-
-Install the Long-Term Support (LTS) version of <Link href="https://nodejs.org/en">Node.js</Link>.
-
-## Project setup
+## How Do You Set Up the Project?
 
 Create a new folder and initialize a Node.js project:
 
 ```tsx
-npm init
-```
-
-Install **typescript** and **Mesh**:
-
-```tsx
-npm install --dev typescript && npm install @meshsdk/core
-```
-
-Initialize TypeScript:
-
-```tsx
+npm init -y
+npm install --save-dev typescript
+npm install @meshsdk/core
 npx tsc --init
 ```
 
-Open **tsconfig.json** and define the configurations:
+Update `tsconfig.json` with ES module settings:
 
 ```tsx
 {
-  ...
-  "target": "ESNext",
-  "module": "ESNext",
-  "moduleResolution": "Node",
-  "outDir": "dist",
-  ...
+  "compilerOptions": {
+    "target": "ESNext",
+    "module": "ESNext",
+    "moduleResolution": "Node",
+    "outDir": "dist"
+  }
 }
 ```
 
-Open **package.json** and add the configurations:
+Add the start script to `package.json`:
 
 ```tsx
 {
-  ...
   "type": "module",
   "scripts": {
     "start": "tsc && node ./dist/main.js"
   }
-  ...
 }
 ```
 
-## Build the minting transaction
+## How Do You Define NFT Metadata?
 
-### 1. Create list of NFT's metadata [!toc]
-
-Create `metadata.ts` and define the NFT metadata:
+Create `metadata.ts` with CIP-25 compliant NFT metadata:
 
 ```tsx
 export const metadata: { [assetName: string]: any } = {
@@ -93,9 +93,9 @@ export const metadata: { [assetName: string]: any } = {
 };
 ```
 
-### 2. Create a list of recipients [!toc]
+## How Do You Specify Recipients?
 
-Create `recipients.ts` and specify the recipients:
+Create `recipients.ts` mapping addresses to token names:
 
 ```tsx
 export const recipients: { [recipient: string]: string } = {
@@ -108,9 +108,9 @@ export const recipients: { [recipient: string]: string } = {
 };
 ```
 
-### 3. Create main.ts and import the packages: [!toc]
+## How Do You Build the Minting Transaction?
 
-Create `main.ts` and import the required packages and files:
+Create `main.ts` and import the required packages:
 
 ```tsx
 import {
@@ -128,9 +128,7 @@ import { metadata } from './metadata.js';
 import { recipients } from './recipients.js';
 ```
 
-### 4. Define variables [!toc]
-
-Define minting variables. Use your own wallet to mint your own collection. This example uses:
+Configure your wallet and provider credentials (use your own keys for real deployments):
 
 ```tsx
 const demoCLIKey = {
@@ -143,19 +141,11 @@ const networkId = 0;
 const blockfrostKey = 'BLOCKFROST_KEY_HERE';
 ```
 
-### 5. Build the minting transaction [!toc]
-
-This guide builds a minting transaction, but the process applies to any transaction. <Link href="/apis/txbuilder">Learn more about Transaction</Link>.
-
-Initialize a blockchain provider. This guide uses **BlockfrostProvider**:
+Initialize the provider and wallet:
 
 ```tsx
 const provider = new BlockfrostProvider(blockfrostKey);
-```
 
-Initialize **MeshWallet** and its forging script. This example uses CLI generated keys, but you can load your wallet with a private key or mnemonic phrase. <Link href="/apis/wallets/meshwallet">Learn more about MeshWallet</Link>.
-
-```tsx
 const wallet = new MeshWallet({
   networkId: networkId,
   fetcher: provider,
@@ -167,12 +157,13 @@ const wallet = new MeshWallet({
   },
 });
 
-
 const walletAddress = wallet.getPaymentAddress();
 const forgingScript = ForgeScript.withOneSignature(walletAddress);
 ```
 
-Create a new MeshTxBuilder, loop through each recipient, and mint assets (<Link href="/apis/txbuilder/minting">Learn more about minting transactions</Link>):
+You can also use mnemonic phrases or private keys instead of CLI keys. See the <Link href="/apis/wallets/meshwallet">MeshWallet documentation</Link>.
+
+Build the minting transaction using the Mesh TypeScript blockchain SDK by looping through recipients:
 
 ```tsx
 const utxos = await wallet.getUtxos();
@@ -204,20 +195,24 @@ txBuilder
   .metadataValue(721, txMetadata)
   .changeAddress(walletAddress)
   .selectUtxosFrom(utxos);
-```
 
-Sign and submit the transaction:
-
-```tsx
 const unsignedTx = await txBuilder.complete();
 const signedTx = await wallet.signTx(unsignedTx);
 const txHash = await wallet.submitTx(signedTx);
+
+console.log('Transaction submitted:', txHash);
 ```
 
-Execute the script:
+Run the minting script:
 
 ```tsx
 npm start
 ```
 
-A successful transaction returns a transaction hash, mints multiple assets, and sends them to multiple recipients.
+A successful execution returns a transaction hash. Your NFTs are now minted and distributed to the specified recipients.
+
+## What Should You Explore Next?
+
+- Learn more about <Link href="/apis/txbuilder/minting">minting transactions</Link>
+- Explore <Link href="/guides/multisig-minting">multi-signature minting</Link> for shared control
+- See <Link href="/apis/wallets/meshwallet">MeshWallet options</Link> for different key types

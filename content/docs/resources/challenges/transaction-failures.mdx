@@ -1,16 +1,16 @@
 ---
 title: "Why Does My Cardano Transaction Keep Failing?"
-description: "Transaction failures on Cardano often stem from UTXO conflicts, insufficient inputs, or incorrect fee calculations. Learn the root causes and how Mesh SDK prevents these issues automatically."
+description: "Fix Cardano dApp transaction failures: UTXO conflicts, insufficient inputs, fee errors. Learn how the Mesh Cardano SDK prevents these issues automatically."
 ---
 import Link from "next/link";
 import { HowToSchema, FAQSchema } from "@/components/seo";
 
 <HowToSchema
   name="Fix Cardano Transaction Failures with Mesh SDK"
-  description="Resolve common Cardano transaction failures by implementing proper UTXO selection, fee calculation, and error handling using Mesh SDK."
+  description="Resolve common Cardano dApp development transaction failures using the Mesh TypeScript blockchain SDK for automatic UTXO selection and fee calculation."
   totalTime="PT10M"
   steps={[
-    { name: "Install Mesh SDK", text: "Run npm install @meshsdk/core @meshsdk/react to add the SDK to your project." },
+    { name: "Install Mesh SDK", text: "Run npm install @meshsdk/core @meshsdk/react to add the Cardano SDK to your JavaScript Web3 project." },
     { name: "Configure a provider", text: "Set up a blockchain provider like Blockfrost to fetch UTXOs and submit transactions." },
     { name: "Use MeshTxBuilder", text: "Replace manual transaction construction with MeshTxBuilder for automatic UTXO selection and fee calculation." }
   ]}
@@ -20,7 +20,7 @@ import { HowToSchema, FAQSchema } from "@/components/seo";
   faqs={[
     {
       question: "Why does my Cardano transaction fail with 'insufficient funds' when I have enough ADA?",
-      answer: "This usually happens because your ADA is spread across multiple UTXOs that cannot be efficiently combined, or because some UTXOs are already being used in pending transactions. Mesh SDK's automatic UTXO selection handles this by choosing optimal inputs and waiting for conflicting transactions to resolve."
+      answer: "This usually happens because your ADA is spread across multiple UTXOs that cannot be efficiently combined, or because some UTXOs are already being used in pending transactions. The Mesh Cardano SDK's automatic UTXO selection handles this by choosing optimal inputs."
     },
     {
       question: "What causes 'UTXO already spent' errors on Cardano?",
@@ -28,59 +28,66 @@ import { HowToSchema, FAQSchema } from "@/components/seo";
     },
     {
       question: "How do I fix 'transaction too large' errors on Cardano?",
-      answer: "Cardano transactions have a maximum size limit. Large transactions with many inputs, outputs, or metadata can exceed this limit. Mesh SDK helps by selecting the minimum required UTXOs and optimizing transaction structure."
+      answer: "Cardano transactions have a 16KB maximum size limit. Large transactions with many inputs, outputs, or metadata can exceed this. The Mesh TypeScript blockchain SDK helps by selecting minimum required UTXOs and optimizing transaction structure."
     },
     {
-      question: "Why do my Cardano transactions fail after working initially?",
+      question: "Why do my Cardano dApp transactions fail after working initially?",
       answer: "Network congestion, mempool changes, or UTXO state changes between building and submitting can cause previously valid transactions to fail. Mesh SDK builds transactions with fresh data and provides retry mechanisms to handle these scenarios."
     },
     {
       question: "Can I prevent transaction failures when building Cardano dApps?",
-      answer: "Yes. Using proper UTXO management, implementing retry logic, fetching fresh wallet state before building transactions, and using Mesh SDK's automatic handling significantly reduces failure rates in production applications."
+      answer: "Yes. Using proper UTXO management, implementing retry logic, fetching fresh wallet state before building transactions, and using a TypeScript blockchain SDK like Mesh significantly reduces failure rates in production applications."
     }
   ]}
 />
 
-Cardano transaction failures typically occur due to UTXO conflicts, insufficient inputs for the desired outputs, incorrect fee calculations, or exceeding transaction size limits. Mesh SDK eliminates most failures by automatically handling UTXO selection, fee estimation, and change calculation. Rather than manually managing these low-level details, you describe the transaction intent and let Mesh construct a valid transaction.
+Cardano transaction failures in dApp development occur due to UTXO conflicts, insufficient inputs, incorrect fee calculations, or exceeding size limits. The Mesh Cardano SDK eliminates most failures by automatically handling UTXO selection, fee estimation, and change calculation in your JavaScript Web3 or React blockchain application.
 
-## Why This Happens
+**Key Takeaway:** Most Cardano dApp development transaction failures stem from the UTXO model's requirement to explicitly select and consume inputs. A TypeScript blockchain SDK like Mesh handles this automatically.
 
-Cardano's UTXO model fundamentally differs from account-based blockchains like Ethereum. Instead of a single balance that updates in place, Cardano wallets contain discrete "coins" called UTXOs (Unspent Transaction Outputs). Every transaction consumes existing UTXOs and creates new ones. This architecture provides stronger security guarantees and enables deterministic transaction validation, but it also creates failure modes that don't exist on account-based chains.
+## Why Do Cardano Transactions Fail?
 
-### Concurrent Transaction Conflicts
+Cardano transactions fail because the UTXO model requires explicit input selection unlike account-based systems. Your wallet contains discrete "coins" (UTXOs) that must be selected and fully consumed. This architecture provides stronger security but creates failure modes unique to Cardano dApp development that a TypeScript blockchain SDK like Mesh handles automatically.
 
-When you build a transaction, you select specific UTXOs as inputs. If another transaction consumes one of those UTXOs before yours confirms, your transaction becomes invalid. This happens frequently in dApps where users might click a button multiple times or where backend systems process multiple requests simultaneously.
+### What Causes UTXO Conflicts?
 
-In account-based systems, transactions simply execute in sequence with the final state reflecting all operations. In Cardano, you must explicitly handle the case where your selected inputs no longer exist. This is not a bug—it's a fundamental property of how UTXOs work.
+When you build a transaction, you select specific UTXOs as inputs. If another transaction consumes one before yours confirms, your transaction becomes invalid. This happens frequently when:
 
-### Insufficient Input Selection
+- Users click submit multiple times
+- Backend systems process concurrent requests
+- Multiple browser tabs share the same wallet
 
-A common frustration occurs when your wallet shows sufficient ADA balance, but transactions fail with "insufficient funds" errors. This happens because:
+Unlike account-based systems where transactions execute sequentially, Cardano requires explicit handling of UTXO conflicts.
 
-- Your ADA is locked in UTXOs alongside native tokens that you're not spending
-- The minimum UTXO value requirement means some outputs cannot be created
-- Transaction fees reduce your available balance below what's needed
-- UTXOs are fragmented into many small amounts that create oversized transactions when combined
+### Why Does "Insufficient Funds" Occur with Enough ADA?
 
-### Fee Calculation Complexity
+Your wallet may show sufficient balance, but transactions fail because:
 
-Transaction fees on Cardano depend on transaction size in bytes, which depends on:
+| Cause | Why It Happens |
+|-------|---------------|
+| Locked tokens | ADA is paired with native tokens you're not spending |
+| Minimum UTXO | Outputs must meet minimum value requirements |
+| Fee reduction | Fees reduce available balance below needed amount |
+| Fragmentation | Many small UTXOs create oversized transactions |
 
-- Number of inputs (each adds roughly 100-150 bytes)
-- Number of outputs (varies based on address type and tokens)
-- Witness data (signatures add significant size)
-- Metadata and auxiliary data
-- Script execution units for smart contract transactions
+### How Does Fee Calculation Work?
 
-You cannot know the exact fee until you build the complete transaction, but you cannot build the transaction without knowing fees for change calculation. This circular dependency requires iterative solving that's error-prone when done manually.
+Fees depend on transaction size (bytes), which depends on:
 
-### Transaction Size Limits
+- **Inputs**: ~100-150 bytes each
+- **Outputs**: Varies by address type and tokens
+- **Witnesses**: Signatures add significant size
+- **Scripts**: Cardano smart contract execution units
 
-Cardano enforces a maximum transaction size (currently 16KB on mainnet). Transactions with many inputs, many outputs, large metadata, or complex script witnesses can exceed this limit. This often surprises developers who successfully test with small transactions but fail when real-world conditions require larger operations.
+You can't know the exact fee until building the complete transaction, but you need fees to calculate change. This circular dependency requires iterative solving—handled automatically by the Mesh TypeScript blockchain SDK.
 
-## How Mesh Solves This
+### What Is the Transaction Size Limit?
 
-Mesh SDK provides the MeshTxBuilder class that handles all these complexities automatically. You describe what you want to accomplish, and Mesh figures out how to construct a valid transaction.
+Cardano enforces a 16KB maximum transaction size on mainnet. Large transactions with many inputs, outputs, metadata, or script witnesses can exceed this. Developers often discover this only when real-world conditions require larger operations than testing revealed.
+
+## How Does Mesh SDK Fix Transaction Failures?
+
+The MeshTxBuilder class handles all UTXO complexity automatically in your Cardano dApp development workflow. You describe what you want—the Cardano SDK constructs a valid transaction with optimal inputs, correct fees, and proper change outputs.
 
 ```typescript
 import { MeshTxBuilder, BlockfrostProvider, BrowserWallet } from "@meshsdk/core";
@@ -103,54 +110,52 @@ const signedTx = await wallet.signTx(unsignedTx);
 const txHash = await wallet.submitTx(signedTx);
 ```
 
-### Automatic UTXO Selection
+### How Does Automatic UTXO Selection Work?
 
-The `selectUtxosFrom` method implements intelligent coin selection algorithms that:
+The `selectUtxosFrom` method in the Mesh Cardano SDK implements intelligent coin selection that minimizes transaction size while satisfying all output requirements:
 
-- Choose UTXOs that minimize transaction size
-- Avoid UTXOs with tokens you don't intend to spend when possible
-- Handle the minimum UTXO value requirement automatically
-- Select additional inputs when initial selection proves insufficient
+- Chooses UTXOs that minimize transaction size
+- Avoids UTXOs with tokens you don't intend to spend
+- Handles minimum UTXO value requirements
+- Selects additional inputs when needed
 
-### Iterative Fee Calculation
+### How Does Mesh Calculate Fees?
 
-When you call `complete()`, Mesh:
+When you call `complete()`, the Cardano SDK:
 
 1. Builds an initial transaction estimate
 2. Calculates the required fee
-3. Adjusts change outputs accordingly
-4. Rebuilds if the adjustment changed transaction size
-5. Repeats until convergence
+3. Adjusts change outputs
+4. Rebuilds if size changed
+5. Repeats until convergence (typically 2-3 iterations, milliseconds)
 
-This typically takes 2-3 iterations and happens in milliseconds.
-
-### Smart Change Handling
+### How Does Change Handling Work?
 
 Mesh calculates change outputs that:
 
 - Meet minimum UTXO value requirements
-- Include any tokens from inputs that aren't being sent elsewhere
-- Minimize the number of change outputs to reduce future fragmentation
+- Include tokens from inputs not being sent elsewhere
+- Minimize change outputs to reduce future fragmentation
 
-### Error Prevention
+### What Error Messages Does Mesh Provide?
 
-Rather than failing cryptically, Mesh provides clear error messages when:
+Rather than cryptic failures, Mesh provides clear errors when:
 
-- Selected UTXOs cannot satisfy the requested outputs
-- The transaction would exceed size limits
+- Selected UTXOs cannot satisfy requested outputs
+- Transaction would exceed size limits
 - Required tokens are unavailable
 
-## Quick Start
+## How Do I Get Started?
 
-Follow these steps to eliminate common transaction failures:
+Install the Mesh Cardano SDK and configure transaction building in three steps:
 
-**Step 1: Install Mesh SDK**
+**1. Install Mesh SDK**
 
 ```bash
 npm install @meshsdk/core @meshsdk/react
 ```
 
-**Step 2: Configure your provider and wallet**
+**2. Configure provider and wallet**
 
 ```typescript
 import { MeshTxBuilder, BlockfrostProvider, BrowserWallet } from "@meshsdk/core";
@@ -159,7 +164,7 @@ const provider = new BlockfrostProvider("<your-blockfrost-api-key>");
 const wallet = await BrowserWallet.enable("eternl");
 ```
 
-**Step 3: Build transactions using MeshTxBuilder**
+**3. Build transactions with MeshTxBuilder**
 
 ```typescript
 const txBuilder = new MeshTxBuilder({
@@ -181,13 +186,13 @@ const signedTx = await wallet.signTx(unsignedTx);
 const txHash = await wallet.submitTx(signedTx);
 ```
 
-## Handling Remaining Failures
+## How Do I Handle Remaining Failures?
 
-Even with Mesh, some failures require application-level handling:
+Even with Mesh, some failures require application-level handling in your React blockchain or JavaScript Web3 app.
 
-### Retry Logic
+### How Do I Implement Retry Logic?
 
-Network issues or mempool congestion can cause transient failures. Implement retry logic with exponential backoff:
+Network issues or mempool congestion cause transient failures. Use exponential backoff:
 
 ```typescript
 async function submitWithRetry(wallet, signedTx, maxRetries = 3) {
@@ -202,14 +207,14 @@ async function submitWithRetry(wallet, signedTx, maxRetries = 3) {
 }
 ```
 
-### Fresh State Fetching
+### When Should I Fetch UTXOs?
 
-Always fetch UTXOs immediately before building transactions, not at page load:
+Always fetch UTXOs immediately before building transactions—not at page load:
 
 ```typescript
-// Wrong: stale UTXOs from earlier
+// Wrong: stale UTXOs
 const cachedUtxos = await wallet.getUtxos();
-// ... time passes, user clicks button ...
+// ... time passes ...
 const tx = await txBuilder.selectUtxosFrom(cachedUtxos).complete(); // May fail
 
 // Correct: fresh UTXOs at transaction time
@@ -219,9 +224,9 @@ async function buildTransaction() {
 }
 ```
 
-### User Feedback
+### How Do I Prevent Double-Submission?
 
-Inform users when transactions are pending and prevent double-submission:
+Track submission state and provide user feedback:
 
 ```typescript
 const [isSubmitting, setIsSubmitting] = useState(false);
@@ -231,22 +236,19 @@ async function handleSubmit() {
   setIsSubmitting(true);
   try {
     const txHash = await submitTransaction();
-    // Show success
   } catch (error) {
-    // Show error with actionable message
+    // Show actionable error
   } finally {
     setIsSubmitting(false);
   }
 }
 ```
 
-## Advanced Scenarios
+## How Do I Handle Advanced Scenarios?
 
-For complex use cases, Mesh provides additional control:
+### How Do Multi-Asset Transactions Work?
 
-### Multi-Asset Transactions
-
-When sending native tokens, Mesh ensures the accompanying ADA meets minimum requirements:
+When sending native tokens, Mesh ensures ADA meets minimum requirements:
 
 ```typescript
 const tx = await txBuilder
@@ -259,9 +261,9 @@ const tx = await txBuilder
   .complete();
 ```
 
-### Script Transactions
+### How Do Cardano Smart Contract Transactions Work?
 
-For smart contract interactions, Mesh handles execution budgets and collateral:
+For Plutus script interactions, Mesh handles execution budgets and collateral:
 
 ```typescript
 const tx = await txBuilder
@@ -279,12 +281,10 @@ const tx = await txBuilder
 
 ## Related Challenges
 
-Understanding transaction failures connects to other Cardano development challenges:
-
-- <Link href="/challenges/utxo-model">Understanding the UTXO Model</Link> explains the fundamental architecture causing many transaction issues
-- <Link href="/challenges/coin-selection">Coin Selection Problems</Link> dives deeper into input selection strategies
-- <Link href="/challenges/wallet-integration">Wallet Integration Issues</Link> covers ensuring reliable wallet connections
+- <Link href="/docs/resources/challenges/utxo-model">Understanding the UTXO Model</Link>: Architecture causing many transaction issues
+- <Link href="/docs/resources/challenges/coin-selection">Coin Selection Problems</Link>: Input selection strategies
+- <Link href="/docs/resources/challenges/wallet-integration">Wallet Integration Issues</Link>: Reliable wallet connections
 
 ## Next Steps
 
-With transaction failures under control, you can build more reliable Cardano applications. Explore the <Link href="/challenges">Challenges Hub</Link> for solutions to other common obstacles, or visit the full documentation to learn about advanced Mesh features.
+With transaction failures under control, explore the <Link href="/docs/resources/challenges">Challenges Hub</Link> for other Cardano dApp development obstacles, or visit the <Link href="/docs">documentation</Link> for advanced Mesh TypeScript blockchain SDK features.

@@ -1,5 +1,6 @@
 ---
-title: "Develop your first Web3 App"
+title: "Build Your First Cardano dApp with Next.js and Mesh SDK"
+description: "Build a Cardano dApp using Next.js and the Mesh TypeScript blockchain SDK. Connect wallets, query assets, and start JavaScript Web3 development."
 ---
 import Link from "fumadocs-core/link";
 import { HowToSchema } from "@/components/seo";
@@ -19,67 +20,66 @@ import { HowToSchema } from "@/components/seo";
   ]}
 />
 
-Set up a Next.js application and connect it to the Cardano blockchain using Mesh. Create a simple application that allows users to connect their wallets and view assets.
+Building a Cardano dApp with Next.js and the Mesh Cardano SDK takes under 30 minutes. By the end of this guide, you'll have a working React blockchain application that connects to Cardano wallets and displays user assets—the foundation for any JavaScript Web3 project.
 
-This guide focuses on Next.js, but Mesh works with Remix, React, Vue, and <Link href="/svelte">Svelte</Link>.
+This guide uses Next.js, but Mesh also works with Remix, plain React, Vue, and <Link href="/svelte">Svelte</Link>.
 
-Follow this guide or use the <Link href="/">Mesh CLI</Link> to scaffold a new project.
+**Quick start:** Use the Mesh CLI to scaffold a complete project instantly:
 
 ```tsx
 npx meshjs your-app-name
 ```
 
-## Setup Next.js
+## How Do You Set Up a Next.js Project?
 
-### 1. Create project folder and open Visual Studio Code [!toc]
+### Step 1: Create Your Project Folder
 
-Create a new folder. Open Visual Studio Code and drag the folder into it.
+Create a new folder for your project and open it in VS Code (or your preferred editor).
 
-### 2. Create Next.js app [!toc]
+### Step 2: Initialize Next.js
 
-Open the **Terminal** and create a new Next.js application:
+Open the terminal and create a new Next.js application with TypeScript:
 
 ```tsx
 npx create-next-app@latest --typescript .
 ```
 
-```tsx
-Need to install the following packages:
-Ok to proceed? (y)
+When prompted, use these recommended settings:
 
-✔ Would you like to use ESLint? … Yes
-✔ Would you like to use Tailwind CSS? … Yes
-✔ Would you like your code inside a `src/` directory? … Yes
-✔ Would you like to use App Router? … No
-✔ Would you like to use Turbopack for next dev? … No
-✔ Would you like to customize the import alias (@/* by default)? … No
-```
+| Option | Recommended |
+|--------|-------------|
+| ESLint | Yes |
+| Tailwind CSS | Yes |
+| `src/` directory | Yes |
+| App Router | No (use Pages Router for this guide) |
+| Turbopack | No |
+| Import alias | No |
 
-### 3. Start development server [!toc]
+### Step 3: Verify the Setup
 
-Start the development server:
+Start the development server to confirm everything works:
 
 ```tsx
 npm run dev
 ```
 
-Visit http://localhost:3000 to view your application. `CTRL+C` to stop.
+Visit http://localhost:3000 to see the default Next.js page. Press `Ctrl+C` to stop the server.
 
-## Setup Mesh
+## How Do You Add the Mesh Cardano SDK?
 
-Install Mesh:
+Install the Mesh packages—`@meshsdk/core` provides blockchain functionality, and `@meshsdk/react` adds React blockchain components and hooks:
 
 ```tsx
 npm install @meshsdk/core @meshsdk/react
 ```
 
-Your application is ready to connect wallets and transact.
+Your application is now ready for Cardano dApp development with this TypeScript blockchain SDK.
 
-## Connect wallet and view assets
+## How Do You Connect a Cardano Wallet?
 
-### 1. Add MeshProvider [!toc]
+### Step 1: Add MeshProvider
 
-Open **pages/_app.tsx**, import and include <Link href="/react/getting-started#meshProvider">MeshProvider</Link>:
+The `MeshProvider` context enables wallet state management across your app. Open `pages/_app.tsx` and wrap your application:
 
 ```tsx
 import "../styles/globals.css";
@@ -98,11 +98,9 @@ function MyApp({ Component, pageProps }: AppProps) {
 export default MyApp;
 ```
 
-### 2. Add connect wallet component and check wallet's assets [!toc]
+### Step 2: Add the Wallet Connect Component
 
-Add the <Link href="/react/ui-components#connectWallet">connect wallet component</Link>. Link components to allow users to connect and query assets.
-
-Replace **pages/index.tsx** with:
+Replace the contents of `pages/index.tsx` with a page that connects wallets and displays assets:
 
 ```tsx
 import { useState } from "react";
@@ -159,18 +157,24 @@ const Home: NextPage = () => {
 export default Home;
 ```
 
+### Step 3: Test Your dApp
+
 Start the development server:
 
 ```tsx
 npm run dev
 ```
 
-Visit http://localhost:3000 to connect available wallets and view assets.
+Visit http://localhost:3000, connect your wallet, and click "Get Wallet Assets" to see your tokens.
 
-Receive test ADA (tADA) from the <Link href="https://docs.cardano.org/cardano-testnets/tools/faucet">official faucet</Link>.
+**Need test ADA?** Get free tADA from the <Link href="https://docs.cardano.org/cardano-testnets/tools/faucet">Cardano testnet faucet</Link>.
 
-New to Cardano? Download a wallet. Tall Nupinks' <Link href="https://cutedumborcs.substack.com/p/cardano-wallets-101">Cardano Wallets 101 guide</Link> covers the fundamentals.
+**New to Cardano?** Download a browser wallet like Eternl, Nami, or Lace. See <Link href="https://cutedumborcs.substack.com/p/cardano-wallets-101">Cardano Wallets 101</Link> for wallet setup guidance.
 
-### 3. Try on your own [!toc]
+## What Should You Build Next?
 
-Implement a component to display the wallet address and lovelace amount. See the <Link href="/apis/wallets/browserwallet">wallet</Link> page.
+You now have a working Cardano dApp development foundation. Extend it by:
+
+- Displaying the wallet address and ADA balance using the <Link href="/apis/wallets/browserwallet">BrowserWallet API</Link>
+- Building transactions with the <Link href="/apis/txbuilder">Transaction Builder</Link>
+- Adding authentication with <Link href="/guides/prove-wallet-ownership">wallet signature verification</Link>

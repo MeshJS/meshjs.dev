@@ -1,6 +1,6 @@
 ---
-title: "Beginner-Friendly Cardano Development"
-description: "Start building on Cardano without blockchain expertise. Mesh SDK abstracts the complexity of UTxO, transactions, and wallet integration, letting you create dApps with familiar JavaScript patterns."
+title: "Beginner-Friendly Cardano dApp Development"
+description: "Build Cardano dApps without blockchain expertise. Mesh SDK handles UTxO, transactions, and wallets—use familiar JavaScript patterns."
 ---
 import Link from "next/link";
 import { HowToSchema, FAQSchema } from "@/components/seo";
@@ -42,9 +42,13 @@ import { HowToSchema, FAQSchema } from "@/components/seo";
   ]}
 />
 
-Mesh SDK opens Cardano development to every JavaScript developer. Instead of studying cryptographic primitives, learning UTxO mechanics, and writing low-level serialization code, you use intuitive APIs that feel like standard web development. Send ADA with a few lines of code, connect wallets with a single component, and build transactions with readable method chains.
+**TL;DR:** Mesh SDK is a TypeScript blockchain SDK designed for JavaScript developers new to Cardano. No blockchain expertise required—use familiar React hooks and async/await patterns to build dApps. Install with `npm install @meshsdk/core @meshsdk/react` and send your first transaction in minutes.
 
-## Quick Start
+---
+
+Mesh SDK solves the <Link href="/resources/challenges/learning-curve">Cardano learning curve challenge</Link> for JavaScript developers. Instead of studying cryptographic primitives, learning UTxO mechanics, and writing low-level serialization code, you use intuitive APIs that feel like standard web development. This TypeScript blockchain SDK lets you send ADA with a few lines of code, connect wallets with a single component, and build transactions with readable method chains.
+
+## How Do I Build My First Cardano dApp?
 
 Build your first Cardano dApp in minutes:
 
@@ -57,8 +61,7 @@ npm install @meshsdk/core @meshsdk/react
 **Step 2: Add wallet connection**
 
 ```tsx
-import { MeshProvider } from "@meshsdk/react";
-import { CardanoWallet } from "@meshsdk/react";
+import { MeshProvider, CardanoWallet } from "@meshsdk/react";
 
 function App() {
   return (
@@ -79,20 +82,21 @@ function SendADA() {
   const { wallet, connected } = useWallet();
 
   const sendADA = async () => {
+    // Get wallet UTxOs and change address
     const utxos = await wallet.getUtxos();
     const changeAddress = await wallet.getChangeAddress();
 
+    // Build transaction: send 5 ADA (5,000,000 lovelace)
     const txBuilder = new MeshTxBuilder();
-
     const unsignedTx = await txBuilder
       .txOut("addr_test1...", [{ unit: "lovelace", quantity: "5000000" }])
       .changeAddress(changeAddress)
       .selectUtxosFrom(utxos)
       .complete();
 
+    // Sign with wallet and submit to network
     const signedTx = await wallet.signTx(unsignedTx);
     const txHash = await wallet.submitTx(signedTx);
-
     console.log("Transaction submitted:", txHash);
   };
 
@@ -104,24 +108,24 @@ function SendADA() {
 }
 ```
 
-That's a complete Cardano transaction in about 10 lines of code.
+A complete Cardano transaction in about 10 lines of functional code.
 
-## Features
+## What Makes Mesh Beginner-Friendly?
 
 Mesh makes Cardano accessible through thoughtful design:
 
-- **Familiar Patterns**: JavaScript classes, async/await, React hooks you already know
-- **Automatic Complexity**: Fee calculation, UTxO selection, and change handling happen behind the scenes
-- **Clear Errors**: Helpful error messages explain what went wrong and how to fix it
-- **Minimal Setup**: No blockchain node, no complex configuration, just npm install
-- **Progressive Learning**: Start simple and add advanced features as you grow
-- **Full Documentation**: Guides, examples, and API references for every skill level
-- **Active Community**: Discord support and examples from other developers
-- **Testnet Support**: Practice with free test ADA before using real funds
+- **Familiar Patterns** — JavaScript classes, async/await, React hooks you already know
+- **Automatic Complexity** — Fee calculation, UTxO selection, and change handling happen behind the scenes
+- **Clear Errors** — Helpful error messages explain what went wrong and how to fix it
+- **Minimal Setup** — No blockchain node, no complex configuration, just npm install
+- **Progressive Learning** — Start simple and add advanced features as you grow
+- **Full Documentation** — Guides, examples, and API references for every skill level
+- **Active Community** — Discord support and examples from other developers
+- **Testnet Support** — Practice with free test ADA before using real funds
 
-## Concepts Made Simple
+## How Does Mesh Simplify Complex Concepts?
 
-### Wallets Just Work
+### How Does Wallet Integration Work?
 
 Cardano has many wallets (Eternl, Lace, Yoroi, etc.). Normally you'd write different code for each. Mesh provides one interface that works with all of them:
 
@@ -137,7 +141,7 @@ const { connected, wallet, connect, disconnect } = useWallet();
 
 No wallet-specific code. No detection logic. Just connection that works.
 
-### Transactions Without Complexity
+### How Do Transactions Work Without Complexity?
 
 Cardano transactions involve UTxOs, inputs, outputs, change addresses, fees, and serialization. With Mesh, you describe what you want to happen:
 
@@ -146,18 +150,18 @@ const utxos = await wallet.getUtxos();
 const changeAddress = await wallet.getChangeAddress();
 const txBuilder = new MeshTxBuilder();
 
-// Build a transaction to send ADA and tokens
+// Send 10 ADA and 1 native token in a single transaction
 const unsignedTx = await txBuilder
   .txOut("addr...", [{ unit: "lovelace", quantity: "10000000" }])
-  .txOut("addr...", [{ unit: "policyId" + "assetName", quantity: "1" }])
+  .txOut("addr...", [{ unit: policyId + assetName, quantity: "1" }])
   .changeAddress(changeAddress)
   .selectUtxosFrom(utxos)
   .complete();
 ```
 
-The SDK calculates fees, selects UTxOs, manages change, and serializes correctly. You focus on what, not how.
+The Cardano SDK calculates fees, selects UTxOs, manages change, and serializes correctly. You focus on what, not how.
 
-### Reading Blockchain Data
+### How Do I Read Blockchain Data?
 
 Query addresses, assets, and transactions with simple methods:
 
@@ -175,9 +179,9 @@ const asset = await provider.fetchAssetMetadata("policyId", "assetName");
 
 No raw API calls, no response parsing, just the data you need.
 
-## Learning Path
+## What Is the Recommended Learning Path?
 
-### Week 1: Wallet Integration
+### Step 1: Wallet Integration
 
 Start with wallet connectivity:
 
@@ -206,7 +210,7 @@ function Header() {
 
 Learn: React context, wallet state, connected/disconnected handling.
 
-### Week 2: Simple Transactions
+### Step 2: Simple Transactions
 
 Add transaction capability:
 
@@ -231,7 +235,7 @@ async function sendPayment(wallet, recipient, amount) {
 
 Learn: Transaction building, signing, submission, hash tracking.
 
-### Week 3: Token Operations
+### Step 3: Token Operations
 
 Work with Cardano native tokens:
 
@@ -249,21 +253,21 @@ txBuilder
 
 Learn: Asset structure, minting, multi-asset transactions.
 
-### Week 4: Smart Contracts
+### Step 4: Cardano Smart Contracts
 
-Interact with Plutus scripts:
+Interact with Cardano smart contracts (Plutus scripts):
 
 ```typescript
-import { mConStr0 } from "@meshsdk/core";
+import { mConStr0, MeshTxBuilder } from "@meshsdk/core";
 
 const txBuilder = new MeshTxBuilder();
 
-// Lock funds at script address with inline datum
+// Lock 50 ADA at script address with inline datum
 txBuilder
   .txOut(scriptAddress, [{ unit: "lovelace", quantity: "50000000" }])
   .txOutInlineDatumValue(mConStr0([]));
 
-// Unlock from script with redeemer
+// Unlock funds from script with redeemer
 txBuilder
   .spendingPlutusScriptV2()
   .txIn(utxo.input.txHash, utxo.input.outputIndex)
@@ -274,9 +278,9 @@ txBuilder
 
 Learn: Datums, redeemers, script addresses, contract interaction.
 
-## Common First Projects
+## What Are Good First Projects?
 
-### NFT Gallery
+### How Do I Build an NFT Gallery?
 
 Display user's NFT collection:
 
@@ -300,7 +304,7 @@ function NFTGallery() {
 }
 ```
 
-### Payment Button
+### How Do I Build a Payment Button?
 
 Accept ADA payments:
 
@@ -331,7 +335,7 @@ function PaymentButton({ amount, recipient }) {
 }
 ```
 
-### Token Airdrop Tool
+### How Do I Build a Token Airdrop Tool?
 
 Send tokens to multiple addresses:
 
@@ -356,31 +360,31 @@ async function airdrop(wallet, recipients, tokenUnit, amountEach) {
 }
 ```
 
-## Why Beginners Choose Mesh
+## Why Do Beginners Choose Mesh?
 
-### Skip the Blockchain Deep Dive
+### Can I Skip the Blockchain Deep Dive?
 
 Other approaches require understanding Cardano's ledger rules before writing code. Mesh lets you build first and learn the underlying concepts as curiosity or need arises.
 
-### JavaScript You Know
+### Can I Use JavaScript I Already Know?
 
 No new programming language. No unfamiliar syntax. Just npm install and code in the JavaScript or TypeScript you already write daily.
 
-### Working Examples
+### Are There Working Examples?
 
 Every Mesh feature has working examples in the documentation. Copy, paste, modify, and see results immediately rather than piecing together theory.
 
-### Error Messages That Help
+### Do Error Messages Help?
 
 When something goes wrong, Mesh provides clear messages pointing to the issue. Not cryptographic dump, but "Insufficient funds: you need X lovelace but only have Y."
 
-### Community Support
+### Is There Community Support?
 
 Active Discord community where beginners get answers. No question too basic. The Mesh team and experienced users help newcomers succeed.
 
-## Testing Your dApp
+## How Do I Test My dApp?
 
-### Preprod Testnet
+### How Do I Use Preprod Testnet?
 
 Test with fake ADA before mainnet:
 
@@ -389,7 +393,7 @@ Test with fake ADA before mainnet:
 3. Test all functionality risk-free
 4. Move to mainnet when confident
 
-### Local Development
+### How Do I Set Up Local Development?
 
 Use Mesh with local development servers:
 
@@ -402,16 +406,16 @@ No local blockchain node required. Mesh connects to public infrastructure.
 
 ## Related Resources
 
-Continue your Cardano development journey:
+Continue your Cardano dApp development journey:
 
-- <Link href="/solutions/wallet-integration">Wallet Integration</Link>: Deep dive into wallet patterns
-- <Link href="/solutions/react-components">React Components</Link>: Pre-built UI components
-- <Link href="/solutions/transaction-builder">Transaction Builder</Link>: Advanced transaction techniques
-- <Link href="/solutions/typescript">TypeScript Support</Link>: Type-safe development
-- <Link href="/challenges/learning-curve">Overcoming Cardano's Learning Curve</Link>: Why Cardano development is traditionally hard
-- <Link href="/docs/getting-started">Getting Started Guide</Link>: Step-by-step setup tutorial
+- <Link href="/resources/solutions/wallet-integration">Wallet Integration</Link> — Deep dive into wallet patterns
+- <Link href="/resources/solutions/react-components">React Components</Link> — Pre-built React blockchain components
+- <Link href="/resources/solutions/transaction-builder">Transaction Builder</Link> — Advanced transaction techniques
+- <Link href="/resources/solutions/typescript">TypeScript Support</Link> — Type-safe development
+- <Link href="/resources/challenges/learning-curve">Overcoming Cardano's Learning Curve</Link> — Why Cardano development is traditionally hard
+- <Link href="/getting-started">Getting Started Guide</Link> — Step-by-step setup tutorial
 
-## Get Started
+## How Do I Get Started?
 
 Install Mesh and build your first Cardano dApp today:
 
@@ -419,4 +423,4 @@ Install Mesh and build your first Cardano dApp today:
 npm install @meshsdk/core @meshsdk/react
 ```
 
-Cardano development doesn't require years of blockchain expertise. With Mesh SDK, JavaScript developers can build functional dApps in hours, not months. Start with wallet connection, add transactions, and grow into advanced features as your projects demand. The complexity is there when you need it, hidden when you don't.
+Cardano dApp development doesn't require years of blockchain expertise. With this TypeScript blockchain SDK, JavaScript developers can build functional dApps quickly. Start with wallet connection, add transactions, and grow into advanced features including Cardano smart contracts as your projects demand. The complexity is there when you need it, hidden when you don't—making Mesh the ideal choice for JavaScript Web3 development on Cardano.

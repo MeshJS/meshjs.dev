@@ -1,5 +1,6 @@
 ---
-title: "Aiken Hello World"
+title: "Getting Started with Aiken Smart Contracts and Mesh SDK"
+description: "Build your first Cardano smart contract with Aiken and interact with it using the Mesh TypeScript blockchain SDK for dApp development."
 ---
 import Link from "fumadocs-core/link";
 import { HowToSchema } from "@/components/seo";
@@ -21,81 +22,48 @@ import { HowToSchema } from "@/components/seo";
   ]}
 />
 
-Aiken is a functional programming language for Cardano smart contract development. It prioritizes on-chain execution and offers a user-friendly approach for building secure and efficient smart contracts.
+Aiken is a functional programming language designed specifically for Cardano smart contracts. Combined with the Mesh Cardano SDK, you can write, deploy, and interact with Cardano smart contracts using familiar JavaScript Web3 tooling.
 
-This tutorial walks you through writing a smart contract in Aiken and creating two transactions to lock and unlock assets on the Cardano blockchain.
+This tutorial builds a complete "Hello World" Cardano smart contract—you'll write the on-chain validator in Aiken, then use the Mesh TypeScript blockchain SDK to create transactions that lock and unlock assets in your Cardano dApp development.
 
-Try the <Link href="https://aiken-template.meshjs.dev/">live demo</Link>. View the code on the <Link href="https://github.com/MeshJS/aiken-next-ts-template/tree/main">GitHub repository</Link>.
+**Resources:**
+- <Link href="https://aiken-template.meshjs.dev/">Live demo</Link>
+- <Link href="https://github.com/MeshJS/aiken-next-ts-template/tree/main">GitHub repository</Link>
 
-## System setup
+## How Do You Install Aiken?
 
-Set up your system to compile Aiken smart contracts. Skip this section if you have already set up your system or do not wish to compile the contract.
-
-Check the installation instructions on the <Link href="https://aiken-lang.org/installation-instructions">Aiken website</Link> for more information.
-
-### Using aikup (on Linux & MacOS only) [!toc]
-
-Linux and MacOS users can use the utility tool to download and manage Aiken's pre-compiled executables.
-
-Install the Aiken CLI:
+**Linux/MacOS** - Use the aikup installer:
 
 ```tsx
-$ curl -sSfL https://install.aiken-lang.org | bash
-$ aikup
+curl -sSfL https://install.aiken-lang.org | bash
+aikup
 ```
 
-### From sources (all platforms) [!toc]
-
-Aiken is written in Rust. Install Rust and Cargo to compile the smart contract. Install Rust via the <Link href="https://www.rust-lang.org/">Rust website</Link>.
-
-Install Cargo, the Rust package manager, via the <Link href="https://doc.rust-lang.org/stable/book/ch01-01-installation.html">Cargo website</Link>.
-
-Verify installation:
+**All platforms** - Install from source via Cargo (requires <Link href="https://www.rust-lang.org/">Rust</Link>):
 
 ```tsx
-$ rustc --version
-$ cargo --version
+cargo install aiken
 ```
 
-Install the Aiken CLI:
+Verify your installation:
 
 ```tsx
-$ cargo install aiken
+aiken -V
 ```
 
-### Check your installation [!toc]
+See the <Link href="https://aiken-lang.org/installation-instructions">Aiken installation guide</Link> for troubleshooting.
 
-Verify the Aiken CLI installation:
+## How Do You Write an Aiken Smart Contract?
+
+Create a new Aiken project:
 
 ```tsx
-$ aiken -V
+aiken meshjs/hello_world
+cd hello_world
+aiken check
 ```
 
-If issues arise, check the <Link href="https://aiken-lang.org/installation-instructions">Aiken website</Link>.
-
-## Writing a smart contract with Aiken
-
-Write a smart contract in Aiken and create two transactions to lock and unlock assets.
-
-Read more about this example on the <Link href="https://aiken-lang.org/example--hello-world/basics">Aiken website</Link>.
-
-### Create a new project [!toc]
-
-Create a new project. Refer to <Link href="/guides/nextjs">this guide</Link> for creating a new Next.js project.
-
-Create a new Aiken project within this project folder:
-
-```tsx
-$ aiken meshjs/hello_world
-$ cd hello_world
-$ aiken check
-```
-
-Run `aiken check` to verify your project.
-
-### Write the smart contract [!toc]
-
-Create `validators/hello_world.ak`:
+Create `validators/hello_world.ak` with the validator logic:
 
 ```tsx
 use aiken/hash.{Blake2b_224, Hash}
@@ -124,31 +92,27 @@ validator {
 }
 ```
 
-This validator checks that the redeemer message is "Hello, World!" and that the transaction is signed by the datum owner. Returns `true` if both conditions are met; otherwise `false`.
+This validator enforces two conditions:
+1. The redeemer message must be "Hello, World!"
+2. The transaction must be signed by the datum owner
 
-Compile the smart contract:
-
-```tsx
-$ aiken build
-```
-
-This generates `plutus.json` in the root folder. This file is a <Link href="https://cips.cardano.org/cip/CIP-57">CIP-0057 Plutus blueprint</Link>, describing your on-chain contract and its binary interface.
-
-## Creating locking transaction
-
-### Preparing the frontend [!toc]
-
-Prepare the frontend to allow users to lock and unlock assets.
-
-Install `cbor`:
+Compile the contract:
 
 ```tsx
-$ npm install cbor
+aiken build
 ```
 
-Create a `data` folder and copy `plutus.json` into it.
+This generates `plutus.json`—a <Link href="https://cips.cardano.org/cip/CIP-57">CIP-0057 Plutus blueprint</Link> containing your compiled validator.
 
-Open `pages/index.tsx` and import the packages:
+## How Do You Lock Assets at the Script Address?
+
+Set up your frontend (see <Link href="/guides/nextjs">Next.js guide</Link>) and install dependencies:
+
+```tsx
+npm install cbor
+```
+
+Copy `plutus.json` to a `data` folder and import the required packages:
 
 ```tsx
 import {
@@ -165,9 +129,7 @@ import plutusScript from "../data/plutus.json";
 import cbor from "cbor";
 ```
 
-### Importing the contract [!toc]
-
-Import the contract:
+Load the compiled contract and resolve its address:
 
 ```tsx
 const script: PlutusScript = {
@@ -179,13 +141,9 @@ const script: PlutusScript = {
 const scriptAddress = resolvePlutusScriptAddress(script, 0);
 ```
 
-Use `plutus.json` to create the script and `resolvePlutusScriptAddress` to resolve the address.
+The CBOR encoding converts Aiken's flat format to the format expected by Cardano serialization libraries in the Mesh Cardano SDK.
 
-We encode the compiled validator code with cbor because the validator uses a flat format, unlike the format expected by cardano-cli and the serialization library.
-
-### Locking assets [!toc]
-
-Create the transaction to lock assets:
+Build the locking transaction—this sends ADA to the script with a datum containing the owner's public key hash:
 
 ```tsx
 const utxos = await wallet.getUtxos();
@@ -212,15 +170,9 @@ const signedTx = await wallet.signTx(unsignedTx);
 const txHash = await wallet.submitTx(signedTx);
 ```
 
-This transaction locks assets. `resolvePaymentKeyHash` resolves the wallet's key hash. `txOut` sends lovelace to the script address with `txOutDatumHashValue` attaching the datum.
+## How Do You Unlock Assets from the Script?
 
-The contract requires the owner's address in the datum. We build, sign, and submit the transaction.
-
-## Unlocking assets
-
-Create the transaction to unlock assets.
-
-Retrieve the UTXO of the locked assets:
+First, find the UTxO containing your locked assets:
 
 ```tsx
 async function _getAssetUtxo({ scriptAddress, asset, datum }) {
@@ -236,7 +188,7 @@ async function _getAssetUtxo({ scriptAddress, asset, datum }) {
 }
 ```
 
-Create the unlock transaction:
+Build the unlock transaction with the correct redeemer message:
 
 ```tsx
 const scriptAddress = resolvePlutusScriptAddress(script, 0);
@@ -287,10 +239,15 @@ const signedTx = await wallet.signTx(unsignedTx, true);
 const txHash = await wallet.submitTx(signedTx);
 ```
 
-This transaction unlocks assets. `resolvePlutusScriptAddress` resolves the script address. `resolvePaymentKeyHash` resolves the wallet's key hash.
+Key components of the unlock transaction:
+- `spendingPlutusScriptV2()` — Indicates a Plutus V2 script spend
+- `txInDatumValue` — Provides the original datum
+- `txInRedeemerValue` — Provides "Hello, World!" to satisfy the validator
+- `requiredSignerHash` — Ensures the owner signs the transaction
 
-`_getAssetUtxo` retrieves the locked asset UTXO. `spendingPlutusScriptV2` indicates we're spending from a Plutus V2 script. `txInDatumValue` provides the datum, `txInRedeemerValue` provides the redeemer, and `txInScript` provides the script. `requiredSignerHash` sets the required signer.
+## What Should You Explore Next?
 
-The validator requires "Hello, World!" as the redeemer message. We build, sign, and submit the transaction.
-
-Check the full code on <Link href="https://github.com/MeshJS/aiken-next-ts-template/blob/main/pages/index.tsx">GitHub</Link>.
+- View the <Link href="https://github.com/MeshJS/aiken-next-ts-template/blob/main/pages/index.tsx">complete source code</Link>
+- Learn more at the <Link href="https://aiken-lang.org/example--hello-world/basics">Aiken documentation</Link>
+- Explore <Link href="/guides/vesting">building a vesting contract</Link>
+- Read about <Link href="/guides/smart-contract-transactions">smart contract transaction patterns</Link>

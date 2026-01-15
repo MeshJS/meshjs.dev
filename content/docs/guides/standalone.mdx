@@ -1,5 +1,6 @@
 ---
-title: "Executing a standalone script"
+title: "How to Run Standalone Cardano Scripts with TypeScript"
+description: "Execute TypeScript scripts directly to interact with the Cardano blockchain using the Mesh Cardano SDK and tsx for JavaScript Web3 development."
 ---
 import Link from "fumadocs-core/link";
 import { HowToSchema } from "@/components/seo";
@@ -17,22 +18,16 @@ import { HowToSchema } from "@/components/seo";
   ]}
 />
 
-Run JavaScript/TypeScript files directly to interact with the blockchain using the `tsx` package.
+Running standalone TypeScript scripts is the fastest way to interact with Cardano for testing, automation, and quick prototypes. Using `tsx`, you can execute TypeScript files directly without a build step—ideal for Cardano dApp development and blockchain scripting.
 
-Set up a simple project using MeshSDK. Create a wallet, build and sign transactions, and submit them to the blockchain.
+**What you'll build:**
+- A minimal project setup with the Mesh Cardano SDK
+- A script that creates a wallet and sends a transaction
+- Zero-config TypeScript execution
 
-This tutorial covers:
+## How Do You Set Up the Project?
 
-- Creating a `package.json` file.
-- Installing MeshSDK and dependencies.
-- Writing a script to create a wallet and send a transaction.
-- Running the project.
-
-## System Setup
-
-### Create `package.json` [!toc]
-
-Create `package.json` in the project root:
+Create `package.json` in your project root:
 
 ```tsx
 {
@@ -44,38 +39,18 @@ Create `package.json` in the project root:
 }
 ```
 
-### Install Packages [!toc]
-
-Install required packages:
+Install the dependencies:
 
 ```tsx
-npm install
 npm install tsx @meshsdk/core
 ```
 
-`package.json` should look like this:
+- `@meshsdk/core` — The Mesh Cardano SDK for TypeScript blockchain development
+- `tsx` — Runs TypeScript directly without compilation
 
-```tsx
-{
-  "type": "module",
-  "dependencies": {
-    "@meshsdk/core": "^1.5.18",
-    "tsx": "^4.9.4"
-  },
-  "scripts": {
-    "dev": "tsx index.ts"
-  }
-}
-```
+## How Do You Send a Transaction?
 
-- `@meshsdk/core`: Core functionality.
-- `tsx`: Runs TypeScript files directly.
-
-## Make a Simple Transaction
-
-### Create `index.ts` [!toc]
-
-Create `index.ts` and add the following code:
+Create `index.ts` with the following code:
 
 ```tsx
 import { BlockfrostProvider, MeshWallet, MeshTxBuilder } from "@meshsdk/core";
@@ -113,18 +88,25 @@ const unsignedTx = await txBuilder
 
 const signedTx = await wallet.signTx(unsignedTx);
 const txHash = await wallet.submitTx(signedTx);
+console.log('Transaction hash:', txHash);
 ```
 
-### Run Application [!toc]
+## How Do You Run the Script?
 
-Replace `YOUR_KEY_HERE` with a valid Blockfrost key and the mnemonic words with your own. Get a key from <Link href="https://blockfrost.io/">Blockfrost</Link> and generate a mnemonic from <Link href="/apis/wallets/meshwallet#generate-wallet">Mesh</Link>.
+Before running, replace the placeholder values:
+- Get a Blockfrost API key from <Link href="https://blockfrost.io/">blockfrost.io</Link>
+- Generate a mnemonic using <Link href="/apis/wallets/meshwallet#generate-wallet">MeshWallet.brew()</Link>
 
-Start the application:
+Execute the script:
 
 ```tsx
 npm run dev
 ```
 
-The transaction hash will log to the console.
+The transaction hash logs to the console upon success.
 
-View the complete code in the <Link href="https://github.com/MeshJS/standalone-template">Mesh GitHub repo</Link>.
+## What Should You Explore Next?
+
+- View the <Link href="https://github.com/MeshJS/standalone-template">complete template on GitHub</Link>
+- Learn about <Link href="/apis/txbuilder">transaction building options</Link>
+- Explore <Link href="/guides/minting-on-nodejs">server-side NFT minting</Link>

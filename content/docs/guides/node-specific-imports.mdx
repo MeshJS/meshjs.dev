@@ -1,55 +1,54 @@
 ---
-title: "Resolve Node-Specific Imports Errors"
+title: "How to Fix Node.js Buffer and Polyfill Errors in Browser Projects"
+description: "Fix 'Buffer is not defined' and Node.js polyfill errors in React, Vue, Svelte, and Angular when using the Mesh Cardano SDK for dApp development."
 ---
 import Link from "fumadocs-core/link";
+import { HowToSchema } from "@/components/seo";
 
-Resolve Node-Specific Imports Errors (e.g., Buffer, TextEncoder) in Browser-Based Projects.
+<HowToSchema
+  name="Fix Node.js Buffer and Polyfill Errors in Browser Projects"
+  description="Resolve Buffer is not defined and Node.js polyfill errors when building Cardano dApps for the browser."
+  totalTime="PT15M"
+  steps={[
+    { name: "Identify the error", text: "Recognize common errors like Buffer is not defined, Module not found for buffer, or TextEncoder is not defined." },
+    { name: "Install polyfills", text: "Install buffer, process, stream-browserify, and crypto-browserify packages." },
+    { name: "Configure your bundler", text: "Add NodePolyfillPlugin or resolve.fallback configuration based on your framework (Webpack, Vite, Next.js, CRA, Angular, or Svelte)." },
+    { name: "Import polyfills if needed", text: "Add global Buffer assignment in your entry file if required." }
+  ]}
+/>
 
-Web-based projects (React, Vue, Svelte, Angular) may encounter errors like:
+When building Cardano dApps for the browser using the Mesh TypeScript blockchain SDK, you may encounter errors like `Buffer is not defined` or `Module not found: Can't resolve 'buffer'`. These occur because the Mesh Cardano SDK uses Node.js APIs that aren't available in browsers by default.
+
+**Common error messages:**
 
 ```bash
 Uncaught ReferenceError: Buffer is not defined
-```
-
-or
-
-```bash
 Module not found: Can't resolve 'buffer'
-```
-
-or
-
-```bash
 ReferenceError: TextEncoder is not defined
 ```
 
-These errors occur when code relies on Node.js-specific modules unavailable in browsers. Common examples:
+**Affected Node.js modules:**
+- `Buffer` — Binary data handling
+- `TextEncoder` / `TextDecoder` — String encoding
+- `crypto` — Cryptographic operations
+- `process` — Environment variables
+- Built-in modules (`fs`, `path`, `stream`)
 
-- `Buffer`
-- `TextEncoder` / `TextDecoder`
-- `crypto`
-- `process`
-- Node’s built-in modules (`fs`, `path`, `stream`)
+Modern bundlers (Webpack 5, Vite, Next.js) don't automatically polyfill these. This guide shows you how to fix these errors for each framework in your JavaScript Web3 projects.
 
-Modern bundlers (Webpack 5, Vite, Next.js) do **not** automatically include Node polyfills. Use these guidelines to fix errors.
+## What Are Polyfills and Why Do You Need Them?
 
-## 1. General Concepts [!toc]
+**Polyfills** are packages that implement Node.js functionality for browsers in Cardano dApp development. **Fallback configuration** tells your bundler to use these browser-compatible versions instead of Node.js modules.
 
-1. **Polyfill**: Implements missing functionality (e.g., `buffer` package).
-2. **Fallback configuration**: Replaces Node modules with browser-friendly versions.
-3. **npm dependencies**: Install equivalents:
+Install the common polyfills:
 
 ```tsx
 npm install buffer process stream-browserify crypto-browserify --save
 ```
 
-4. **ES Modules vs CommonJS**: Ensure imports match bundler expectations.
+## How Do You Fix This in Webpack?
 
-## 2. Webpack [!toc]
-
-### 2.1 Webpack 5 and Above [!toc]
-
-Webpack 5 excludes Node polyfills. Two approaches exist:
+Webpack 5 removed automatic Node.js polyfills. You have two options:
 
 **Approach A: Use NodePolyfillPlugin**
 
@@ -108,9 +107,9 @@ import { Buffer } from 'buffer';
 global.Buffer = global.Buffer || Buffer;
 ```
 
-## 3. Vite
+## How Do You Fix This in Vite?
 
-Vite uses <Link href="https://rollupjs.org/">Rollup</Link>, which lacks automatic Node polyfills. Use a Rollup plugin.
+Vite uses Rollup, which doesn't include Node polyfills by default.
 
 Install the plugin:
 
@@ -155,11 +154,9 @@ import { Buffer } from 'buffer';
 globalThis.Buffer = globalThis.Buffer || Buffer;
 ```
 
-## 4. Next.js
+## How Do You Fix This in Next.js?
 
-Next.js uses Webpack. Use `node-polyfill-webpack-plugin` or configure `resolve.fallback`.
-
-Example with `node-polyfill-webpack-plugin`:
+Next.js uses Webpack internally. Add the polyfill plugin to your Next.js config:
 
 ```tsx
 // next.config.js
@@ -175,18 +172,16 @@ module.exports = {
 }
 ```
 
-Node modules like `Buffer` or `process` are now polyfilled.
+The polyfills only apply to the client-side bundle (`!isServer` check).
 
-## 5. Create React App (CRA)
+## How Do You Fix This in Create React App?
 
-Create React App **v5** uses Webpack 5. Use `react-app-rewired` or `craco` to override config.
+Create React App v5 uses Webpack 5 but doesn't expose the config directly. Use `craco` to override it.
 
-### 5.1 Example with craco [!toc]
-
-Install craco:
+First install the dependencies:
 
 ```tsx
-npm install @craco/craco --save-dev
+npm install @craco/craco node-polyfill-webpack-plugin --save-dev
 ```
 
 Update `package.json` scripts:
@@ -226,29 +221,12 @@ module.exports = {
 };
 ```
 
-Use polyfills:
+## How Do You Fix This in Angular?
+
+Angular CLI uses Webpack internally. Use `ngx-build-plus` to extend the config:
 
 ```tsx
-import { Buffer } from 'buffer';
-global.Buffer = global.Buffer || Buffer;
-```
-
-## 6. Angular
-
-Angular CLI uses Webpack. Polyfill Node modules:
-
-Install polyfills:
-
-```tsx
-npm install buffer process stream-browserify --save
-```
-
-Edit `angular.json` or use `ngx-build-plus`.
-
-Example with `ngx-build-plus`:
-
-```tsx
-npm install ngx-build-plus --save-dev
+npm install ngx-build-plus node-polyfill-webpack-plugin buffer process stream-browserify --save-dev
 ```
 
 In `angular.json`:
@@ -300,11 +278,15 @@ module.exports = {
 };
 ```
 
-Run Angular commands via `ng build --extra-webpack-config webpack.config.js --output-hashing=none`.
+Build with the extra config:
 
-## 7. Svelte
+```bash
+ng build --extra-webpack-config webpack.config.js
+```
 
-SvelteKit uses Vite or Rollup. Use Vite instructions (Section 3) or add the plugin to Rollup config:
+## How Do You Fix This in Svelte/SvelteKit?
+
+SvelteKit uses Vite, so follow the Vite instructions above. For plain Svelte with Rollup:
 
 ```tsx
 // rollup.config.js

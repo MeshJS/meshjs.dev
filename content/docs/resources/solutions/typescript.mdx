@@ -1,6 +1,6 @@
 ---
 title: "TypeScript-First Cardano Development"
-description: "Build Cardano dApps with complete type safety. Mesh SDK provides comprehensive TypeScript definitions for transactions, wallets, and blockchain data, eliminating runtime errors and enabling powerful IDE autocompletion."
+description: "Build Cardano dApps with complete type safety. Mesh SDK provides comprehensive TypeScript definitions for transactions, wallets, and blockchain data."
 ---
 import Link from "next/link";
 import { HowToSchema, FAQSchema } from "@/components/seo";
@@ -42,9 +42,13 @@ import { HowToSchema, FAQSchema } from "@/components/seo";
   ]}
 />
 
-Mesh SDK brings true type safety to Cardano development. Every transaction builder method, wallet API, and blockchain data structure includes comprehensive TypeScript definitions. This means catching errors at compile time instead of runtime, exploring APIs through IDE autocompletion, and building with confidence that your code handles Cardano's data structures correctly.
+**TL;DR:** Mesh SDK is a TypeScript blockchain SDK with comprehensive type definitions for all Cardano APIs. Get compile-time validation, IDE autocompletion, and full type safety for transactions, wallets, and smart contracts. Install with `npm install @meshsdk/core` and build type-safe Cardano dApps.
 
-## Quick Start
+---
+
+Mesh SDK solves the <Link href="/resources/challenges/learning-curve">Cardano learning curve challenge</Link> by providing complete TypeScript definitions for every API. Instead of memorizing Cardano's data structures or debugging runtime errors, your IDE guides you with autocompletion and the compiler catches type mismatches before code runs. This TypeScript blockchain SDK means catching errors at compile time, exploring APIs through IDE autocompletion, and building with confidence that your code handles Cardano's data structures correctly.
+
+## How Do I Set Up TypeScript for Cardano?
 
 Set up a fully-typed Cardano development environment:
 
@@ -91,7 +95,7 @@ const unsignedTx = await txBuilder
 const signedTx = await wallet.signTx(unsignedTx);
 ```
 
-## Features
+## What TypeScript Features Does Mesh Provide?
 
 Mesh TypeScript integration provides comprehensive development support:
 
@@ -104,9 +108,9 @@ Mesh TypeScript integration provides comprehensive development support:
 - **Cardano Data Types**: UTxO, Asset, Address, Datum, and all Cardano primitives are typed
 - **Framework Agnostic**: Works with React, Vue, Svelte, Node.js, and any TypeScript environment
 
-## Type System Benefits
+## What Are the Type System Benefits?
 
-### Transaction Builder Types
+### How Does TypeScript Help with Transaction Building?
 
 The transaction builder enforces correct usage through types:
 
@@ -142,7 +146,7 @@ const unsignedTx: string = await txBuilder
 const signedTx: string = await wallet.signTx(unsignedTx);
 ```
 
-### Wallet API Types
+### How Are Wallet APIs Typed?
 
 Wallet methods return properly typed data:
 
@@ -167,7 +171,7 @@ utxos.forEach(utxo => {
 });
 ```
 
-### Cardano Data Types
+### What Cardano Data Types Are Available?
 
 All Cardano primitives have accurate type definitions:
 
@@ -209,9 +213,9 @@ const script: PlutusScript = {
 };
 ```
 
-### Smart Contract Types
+### How Do Types Help with Smart Contracts?
 
-Type-safe smart contract interactions:
+Type-safe Cardano smart contract interactions:
 
 ```typescript
 import { MeshTxBuilder, mConStr0, mConStr1 } from "@meshsdk/core";
@@ -234,11 +238,11 @@ txBuilder
   .txOutInlineDatumValue(datum);
 ```
 
-## IDE Integration
+## How Does IDE Integration Work?
 
 Mesh's TypeScript definitions enable powerful IDE features:
 
-### Visual Studio Code
+### What Does VS Code Provide?
 
 VS Code provides full IntelliSense with Mesh:
 
@@ -249,7 +253,7 @@ VS Code provides full IntelliSense with Mesh:
 - Go to Definition jumps to type sources
 - Find All References works across your codebase
 
-### Type Errors at Compile Time
+### How Does TypeScript Catch Errors at Compile Time?
 
 TypeScript catches mistakes before you run code:
 
@@ -265,7 +269,7 @@ txBuilder.txOut("addr_test1...", [{ unit: "lovelace", quantity: 5000000 }]);  //
 txBuilder.txOut("addr_test1...", [{ unit: "lovelace", quantity: "5000000" }]);  // quantity as string
 ```
 
-### Refactoring Safety
+### How Does TypeScript Enable Safe Refactoring?
 
 Rename symbols with confidence:
 
@@ -278,27 +282,27 @@ txBuilder.txOut(recipientAddress, assets);
 // Both references update automatically
 ```
 
-## Why TypeScript for Cardano
+## Why Use TypeScript for Cardano dApp Development?
 
-### Prevent Costly Mistakes
+### How Does TypeScript Prevent Costly Mistakes?
 
 Cardano transactions involve real value. A runtime error in production could mean failed transactions or worse. TypeScript catches type mismatches, missing parameters, and incorrect data structures at compile time, before your code reaches users.
 
-### Faster Development
+### How Does TypeScript Enable Faster Development?
 
 Strong typing enables faster iteration. Instead of reading documentation, your IDE shows available methods as you type. Instead of running code to find errors, the compiler tells you immediately. This feedback loop dramatically speeds up development.
 
-### Better Team Collaboration
+### How Does TypeScript Improve Team Collaboration?
 
 Types serve as living documentation. When you return to code after months, types explain what each function expects and returns. When teammates work on your code, types guide them toward correct usage without verbal communication.
 
-### Cardano Complexity Managed
+### How Does TypeScript Manage Cardano Complexity?
 
 Cardano has complex data structures: UTxOs, datums, redeemers, plutus data. Hand-managing these in JavaScript invites errors. Mesh's types encode Cardano's rules, preventing invalid data construction and ensuring your transactions match Cardano's expectations.
 
-## Configuration Tips
+## What Configuration Do I Need?
 
-### Recommended tsconfig.json
+### What Is the Recommended tsconfig.json?
 
 For optimal Mesh development:
 
@@ -317,7 +321,7 @@ For optimal Mesh development:
 }
 ```
 
-### Working with BigInt
+### How Do I Work with BigInt?
 
 Cardano uses large numbers. Mesh supports BigInt where appropriate:
 
@@ -334,13 +338,13 @@ txBuilder.txOut(address, [{ unit: "lovelace", quantity: lovelace.toString() }]);
 
 TypeScript support enhances all Mesh capabilities:
 
-- <Link href="/solutions/transaction-builder">Transaction Builder</Link>: Type-safe transaction construction
-- <Link href="/solutions/react-components">React Components</Link>: Typed hooks and components for React
-- <Link href="/solutions/wallet-integration">Wallet Integration</Link>: Typed wallet APIs
-- <Link href="/challenges/learning-curve">Overcoming Cardano's Learning Curve</Link>: How types help newcomers
-- <Link href="/docs/getting-started">Getting Started</Link>: Complete setup guide
+- <Link href="/resources/solutions/transaction-builder">Transaction Builder</Link>: Type-safe transaction construction
+- <Link href="/resources/solutions/react-components">React Components</Link>: Typed React blockchain components and hooks
+- <Link href="/resources/solutions/wallet-integration">Wallet Integration</Link>: Typed wallet APIs
+- <Link href="/resources/challenges/learning-curve">Overcoming Cardano's Learning Curve</Link>: How types help newcomers
+- <Link href="/getting-started">Getting Started</Link>: Complete setup guide
 
-## Get Started
+## How Do I Get Started?
 
 Install Mesh and start building with full type safety:
 
@@ -348,4 +352,4 @@ Install Mesh and start building with full type safety:
 npm install @meshsdk/core @meshsdk/react
 ```
 
-Mesh's TypeScript-first design means you spend less time debugging runtime errors and more time building features. The type system acts as a knowledgeable guide, steering you toward correct Cardano development patterns while catching mistakes before they become problems.
+Mesh's TypeScript-first design means you spend less time debugging runtime errors and more time building Cardano dApps. This TypeScript blockchain SDK acts as a knowledgeable guide, steering you toward correct Cardano development patterns while catching mistakes before they become problems—essential for JavaScript Web3 development on Cardano.
