@@ -1,5 +1,5 @@
 {
-  "title": "Learn",
+  "title": "Resources",
   "icon": "AcademicCapIcon",
-  "pages": ["cardano-course", "../guides", "tutorials", "use-cases", "developer-resources", "faq"]
+  "pages": ["cardano-course", "../guides", "tutorials", "use-cases", "developer-resources", "faq", "challenges", "solutions"]
 }

@@ -1,6 +1,5 @@
 {
   "title": "Cardano Course",
-  "icon": "AcademicCapIcon",
   "pages": [
     "01-wallet-send-lovelace",
     "02-multisig",

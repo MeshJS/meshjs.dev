@@ -1,6 +1,5 @@
 {
   "title": "Challenges",
-  "icon": "ExclamationTriangleIcon",
   "pages": [
     "index",
     "transaction-failures",

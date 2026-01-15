@@ -20,7 +20,7 @@ import { HowToSchema, FAQSchema } from "@/components/seo";
   faqs={[
     {
       question: "Why is Cardano wallet integration harder than Ethereum?",
-      answer: "Cardano has multiple wallet providers (Nami, Eternl, Flint, Lace, etc.) with slight CIP-30 implementation differences. Unlike Ethereum's standardized window.ethereum, Cardano wallets register under different window.cardano properties, requiring detection and handling logic for each."
+      answer: "Cardano has multiple wallet providers (Eternl, Lace, Yoroi, etc.) with slight CIP-30 implementation differences. Unlike Ethereum's standardized window.ethereum, Cardano wallets register under different window.cardano properties, requiring detection and handling logic for each."
     },
     {
       question: "What is CIP-30 for Cardano wallets?",
@@ -28,7 +28,7 @@ import { HowToSchema, FAQSchema } from "@/components/seo";
     },
     {
       question: "How do I detect which Cardano wallets are installed?",
-      answer: "Wallets inject themselves into window.cardano with their identifier (e.g., window.cardano.nami, window.cardano.eternl). Mesh SDK provides getInstalledWallets() to automatically detect all installed CIP-30 compatible wallets."
+      answer: "Wallets inject themselves into window.cardano with their identifier (e.g., window.cardano.eternl, window.cardano.lace). Mesh SDK provides getInstalledWallets() to automatically detect all installed CIP-30 compatible wallets."
     },
     {
       question: "Why does my Cardano wallet connection keep disconnecting?",
@@ -41,7 +41,7 @@ import { HowToSchema, FAQSchema } from "@/components/seo";
   ]}
 />
 
-Cardano wallet integration challenges developers due to multiple wallet providers with varying CIP-30 implementations, connection state management across page reloads, and inconsistent error handling. Mesh SDK provides a unified wallet API and pre-built UI components that handle these variations automatically. Instead of writing separate code for each wallet, you use one interface that works with Nami, Eternl, Flint, Lace, and all other CIP-30 wallets.
+Cardano wallet integration challenges developers due to multiple wallet providers with varying CIP-30 implementations, connection state management across page reloads, and inconsistent error handling. Mesh SDK provides a unified wallet API and pre-built UI components that handle these variations automatically. Instead of writing separate code for each wallet, you use one interface that works with Eternl, Lace, Yoroi, and all other CIP-30 wallets.
 
 ## Why This Happens
 
@@ -77,10 +77,9 @@ Different wallets handle edge cases differently:
 Unlike Ethereum where `window.ethereum` is (mostly) standard, Cardano wallets register under their own names:
 
 ```javascript
-window.cardano.nami      // Nami
 window.cardano.eternl    // Eternl
-window.cardano.flint     // Flint
 window.cardano.lace      // Lace
+window.cardano.yoroi     // Yoroi
 window.cardano.typhon    // Typhon
 // ... and more
 ```
@@ -422,7 +421,7 @@ Different wallets offer different features. Mesh normalizes the core API but som
 |---------|--------------|-------|
 | Basic CIP-30 | Yes | Connect, sign, submit |
 | Collateral | Most | Required for smart contracts |
-| Multi-account | Some | Eternl, Flint support |
+| Multi-account | Some | Eternl supports |
 | dApp connector | All | Core CIP-30 feature |
 | Hardware wallet | Via extension | Ledger, Trezor support varies |
 

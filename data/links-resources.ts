@@ -1,20 +1,42 @@
 import {
-  AcademicCapIcon,
-  DocumentTextIcon,
   Squares2X2Icon,
   StarIcon,
+  AcademicCapIcon,
+  BookOpenIcon,
 } from "@heroicons/react/24/solid";
 
-import { metaCourse } from "./links-course";
-import { Wand2Icon } from "lucide-react";
+import { Wand2Icon, Sparkles } from "lucide-react";
 
 export const linksResources = [
-  metaCourse,
+  {
+    link: `/resources`,
+    title: "Resources",
+    desc: "Comprehensive courses, tutorials, and resources for Cardano developers.",
+    icon: AcademicCapIcon,
+  },
   {
     title: "AI Features",
     desc: "We've built AI tools to help you work with Mesh faster",
     link: "/ai",
     icon: Wand2Icon,
+  },
+  {
+    title: "Mimir (contextual RAG)",
+    desc: "Connect your AI assistants to your entire codebase and docs with full context understanding.",
+    link: "https://mimir.meshjs.dev/",
+    icon: Sparkles,
+  },
+  {
+    title: "Full Course",
+    desc: "Comprehensive course for building Cardano applications with Mesh SDK and Aiken smart contracts.",
+    link: "/resources/cardano-course",
+    icon: BookOpenIcon,
+  },
+  {
+    title: "Guides",
+    desc: "Step by step guides",
+    link: "/guides",
+    icon: BookOpenIcon,
   },
   // {
   //   title: "Documentation",

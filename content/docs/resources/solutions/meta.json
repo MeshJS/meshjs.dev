@@ -1,5 +1,4 @@
 {
   "title": "Solutions",
-  "icon": "FireIcon",
   "pages": ["index", "wallet-integration", "react-components", "transaction-builder", "typescript", "beginners"]
 }

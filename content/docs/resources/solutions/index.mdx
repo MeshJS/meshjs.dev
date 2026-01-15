@@ -36,7 +36,7 @@ import { HowToSchema, FAQSchema } from "@/components/seo";
     },
     {
       question: "Can I use Mesh SDK with any Cardano wallet?",
-      answer: "Yes, Mesh supports all CIP-30 compatible wallets including Nami, Eternl, Flint, Lace, Yoroi, and more. The BrowserWallet API provides a consistent interface regardless of which wallet your users prefer, eliminating the need to write wallet-specific code."
+      answer: "Yes, Mesh supports all CIP-30 compatible wallets including Eternl, Lace, Yoroi, and more. The BrowserWallet API provides a consistent interface regardless of which wallet your users prefer, eliminating the need to write wallet-specific code."
     },
     {
       question: "Is Mesh SDK suitable for production applications?",
@@ -73,7 +73,7 @@ This does not mean you lose control. Advanced users can still specify exact UTXO
 
 ### Unified Wallet Interface
 
-Cardano's wallet ecosystem includes Nami, Eternl, Flint, Lace, Yoroi, and numerous other options. While CIP-30 provides a standard interface, real-world implementations vary in subtle ways that can break applications. Mesh's BrowserWallet and CardanoWallet components abstract these differences, providing a consistent experience regardless of which wallet your users prefer.
+Cardano's wallet ecosystem includes Eternl, Lace, Yoroi, and numerous other options. While CIP-30 provides a standard interface, real-world implementations vary in subtle ways that can break applications. Mesh's BrowserWallet and CardanoWallet components abstract these differences, providing a consistent experience regardless of which wallet your users prefer.
 
 Adding wallet connection to a React application takes five lines of code with Mesh. Compare this to the dozens or hundreds of lines required to handle wallet detection, connection, error states, and provider variations manually.
 
