@@ -1,0 +1,150 @@
+---
+title: "Migrate from Lucid to Mesh"
+description: "A comprehensive guide for migrating your Cardano dApp from Lucid to Mesh SDK, with feature mapping and pattern comparisons."
+---
+
+import Link from "fumadocs-core/link";
+
+This guide helps developers transition existing Cardano applications from Lucid to Mesh. Both libraries serve similar purposes—building Cardano transactions and interacting with wallets—but take different approaches in their APIs and architecture.
+
+## Why Consider Mesh?
+
+Mesh and Lucid both provide excellent Cardano development tooling. Factors that may influence a migration decision include:
+
+- **Active maintenance** - Mesh receives regular updates with new Cardano features
+- **TypeScript-first** - Full type definitions for better IDE support and error catching
+- **React/Svelte integrations** - Pre-built UI components and hooks for wallet connection
+- **Provider flexibility** - Easy switching between Blockfrost, Koios, Maestro, and others
+- **Smart contract tooling** - Aiken integration and transaction testing utilities
+
+## Core Concept Mapping
+
+Understanding how concepts translate between the two libraries accelerates migration:
+
+| Lucid Concept | Mesh Equivalent | Notes |
+|---------------|-----------------|-------|
+| `Lucid.new()` | `MeshTxBuilder` + Provider | Mesh separates transaction building from blockchain queries |
+| `lucid.selectWallet()` | `BrowserWallet.enable()` | Similar CIP-30 wallet connection |
+| `lucid.newTx()` | `new MeshTxBuilder()` | Transaction builder instantiation |
+| `tx.payToAddress()` | `txBuilder.txOut()` | Output construction |
+| `tx.attachSpendingValidator()` | `txBuilder.spendingPlutusScript()` | Script attachment |
+| `tx.complete()` | `txBuilder.complete()` | Transaction finalization |
+| `tx.sign().complete()` | `wallet.signTx()` | Signing workflow differs |
+| `Emulator` | `OfflineFetcher` + `OfflineEvaluator` | Testing utilities |
+| `Data.to()` | `serializePlutusData()` | Datum/redeemer serialization |
+| `Data.from()` | `deserializePlutusData()` | Data deserialization |
+
+## Wallet Connection
+
+**Lucid approach:**
+
+Lucid combines provider setup and wallet selection in a single flow, creating a configured instance that handles both blockchain queries and wallet operations.
+
+**Mesh approach:**
+
+Mesh separates these concerns. Use `BrowserWallet` for CIP-30 wallet interactions and provider classes for blockchain data. This separation provides flexibility to swap providers without changing wallet code.
+
+For React applications, Mesh offers the `useWallet` hook and `CardanoWallet` component, simplifying wallet state management with built-in UI components.
+
+## Transaction Building
+
+Both libraries use builder patterns, but with different method naming and chaining approaches.
+
+**Key differences:**
+
+- Mesh uses explicit input/output methods (`txIn`, `txOut`) rather than combined pay methods
+- Script witnesses attach differently—Mesh requires explicit script and datum/redeemer association
+- Mesh's `complete()` returns a serialized transaction requiring a separate signing step
+- Collateral handling is more explicit in Mesh
+
+**Mesh transaction flow:**
+
+1. Create `MeshTxBuilder` with provider
+2. Set inputs with `txIn()` or `spendingPlutusScript()` for smart contracts
+3. Set outputs with `txOut()`
+4. Call `complete()` to build the transaction
+5. Sign with wallet using `signTx()`
+6. Submit with provider using `submitTx()`
+
+## Smart Contract Interactions
+
+Both libraries support Plutus smart contracts, but Mesh integrates tightly with Aiken tooling.
+
+**Mesh advantages for contracts:**
+
+- Blueprint parsing utilities for Aiken-generated contracts
+- Type-safe datum and redeemer construction from blueprint schemas
+- Transaction testing with `TxTester` for validation before submission
+- Offline evaluation for script execution simulation
+
+**Migration pattern for validators:**
+
+Replace Lucid's `SpendingValidator` construction with Mesh's approach of reading compiled scripts from Aiken blueprints. Mesh's `applyParamsToScript` handles parameterized validators similarly to Lucid's `applyParamsToScript`.
+
+## Provider Configuration
+
+Lucid requires provider selection at initialization. Mesh allows provider injection into transaction builders, making it easy to switch providers per operation or environment.
+
+**Supported Mesh providers:**
+
+- `BlockfrostProvider` - Most common choice for production
+- `KoiosProvider` - Free tier available, good for testing
+- `MaestroProvider` - Advanced indexing features
+- `OgmiosProvider` - Self-hosted option
+- `YaciProvider` - Local development chains
+
+Each provider implements the same interface, enabling seamless switching.
+
+## Data Serialization
+
+Lucid uses a custom `Data` class with tagged union types. Mesh provides explicit serialization functions with TypeScript types derived from Aiken schemas.
+
+**Mesh serialization utilities:**
+
+- `serializePlutusData()` - Convert JavaScript objects to CBOR
+- `deserializePlutusData()` - Parse on-chain data
+- `meshToCbor()` and `cborToMesh()` - Lower-level conversions
+- Blueprint-derived types for type-safe data construction
+
+## Testing and Development
+
+**Lucid's Emulator** provides an in-memory blockchain for testing.
+
+**Mesh equivalents:**
+
+- `OfflineFetcher` - Mock blockchain state for testing
+- `OfflineEvaluator` - Simulate script execution without a node
+- `TxTester` - Validate transactions against expected outcomes
+- Yaci integration for local development chains
+
+## Migration Checklist
+
+When migrating an existing application:
+
+1. **Install Mesh packages** - `@meshsdk/core` for base functionality, `@meshsdk/react` for UI components
+2. **Replace provider setup** - Configure chosen provider class
+3. **Update wallet connection** - Use `BrowserWallet` or React hooks
+4. **Refactor transaction building** - Map Lucid methods to Mesh equivalents
+5. **Update smart contract code** - Adjust script loading and datum handling
+6. **Replace data serialization** - Use Mesh's serialization utilities
+7. **Update tests** - Migrate from Emulator to Mesh testing tools
+
+## Common Migration Issues
+
+**Type mismatches** - Mesh uses different type names for addresses, values, and UTxOs. Import types from `@meshsdk/core` and update type annotations.
+
+**Signing flow** - Mesh requires explicit signing after `complete()`. Don't forget to call `wallet.signTx(unsignedTx)` before submission.
+
+**Script references** - Mesh handles reference scripts differently. Use `txInReference` for consuming referenced scripts.
+
+**Fee calculation** - Both libraries handle fees automatically, but Mesh requires the change address explicitly in many cases.
+
+## Getting Help
+
+If you encounter migration issues:
+
+- Review <Link href="/apis/txbuilder">Transaction Builder documentation</Link> for API details
+- Check <Link href="/guides/smart-contract-transactions">Smart Contract Transactions guide</Link> for contract patterns
+- Join the <Link href="https://discord.gg/dH48jH3BKa">Mesh Discord</Link> for community support
+
+Migration complexity depends on your application's use of Lucid-specific features. Simple applications with basic transactions migrate quickly, while complex smart contract interactions require more careful mapping.

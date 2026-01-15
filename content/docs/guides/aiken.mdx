@@ -1,8 +1,25 @@
 ---
 title: "Aiken Hello World"
-icon: "guides/aiken.png"
 ---
 import Link from "fumadocs-core/link";
+import { HowToSchema } from "@/components/seo";
+
+<HowToSchema
+  name="Build Aiken Smart Contracts for Cardano"
+  description="Write a smart contract in Aiken and create transactions to lock and unlock assets on the Cardano blockchain."
+  totalTime="PT60M"
+  steps={[
+    { name: "Install Aiken CLI", text: "Install Aiken using aikup on Linux/MacOS or cargo install aiken from sources on all platforms." },
+    { name: "Verify installation", text: "Run aiken -V to verify the Aiken CLI installation." },
+    { name: "Create Aiken project", text: "Run aiken meshjs/hello_world to create a new Aiken project, then cd hello_world and aiken check." },
+    { name: "Write validator", text: "Create validators/hello_world.ak with datum, redeemer types and validation logic." },
+    { name: "Compile contract", text: "Run aiken build to compile the smart contract and generate plutus.json blueprint." },
+    { name: "Prepare frontend", text: "Install cbor package, copy plutus.json to data folder, and import required Mesh packages." },
+    { name: "Import contract", text: "Create PlutusScript from compiled code and resolve script address." },
+    { name: "Create locking transaction", text: "Build transaction to lock assets at script address with datum containing owner hash." },
+    { name: "Create unlock transaction", text: "Retrieve UTXO, create redeemer with Hello World message, and build unlock transaction." }
+  ]}
+/>
 
 Aiken is a functional programming language for Cardano smart contract development. It prioritizes on-chain execution and offers a user-friendly approach for building secure and efficient smart contracts.
 

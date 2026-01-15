@@ -1,5 +1,6 @@
 {
   "title": "Midnight",
+  "icon": "icons/midnight.svg",
   "pages": [
     "midnight-setup",
     "midnight-contracts-wizard"

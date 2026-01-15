@@ -1,0 +1,269 @@
+---
+title: "Production Deployment Guide"
+description: "Security best practices, deployment checklists, and error handling patterns for deploying Cardano dApps to production with Mesh SDK."
+---
+
+import Link from "fumadocs-core/link";
+
+Deploying Cardano applications to production requires careful attention to security, reliability, and user experience. This guide covers essential practices for enterprise-grade dApp deployment.
+
+## Security Best Practices
+
+### Private Key Management
+
+Never expose private keys in client-side code. For production applications:
+
+**Browser wallets only** - Let users manage their own keys through wallet extensions. Mesh's `BrowserWallet` class handles CIP-30 wallet connections securely without your application touching private keys.
+
+**Server-side signing** - When your application must sign transactions (automated systems, treasury management), isolate signing in secure backend services:
+
+- Use environment variables or secret management services for keys
+- Run signing services in isolated network segments
+- Implement audit logging for all signing operations
+- Consider hardware security modules (HSMs) for high-value operations
+
+### Transaction Validation
+
+Validate all transaction parameters before building:
+
+- **Amount bounds** - Check that values are positive and within expected ranges
+- **Address format** - Validate recipient addresses before sending funds
+- **Asset verification** - Confirm policy IDs and asset names match expectations
+- **Metadata limits** - Ensure metadata fits within protocol limits
+
+### Smart Contract Security
+
+For applications interacting with Plutus contracts:
+
+- **Audit contracts** - Have smart contracts professionally audited before mainnet deployment
+- **Test thoroughly** - Use Mesh's `TxTester` and testnet deployments
+- **Validate datums** - Check datum structure matches contract expectations
+- **Monitor contracts** - Track contract interactions post-deployment
+
+### API Key Protection
+
+Never expose provider API keys in client-side code:
+
+- Proxy blockchain requests through your backend
+- Implement rate limiting to prevent abuse
+- Use separate API keys for development and production
+- Rotate keys periodically and after any potential exposure
+
+## Deployment Checklist
+
+### Pre-Launch
+
+**Infrastructure:**
+- [ ] Provider API keys stored securely (not in client bundle)
+- [ ] Backend proxy configured for blockchain queries
+- [ ] Rate limiting implemented for API endpoints
+- [ ] Error monitoring and alerting configured
+- [ ] Load testing completed for expected traffic
+
+**Smart Contracts:**
+- [ ] Contracts audited by independent party
+- [ ] Testnet deployment validated thoroughly
+- [ ] Contract addresses verified on mainnet
+- [ ] Reference scripts deployed if used
+- [ ] Monitoring configured for contract interactions
+
+**Application:**
+- [ ] All console.log statements removed from production build
+- [ ] Source maps disabled or properly secured
+- [ ] CSP headers configured appropriately
+- [ ] HTTPS enforced with valid certificates
+- [ ] Input validation comprehensive
+
+### Network Configuration
+
+**Provider Selection:**
+
+For production applications, configure provider redundancy:
+
+- Primary provider for normal operations
+- Fallback provider for outages
+- Health checks to detect provider issues
+
+Consider provider characteristics:
+
+| Provider | Strength | Consideration |
+|----------|----------|---------------|
+| Blockfrost | Reliability, documentation | Rate limits on free tier |
+| Koios | Free tier, decentralized | Self-hosted option available |
+| Maestro | Rich data, marketplace support | Enterprise pricing |
+| Self-hosted Ogmios | Full control, no rate limits | Infrastructure overhead |
+
+**Network Selection:**
+
+- **Preview** - Testing new features, unstable
+- **Preprod** - Production-like testing, recommended for staging
+- **Mainnet** - Production deployment
+
+## Error Handling Patterns
+
+### Transaction Failures
+
+Handle transaction failures gracefully:
+
+**Validation errors** - Catch before submission:
+- Insufficient funds for transaction
+- Invalid addresses
+- Missing required UTxOs
+- Script validation failures
+
+**Submission errors** - Handle post-validation:
+- Network connectivity issues
+- Provider rate limiting
+- UTxO contention (already spent)
+- Mempool congestion
+
+**User communication:**
+- Display clear error messages, not technical stack traces
+- Provide actionable next steps (retry, check wallet, etc.)
+- Log technical details for debugging without exposing to users
+
+### UTxO Contention
+
+In high-traffic applications, UTxOs may be spent between query and submission:
+
+**Detection** - Watch for "UTxO already spent" errors
+
+**Prevention strategies:**
+- Minimize time between UTxO query and transaction submission
+- Implement optimistic locking in backend services
+- Use queue systems for sequential transaction building
+- Design smart contracts to minimize UTxO contention
+
+### Provider Failover
+
+Implement automatic failover when providers fail:
+
+**Health monitoring:**
+- Track response times and error rates
+- Set thresholds for failover triggering
+- Alert on sustained provider issues
+
+**Failover logic:**
+- Maintain multiple provider configurations
+- Switch to backup on primary failure
+- Auto-recover to primary when healthy
+
+## Performance Optimization
+
+### Bundle Size
+
+Minimize client bundle size:
+
+- Import specific modules rather than entire packages
+- Use tree shaking in your build configuration
+- Lazy load Mesh components not needed at initial page load
+- Consider code splitting for wallet-specific features
+
+### Caching Strategies
+
+Reduce redundant blockchain queries:
+
+- Cache UTxO queries with short TTL (5-30 seconds)
+- Cache protocol parameters longer (update epoch boundaries)
+- Cache resolved metadata (CIP-25 NFT metadata)
+- Invalidate caches on transaction submission
+
+### Transaction Optimization
+
+Build efficient transactions:
+
+- Batch multiple outputs in single transactions when possible
+- Use reference scripts to reduce transaction size
+- Minimize datum sizes in smart contract interactions
+- Consider inline datums for frequently accessed data
+
+## Monitoring and Observability
+
+### Key Metrics
+
+Track these metrics for production dApps:
+
+**Transaction metrics:**
+- Submission success rate
+- Average confirmation time
+- Failed transaction breakdown by error type
+- Transaction fee distribution
+
+**User metrics:**
+- Wallet connection success rate
+- Transaction abandonment rate
+- Error frequency by type
+
+**Infrastructure metrics:**
+- Provider response times
+- API endpoint latency
+- Error rates by endpoint
+
+### Alerting
+
+Configure alerts for:
+
+- Sustained transaction failure rates above threshold
+- Provider connectivity issues
+- Smart contract interaction anomalies
+- Unusual transaction patterns (potential attacks)
+
+### Logging
+
+Structure logs for analysis:
+
+- Include correlation IDs for transaction flows
+- Log transaction hashes for blockchain correlation
+- Avoid logging sensitive data (addresses may be semi-sensitive)
+- Retain logs for compliance requirements
+
+## Compliance Considerations
+
+For enterprise deployments, consider:
+
+**Regulatory:**
+- Know Your Customer (KYC) requirements
+- Anti-Money Laundering (AML) monitoring
+- Geographic restrictions on services
+- Tax reporting obligations
+
+**Data protection:**
+- GDPR compliance for EU users
+- Data retention policies
+- User consent mechanisms
+- Right to deletion implementation
+
+**Audit trails:**
+- Transaction logging for compliance review
+- Access control documentation
+- Change management records
+
+## Disaster Recovery
+
+### Backup Strategies
+
+Maintain recovery capabilities:
+
+- Document all deployed contract addresses
+- Backup parameterized script configurations
+- Store reference script deployment information
+- Document provider configurations
+
+### Incident Response
+
+Prepare for security incidents:
+
+- Define escalation procedures
+- Document emergency contact information
+- Prepare communication templates for users
+- Test recovery procedures periodically
+
+## Next Steps
+
+After completing this checklist:
+
+- <Link href="/providers">Configure providers</Link> for your deployment environment
+- <Link href="/guides/aiken">Review smart contract best practices</Link> if using Plutus
+- <Link href="https://discord.gg/dH48jH3BKa">Join the community</Link> for ongoing support
+
+Production deployment is an iterative process. Monitor your application closely post-launch and refine based on real-world usage patterns.

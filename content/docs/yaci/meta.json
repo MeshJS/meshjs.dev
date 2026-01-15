@@ -1,0 +1,5 @@
+{
+  "title": "Yaci",
+  "icon": "icons/yaci.png",
+  "pages": ["getting-started", "transactions"]
+}

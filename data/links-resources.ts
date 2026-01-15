@@ -14,26 +14,26 @@ export const linksResources = [
     title: "AI Features",
     desc: "We've built AI tools to help you work with Mesh faster",
     link: "/ai",
-    icon: Wand2Icon
+    icon: Wand2Icon,
   },
-  {
-    title: "Documentation",
-    desc: "Full documentation for MeshJS",
-    link: "https://docs.meshjs.dev/",
-    icon: DocumentTextIcon,
-  },
+  // {
+  //   title: "Documentation",
+  //   desc: "Full documentation for MeshJS",
+  //   link: "https://docs.meshjs.dev/",
+  //   icon: DocumentTextIcon,
+  // },
   {
     link: `https://github.com/MeshJS/examples`,
     title: "Examples",
     desc: "Explore our examples to get started",
     icon: Squares2X2Icon,
   },
-  {
-    link: `https://pbl.meshjs.dev/`,
-    title: "Project Based Learning",
-    desc: "Start your building journey",
-    icon: AcademicCapIcon,
-  },
+  // {
+  //   link: `https://pbl.meshjs.dev/`,
+  //   title: "Project Based Learning",
+  //   desc: "Start your building journey",
+  //   icon: AcademicCapIcon,
+  // },
 ];
 
 export const metaResources = {

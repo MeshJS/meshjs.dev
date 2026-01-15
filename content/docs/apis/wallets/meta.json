@@ -1,0 +1,5 @@
+{
+  "title": "Wallets",
+  "icon": "WalletIcon",
+  "pages": ["browserwallet", "meshwallet"]
+}

@@ -82,7 +82,11 @@ export default function sitemap(): MetadataRoute.Sitemap {
     },
   ];
 
-  return [...staticPages, ...docPages];
+  // Deduplicate URLs - static pages take precedence
+  const staticUrls = new Set(staticPages.map((page) => page.url));
+  const uniqueDocPages = docPages.filter((page) => !staticUrls.has(page.url));
+
+  return [...staticPages, ...uniqueDocPages];
 }
 
 // Generate a dynamic sitemap with automatic last modified dates

@@ -1,0 +1,127 @@
+---
+title: "NFT Development on Cardano"
+description: "Build, mint, and manage NFTs on Cardano with Mesh SDK. Comprehensive tools for NFT collections, marketplaces, and Plutus-based NFT contracts."
+icon: PhotoIcon
+---
+
+import Link from "fumadocs-core/link";
+import { Card, CardDescription, CardTitle } from "@/components/ui/card";
+
+Mesh provides a complete toolkit for NFT development on Cardano, enabling developers to create, mint, and manage non-fungible tokens with ease. Whether you're building a simple minting application or a full-featured NFT marketplace, Mesh offers the APIs and utilities you need.
+
+## Why Build NFTs with Mesh?
+
+Cardano's native token model makes NFT development uniquely powerful compared to other blockchains. Unlike Ethereum where NFTs require smart contracts for basic minting, Cardano NFTs are first-class citizens on the network. Mesh leverages this architecture to provide streamlined APIs for NFT operations while supporting advanced Plutus-based functionality when needed.
+
+**Key advantages:**
+
+- **Native multi-asset support** - Mint NFTs without smart contracts using native scripts
+- **Low fees** - Cardano's predictable fee model keeps minting costs minimal
+- **CIP compliance** - Built-in support for CIP-25 and CIP-68 metadata standards
+- **Plutus integration** - Advanced NFT logic with smart contract validation
+- **Batch operations** - Mint entire collections in optimized transactions
+
+## Core NFT Capabilities
+
+### Minting Native NFTs
+
+The most common NFT use case involves minting tokens with native scripts. Mesh's transaction builder makes this straightforward, handling policy ID generation, metadata attachment, and transaction construction automatically.
+
+Native NFTs work well for:
+- Single NFT mints for art or collectibles
+- Collection launches with predefined supply
+- Event tickets or proof-of-attendance tokens
+- Membership and access tokens
+
+### Plutus NFT Contracts
+
+For advanced use cases requiring on-chain validation logic, Mesh supports Plutus NFT contracts. These enable programmable rules that govern minting conditions, transfers, and burns.
+
+Plutus NFTs enable:
+- Royalty enforcement on secondary sales
+- Time-locked minting windows
+- Whitelist-based access control
+- Dynamic metadata updates (CIP-68)
+- Burn-to-redeem mechanics
+
+### Metadata Standards
+
+Mesh provides utilities for constructing compliant NFT metadata following Cardano Improvement Proposals:
+
+**CIP-25** - The original NFT metadata standard, storing information in transaction metadata. Suitable for static NFTs where metadata never changes.
+
+**CIP-68** - The datum-based metadata standard enabling on-chain storage and updates. Ideal for dynamic NFTs, gaming assets, and evolving collectibles.
+
+## Building NFT Marketplaces
+
+Beyond minting, Mesh supports building complete NFT marketplace infrastructure:
+
+- **Listing and delisting** - Lock NFTs in escrow contracts for sale
+- **Purchase flows** - Handle payments and NFT transfers atomically
+- **Auction systems** - Implement bidding with time-based resolution
+- **Royalty distribution** - Automated creator royalties on each sale
+- **Collection management** - Organize and query NFTs by policy ID
+
+## Getting Started
+
+Explore these resources to begin NFT development with Mesh:
+
+<div className="grid md:grid-cols-2 gap-6 items-stretch mt-6">
+  <Link href="/guides/nft-collection" className="no-underline">
+    <Card className="h-full text-center hover:border-primary/50 transition-colors px-4 py-8">
+      <CardTitle className="font-heading">NFT Collection Guide</CardTitle>
+      <CardDescription>Step-by-step tutorial for minting your first NFT collection on Cardano</CardDescription>
+    </Card>
+  </Link>
+  <Link href="/smart-contracts/marketplace" className="no-underline">
+    <Card className="h-full text-center hover:border-primary/50 transition-colors px-4 py-8">
+      <CardTitle className="font-heading">Marketplace Contract</CardTitle>
+      <CardDescription>Build a decentralized NFT marketplace with Plutus smart contracts</CardDescription>
+    </Card>
+  </Link>
+  <Link href="/smart-contracts/plutus-nft" className="no-underline">
+    <Card className="h-full text-center hover:border-primary/50 transition-colors px-4 py-8">
+      <CardTitle className="font-heading">Plutus NFT Minting</CardTitle>
+      <CardDescription>Create NFTs with custom on-chain validation and minting rules</CardDescription>
+    </Card>
+  </Link>
+  <Link href="/apis/txbuilder/minting" className="no-underline">
+    <Card className="h-full text-center hover:border-primary/50 transition-colors px-4 py-8">
+      <CardTitle className="font-heading">Minting API Reference</CardTitle>
+      <CardDescription>Complete API documentation for minting and burning tokens</CardDescription>
+    </Card>
+  </Link>
+</div>
+
+## NFT Development Patterns
+
+When building NFT applications, consider these common patterns:
+
+**Collection Policy** - Use a single policy ID for all NFTs in a collection, with unique asset names distinguishing individual tokens. This enables easy collection queries and verification.
+
+**Metadata IPFS Pinning** - Store NFT images and extended metadata on IPFS, referencing the content hash in on-chain metadata. This balances decentralization with cost efficiency.
+
+**Lazy Minting** - Defer actual minting until purchase, reducing upfront costs for large collections while maintaining provable scarcity.
+
+**Reveal Mechanics** - Mint with placeholder metadata initially, then update to final artwork after a reveal event using CIP-68 datum updates.
+
+## Integration with Providers
+
+Mesh works with multiple blockchain data providers to query NFT information:
+
+- **Blockfrost** - NFT metadata and ownership queries
+- **Koios** - Policy and asset information endpoints
+- **Maestro** - Rich NFT data including marketplace listings
+- **Custom providers** - Build your own indexer integration
+
+Each provider offers NFT-specific endpoints for fetching metadata, ownership history, and marketplace activity. See the <Link href="/providers">Providers documentation</Link> for configuration details.
+
+## Community and Support
+
+Join the Mesh community to get help with NFT development:
+
+- **Discord** - Real-time support from Mesh developers and community
+- **GitHub** - Example projects and issue tracking
+- **Twitter** - Updates on new features and NFT tooling
+
+Start building your NFT project today with Mesh's comprehensive TypeScript SDK.

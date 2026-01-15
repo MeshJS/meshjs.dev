@@ -1,8 +1,21 @@
 ---
 title: "Executing a standalone script"
-icon: "guides/standalone.png"
 ---
 import Link from "fumadocs-core/link";
+import { HowToSchema } from "@/components/seo";
+
+<HowToSchema
+  name="Execute standalone Cardano scripts with Mesh SDK"
+  description="Run JavaScript/TypeScript files directly to interact with the Cardano blockchain using Mesh SDK and the tsx package."
+  totalTime="PT15M"
+  steps={[
+    { name: "Create package.json", text: "Create a package.json file in the project root with type module and tsx dev script." },
+    { name: "Install packages", text: "Run npm install to install dependencies, then npm install tsx @meshsdk/core." },
+    { name: "Create index.ts", text: "Create index.ts with blockchain provider setup, wallet initialization, and transaction code." },
+    { name: "Configure credentials", text: "Replace YOUR_KEY_HERE with a valid Blockfrost key and add your mnemonic words." },
+    { name: "Run the application", text: "Execute npm run dev to run the script and view the transaction hash in the console." }
+  ]}
+/>
 
 Run JavaScript/TypeScript files directly to interact with the blockchain using the `tsx` package.
 

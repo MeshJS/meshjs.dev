@@ -30,7 +30,7 @@ npx meshjs 03-aiken-contracts
 
 Select the `Aiken` template when prompted.
 
-![Select at CLI](../../../../../public/lessons/03-aiken-contracts/mesh-aiken-template.png)
+![Select at CLI](../../../../public/lessons/03-aiken-contracts/mesh-aiken-template.png)
 
 After installation, a new folder `03-aiken-contracts` will be created with the following structure:
 
@@ -44,7 +44,7 @@ After installation, a new folder `03-aiken-contracts` will be created with the f
 
 If you use VSCode as your IDE, install the <Link href="https://marketplace.visualstudio.com/items/?itemName=sidan-lab.cardano-bar-vscode">Cardano-Bar</Link> extension for code snippets to follow the course more easily.
 
-![Aiken script info](../../../../../public/lessons/03-aiken-contracts/cardano-bar.png)
+![Aiken script info](../../../../public/lessons/03-aiken-contracts/cardano-bar.png)
 
 ## Understanding Transaction Context
 
@@ -52,7 +52,7 @@ Cardano contracts are not like traditional smart contracts on other blockchains.
 
 To build Cardano validators, we need to understand how transactions work. Refer to the <Link href="https://aiken-lang.github.io/stdlib/cardano/transaction.html#Transaction">Aiken documentation</Link> for details on the `Transaction` structure.
 
-![Aiken Tx](../../../../../public/lessons/03-aiken-contracts/aiken-tx.png)
+![Aiken Tx](../../../../public/lessons/03-aiken-contracts/aiken-tx.png)
 
 ### Inputs & Outputs
 
@@ -62,8 +62,8 @@ All Cardano transactions must have inputs and outputs:
 
 Refer to <Link href="https://aiken-lang.github.io/stdlib/cardano/transaction.html#Input">Aiken documentation</Link> for types:
 
-![Input](../../../../../public/lessons/03-aiken-contracts/input.png)
-![Output](../../../../../public/lessons/03-aiken-contracts/output.png)
+![Input](../../../../public/lessons/03-aiken-contracts/input.png)
+![Output](../../../../public/lessons/03-aiken-contracts/output.png)
 
 Key concepts:
 - An input references an output of a previous transaction, identified by `output_reference`.
@@ -97,7 +97,7 @@ Refer to <Link href="https://aiken-lang.github.io/stdlib/cardano/script_context.
 - **Spending**
 - **Withdrawing**
 
-![Aiken script info](../../../../../public/lessons/03-aiken-contracts/scriptinfo.png)
+![Aiken script info](../../../../public/lessons/03-aiken-contracts/scriptinfo.png)
 
 ### Minting Script
 
@@ -254,4 +254,4 @@ All withdrawal scripts must be registered on-chain before they can be used. This
 
 #### When withdrawal script is used?
 
-For most Cardano users, we would just use a normal payment key to stake and withdraw rewards. However, it is very popular for Cardano DApps to build withdrawal scripts to enhance the efficiency of validation. We will cover this trick in <Link href="/resources/cardano-course/lessons/05-avoid-redundant-validation">lesson 5</Link>.
+For most Cardano users, we would just use a normal payment key to stake and withdraw rewards. However, it is very popular for Cardano DApps to build withdrawal scripts to enhance the efficiency of validation. We will cover this trick in <Link href="/resources/cardano-course/05-avoid-redundant-validation">lesson 5</Link>.

@@ -1,8 +1,23 @@
 ---
 title: "Develop your first Web3 App"
-icon: "guides/develop-first-web-app.png"
 ---
 import Link from "fumadocs-core/link";
+import { HowToSchema } from "@/components/seo";
+
+<HowToSchema
+  name="Develop your first Web3 App with Next.js and Mesh"
+  description="Set up a Next.js application and connect it to the Cardano blockchain using Mesh. Create a simple application that allows users to connect their wallets and view assets."
+  totalTime="PT30M"
+  steps={[
+    { name: "Create project folder", text: "Create a new folder and open Visual Studio Code." },
+    { name: "Create Next.js app", text: "Open the terminal and create a new Next.js application using npx create-next-app@latest." },
+    { name: "Start development server", text: "Start the development server with npm run dev and visit http://localhost:3000." },
+    { name: "Install Mesh SDK", text: "Install Mesh packages with npm install @meshsdk/core @meshsdk/react." },
+    { name: "Add MeshProvider", text: "Open pages/_app.tsx and add MeshProvider to wrap your application." },
+    { name: "Add wallet connect component", text: "Add the CardanoWallet component to pages/index.tsx to enable wallet connection and asset viewing." },
+    { name: "Test the application", text: "Start the development server and connect your wallet to view assets." }
+  ]}
+/>
 
 Set up a Next.js application and connect it to the Cardano blockchain using Mesh. Create a simple application that allows users to connect their wallets and view assets.
 

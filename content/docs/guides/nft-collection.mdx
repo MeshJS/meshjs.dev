@@ -1,8 +1,25 @@
 ---
 title: "Mint an NFT Collection"
-icon: "guides/mint-nft-collection.png"
 ---
 import Youtube from "@/components/ui/Youtube";
+import { HowToSchema } from "@/components/seo";
+
+<HowToSchema
+  name="Mint an NFT Collection on Cardano"
+  description="Learn how to mint native assets on the Cardano blockchain using Mesh SDK and Bun runtime."
+  totalTime="PT45M"
+  steps={[
+    { name: "Install Bun", text: "Install Bun runtime from bun.sh for running TypeScript files." },
+    { name: "Initialize project", text: "Create a new directory and run bun init, then bun install @meshsdk/core." },
+    { name: "Generate wallet", text: "Create scripts/brew.ts to generate a new Cardano wallet using MeshWallet.brew()." },
+    { name: "Fund wallet", text: "Copy your public address and fund the wallet using the Cardano testnet faucet." },
+    { name: "Get Blockfrost key", text: "Create a Blockfrost Preprod project and copy your API key to .env file." },
+    { name: "Setup index.ts", text: "Import Mesh building blocks and configure provider, wallet, and transaction builder." },
+    { name: "Create native script", text: "Define a minting ruleset using native script with time lock and signature requirements." },
+    { name: "Build metadata function", text: "Write get721Metadata function to generate CIP-25 compliant NFT metadata." },
+    { name: "Mint collection", text: "Loop to create tokens, add metadata, build transaction, sign and submit to blockchain." }
+  ]}
+/>
 
 <Youtube id="KewdzkAqsvw" />
 

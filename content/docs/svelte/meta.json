@@ -1,0 +1,5 @@
+{
+  "title": "Svelte Components",
+  "icon": "ComputerDesktopIcon",
+  "pages": ["getting-started", "ui-components"]
+}

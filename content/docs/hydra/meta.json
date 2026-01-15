@@ -1,5 +1,6 @@
 {
   "title": "Hydra",
+  "icon": "icons/hydra.svg",
   "pages": ["tutorial","instance"]
 }
 

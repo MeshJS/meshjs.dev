@@ -1,4 +1,5 @@
 {
   "title": "Utilities",
+  "icon": "WrenchScrewdriverIcon",
   "pages": ["serializers", "deserializers", "resolvers", "../data/index.mdx", "blueprints"]
 }

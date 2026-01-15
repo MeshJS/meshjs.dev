@@ -1,5 +1,3 @@
-import { AcademicCapIcon } from "@heroicons/react/24/solid";
-
 export const courseCardanoCourse = {
   title: "Cardano Course",
   desc: "A comprehensive 10-lesson course covering wallet integration, Aiken smart contracts, and advanced Cardano development patterns.",
@@ -50,6 +48,8 @@ export const linksLearn = [
 
 // Keep linksCourse for backwards compatibility
 export const linksCourse = linksLearn;
+
+import { AcademicCapIcon } from "@heroicons/react/24/solid";
 
 export const metaCourse = {
   link: `/resources`,

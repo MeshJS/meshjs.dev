@@ -1,0 +1,194 @@
+---
+title: "Mesh vs Cardano Development Alternatives"
+description: "Compare Mesh SDK with cardano-serialization-lib, Lucid, and other Cardano development tools. Understand when to use each option for your project."
+---
+
+import Link from "fumadocs-core/link";
+
+Cardano developers have several options for building dApps and interacting with the blockchain. This guide compares Mesh with alternatives to help you choose the right tool for your project's requirements.
+
+## Overview of Cardano Development Tools
+
+The Cardano ecosystem offers multiple development approaches:
+
+| Tool | Language | Level | Primary Use Case |
+|------|----------|-------|------------------|
+| **Mesh** | TypeScript | High | Full-stack dApp development |
+| **cardano-serialization-lib** | Rust/WASM | Low | Transaction serialization |
+| **Lucid** | TypeScript | High | Transaction building |
+| **Pallas** | Rust | Low | Chain interaction |
+| **cardano-cli** | Shell | Low | Node operations |
+| **Aiken** | Aiken | N/A | Smart contract authoring |
+
+## Mesh vs cardano-serialization-lib
+
+**cardano-serialization-lib (CSL)** is Emurgo's Rust library compiled to WebAssembly. It provides low-level primitives for constructing and serializing Cardano transactions.
+
+### When to Choose CSL
+
+CSL suits projects requiring maximum control over transaction construction:
+
+- Performance-critical applications where WASM speed matters
+- Custom transaction formats or experimental features
+- Building your own higher-level abstraction
+- Wallet implementations needing fine-grained control
+
+### When to Choose Mesh
+
+Mesh provides a better developer experience for most applications:
+
+- **Higher-level APIs** - Build transactions with intuitive methods instead of manual construction
+- **Provider abstraction** - Query blockchain data without writing provider logic
+- **React/Svelte components** - Pre-built wallet UI saves development time
+- **Type safety** - TypeScript-first design catches errors at compile time
+- **Smart contract tooling** - Aiken integration and testing utilities included
+
+**Relationship note:** Mesh uses CSL internally for serialization while exposing developer-friendly APIs. You get CSL's reliability with Mesh's usability.
+
+### Feature Comparison
+
+| Feature | Mesh | CSL |
+|---------|------|-----|
+| Transaction building | High-level builder pattern | Manual construction |
+| Wallet connection | Built-in CIP-30 support | Must implement |
+| Provider integration | Multiple providers included | DIY |
+| Smart contracts | Aiken integration, testing tools | Manual script handling |
+| UI components | React/Svelte components | None |
+| Bundle size | Includes dependencies | Minimal WASM |
+| Learning curve | Gentle | Steep |
+
+## Mesh vs Lucid
+
+Lucid is another TypeScript library for Cardano development with similar goals to Mesh.
+
+### Architectural Differences
+
+**Lucid** combines provider and wallet in a single configured instance. This simplifies basic use cases but couples concerns.
+
+**Mesh** separates transaction building, wallet interaction, and blockchain queries. This separation enables:
+
+- Swapping providers without changing transaction code
+- Using different wallets with the same transaction logic
+- Testing transactions without blockchain connectivity
+
+### Feature Comparison
+
+| Feature | Mesh | Lucid |
+|---------|------|-------|
+| React components | Yes, with hooks | Community packages |
+| Svelte support | Official package | Community packages |
+| Provider options | Blockfrost, Koios, Maestro, Ogmios, Yaci | Blockfrost, Koios, Maestro |
+| Testing utilities | TxTester, OfflineFetcher | Emulator |
+| Aiken integration | Blueprint parsing, type generation | Manual |
+| Documentation | Comprehensive with examples | Good |
+| Maintenance | Active development | Varies |
+
+### Migration Path
+
+Developers with existing Lucid applications can migrate incrementally. See the <Link href="/guides/migrate-from-lucid">Lucid Migration Guide</Link> for detailed mapping between APIs.
+
+## Mesh vs Pallas
+
+**Pallas** is a Rust library providing low-level Cardano network interaction—chain sync, block parsing, and transaction submission.
+
+### When to Choose Pallas
+
+Pallas suits backend infrastructure:
+
+- Blockchain indexers and explorers
+- Custom node implementations
+- High-performance data processing
+- Rust-based backend services
+
+### When to Choose Mesh
+
+Mesh serves frontend and full-stack development:
+
+- Web application development
+- Wallet interactions
+- Transaction building in JavaScript environments
+- Rapid prototyping
+
+These tools complement rather than compete—use Pallas for backend infrastructure and Mesh for client-facing applications.
+
+## Mesh vs cardano-cli
+
+**cardano-cli** is the official command-line tool for Cardano node operations.
+
+### When to Use cardano-cli
+
+The CLI excels at administrative tasks:
+
+- Running stake pool operations
+- Direct node interaction and queries
+- Scripting operational workflows
+- Protocol parameter inspection
+
+### When to Use Mesh
+
+Mesh handles application development:
+
+- Building web and mobile applications
+- Programmatic transaction construction
+- Integrating wallets into applications
+- Any scenario requiring JavaScript/TypeScript
+
+For backend scripts, consider using Mesh in a Node.js environment rather than parsing CLI output.
+
+## Mesh vs Direct Aiken Usage
+
+**Aiken** is a smart contract language, not a transaction library. However, developers sometimes ask about building "just with Aiken."
+
+### The Relationship
+
+Aiken compiles smart contracts. You still need a tool to:
+
+- Build transactions that interact with those contracts
+- Serialize datums and redeemers
+- Query the blockchain for UTxOs
+- Connect to wallets for signing
+
+Mesh provides Aiken integration:
+
+- Parse Aiken blueprints for type-safe contract interaction
+- Apply parameters to parameterized validators
+- Construct properly formatted datums and redeemers
+- Test transactions with contract validation
+
+Use Aiken for writing contracts, Mesh for building transactions that use them.
+
+## Making Your Choice
+
+### Choose Mesh When
+
+- Building a web application or dApp frontend
+- Want TypeScript with strong type safety
+- Need pre-built React or Svelte components
+- Developing with Aiken smart contracts
+- Prefer higher-level abstractions over low-level control
+- Value comprehensive documentation and examples
+
+### Choose Alternatives When
+
+- **CSL** - Need maximum performance or building low-level tooling
+- **Lucid** - Already invested in Lucid ecosystem
+- **Pallas** - Building Rust backend infrastructure
+- **cardano-cli** - Operating stake pools or direct node interaction
+
+### Hybrid Approaches
+
+Many projects combine tools:
+
+- Mesh for frontend + Pallas for backend indexing
+- Mesh for most transactions + CSL for specific optimizations
+- Mesh for development + cardano-cli for deployment scripts
+
+## Getting Started with Mesh
+
+If Mesh fits your needs, begin with these resources:
+
+- <Link href="/guides/nextjs">Next.js Integration Guide</Link> - Build your first dApp
+- <Link href="/apis/txbuilder">Transaction Builder API</Link> - Learn transaction construction
+- <Link href="/guides/aiken">Aiken Integration Guide</Link> - Work with smart contracts
+
+The Mesh approach balances developer productivity with capability. Most Cardano dApps can be built entirely with Mesh, reserving lower-level tools for specific optimization needs.

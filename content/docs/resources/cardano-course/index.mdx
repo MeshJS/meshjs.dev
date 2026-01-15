@@ -4,31 +4,50 @@ description: "A comprehensive course for building Cardano applications with Mesh
 icon: AcademicCapIcon
 ---
 import Link from "fumadocs-core/link";
+import { CourseSchema } from "@/components/seo";
 
-Welcome to the Cardano Course! This comprehensive course will guide you through building Cardano applications, from basic wallet interactions to advanced smart contract development with Aiken.
+<CourseSchema
+  name="Cardano Development Course with Mesh SDK"
+  description="A comprehensive free course for building Cardano applications with Mesh SDK and Aiken smart contracts. Learn wallet integration, transaction building, smart contract development, and Layer 2 scaling."
+  provider="MeshJS"
+  isAccessibleForFree={true}
+  lessons={[
+    { name: "Hello World", description: "Install Mesh SDK and learn wallet basics with sending lovelace" },
+    { name: "Multi-signature Transactions", description: "Build multi-sig transactions for collaborative signing" },
+    { name: "Aiken Contracts", description: "Introduction to Aiken smart contract development" },
+    { name: "Contract Testing", description: "Testing strategies for smart contracts" },
+    { name: "Avoid Redundant Validation", description: "Smart contract optimization patterns" },
+    { name: "Interpreting Blueprint", description: "Understanding Aiken blueprints and CIP-57" },
+    { name: "Vesting Contract", description: "Build a token vesting contract" },
+    { name: "Plutus NFT Contract", description: "Create NFT minting contracts with Plutus" },
+    { name: "Hydra End-to-End", description: "Layer 2 scaling with Hydra" },
+    { name: "Web3 Services", description: "Wallet-as-a-service and transaction sponsorship" }
+  ]}
+/>
 
-## Course Structure
-
-This course is divided into lessons covering everything you need to become a proficient Cardano developer.
-
-### Lessons
-
-The course includes 10 detailed lessons covering:
-
-1. **Hello World** - Install Mesh SDK and learn wallet basics
-2. **Multi-signature Transactions** - Build multi-sig transactions
-3. **Aiken Contracts** - Introduction to Aiken smart contracts
-4. **Contract Testing** - Testing strategies for smart contracts
-5. **Avoid Redundant Validation** - Smart contract optimization patterns
-6. **Interpreting Blueprint** - Understanding Aiken blueprints
-7. **Vesting Contract** - Build a token vesting contract
-8. **Plutus NFT Contract** - Create NFT minting contracts
-9. **Hydra End-to-End** - Layer 2 scaling with Hydra
-10. **Web3 Services** - Wallet-as-a-service and transaction sponsorship
+Master Cardano development through our comprehensive lesson series. Each lesson builds upon the previous one, taking you from basic concepts to advanced smart contract development.
 
 ## Getting Started
 
-Begin with <Link href="/resources/cardano-course/lessons/01-wallet-send-lovelace">Lesson 1: Hello World</Link> to set up your development environment and create your first Cardano transaction.
+- <Link href="/resources/cardano-course/01-wallet-send-lovelace">Lesson 1: Hello World</Link> - Set up Mesh SDK and send your first transaction
+- <Link href="/resources/cardano-course/02-multisig">Lesson 2: Multi-signature Transactions</Link> - Build transactions requiring multiple signatures
+
+## Smart Contract Development
+
+- <Link href="/resources/cardano-course/03-aiken-contracts">Lesson 3: Aiken Contracts</Link> - Introduction to Aiken smart contract development
+- <Link href="/resources/cardano-course/04-contract-testing">Lesson 4: Contract Testing</Link> - Testing strategies and best practices
+- <Link href="/resources/cardano-course/05-avoid-redundant-validation">Lesson 5: Avoid Redundant Validation</Link> - Optimization patterns for efficient contracts
+- <Link href="/resources/cardano-course/06-interpreting-blueprint">Lesson 6: Interpreting Blueprint</Link> - Understanding and using Aiken blueprints
+
+## Advanced Contracts
+
+- <Link href="/resources/cardano-course/07-vesting">Lesson 7: Vesting Contract</Link> - Build a token vesting smart contract
+- <Link href="/resources/cardano-course/08-plutus-nft">Lesson 8: Plutus NFT Contract</Link> - Create NFT minting contracts with auto-increment
+
+## Scaling & Services
+
+- <Link href="/resources/cardano-course/09-hydra">Lesson 9: Hydra End-to-End</Link> - Layer 2 scaling with Hydra Head protocol
+- <Link href="/resources/cardano-course/10-web3-services">Lesson 10: Web3 Services</Link> - Wallet-as-a-service and transaction sponsorship
 
 ## Prerequisites
 
@@ -44,5 +63,3 @@ Begin with <Link href="/resources/cardano-course/lessons/01-wallet-send-lovelace
 - Smart contract testing and optimization
 - NFT minting and token management
 - Layer 2 scaling solutions
-
-Start your journey into Cardano development today!

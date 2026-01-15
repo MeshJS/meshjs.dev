@@ -1,4 +1,5 @@
 {
   "title": "Aiken",
+  "icon": "icons/aiken.png",
   "pages": ["getting-started", "first-script", "transactions"]
 }

@@ -1,6 +1,5 @@
 ---
 title: "Minting Application"
-icon: "guides/minting-application.png"
 ---
 import Link from "fumadocs-core/link";
 
@@ -145,7 +144,7 @@ const blockfrostKey = 'BLOCKFROST_KEY_HERE';
 
 ### 5. Build the minting transaction [!toc]
 
-This guide builds a minting transaction, but the process applies to any transaction. <Link href="/apis/transaction">Learn more about Transaction</Link>.
+This guide builds a minting transaction, but the process applies to any transaction. <Link href="/apis/txbuilder">Learn more about Transaction</Link>.
 
 Initialize a blockchain provider. This guide uses **BlockfrostProvider**:
 
@@ -172,7 +171,7 @@ const walletAddress = wallet.getPaymentAddress();
 const forgingScript = ForgeScript.withOneSignature(walletAddress);
 ```
 
-Create a new Transaction, loop through each recipient, and mint assets with **mintAsset** (<Link href="/apis/transaction">Learn more about minting transactions</Link>):
+Create a new Transaction, loop through each recipient, and mint assets with **mintAsset** (<Link href="/apis/txbuilder/minting">Learn more about minting transactions</Link>):
 
 ```tsx
 const tx = new Transaction({ initiator: wallet });

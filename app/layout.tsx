@@ -15,7 +15,7 @@ export const metadata: Metadata = {
     default: 'Mesh - Open-Source TypeScript SDK for Cardano Blockchain Development',
     template: '%s | Mesh SDK',
   },
-  description: 'Mesh is the open-source TypeScript SDK that helps developers build better Cardano blockchain applications faster. Ship Cardano dApps with ease using our comprehensive suite of tools, React components, and transaction builders. Less than 60kB, production-ready, with 1M+ downloads.',
+  description: 'Open-source TypeScript SDK for Cardano. Build dApps faster with React components, wallet integrations & transaction builders.',
   keywords: [
     'Cardano',
     'TypeScript SDK',
