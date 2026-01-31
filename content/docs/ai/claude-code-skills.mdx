@@ -1,0 +1,94 @@
+---
+title: "Claude Code Skills"
+description: "AI skills that give Claude deep knowledge of Mesh SDK packages"
+---
+import Link from "fumadocs-core/link";
+
+AI skills that give Claude Code (and other AI assistants) deep knowledge of Mesh SDK packages. Once installed, your AI assistant understands the full API, common patterns, and troubleshooting — no more searching through docs.
+
+## Why Use This?
+
+Building on Cardano with Mesh SDK has a learning curve. These skills eliminate that friction:
+
+| Challenge Without Skills | With Skills Installed |
+|-------------------------|----------------------|
+| Must read extensive docs to understand API | AI assistant already knows the full API |
+| Trial-and-error for transaction patterns | Ask "build a transaction that sends 5 ADA" and get working code |
+| Debugging cryptic Cardano errors | Troubleshooting guides built into AI context |
+| Forgetting method order (e.g., `spendingPlutusScriptV2()` before `txIn()`) | AI knows the correct order |
+| Looking up CIP standards | AI understands CIP-30, CIP-8, etc. |
+
+## Available Skills
+
+| Skill | Package | Description |
+|-------|---------|-------------|
+| transaction | `@meshsdk/transaction` | MeshTxBuilder API, minting, Plutus scripts, governance |
+| wallet | `@meshsdk/wallet` | Browser wallets, headless wallets, signing, CIP-30 |
+| core-cst | `@meshsdk/core-cst` | Serialization, resolvers, Plutus data, low-level utilities |
+
+## Installation
+
+### Option 1: Claude Code (Recommended)
+
+```bash
+# Install all skills
+claude skill add @meshsdk/ai-skills
+
+# Or link specific skill from source
+claude skill link ./transaction
+```
+
+### Option 2: Manual Installation
+
+Copy skill folders to Claude Code's skill directory:
+
+```bash
+cp -r transaction ~/.claude/skills/mesh-transaction
+cp -r wallet ~/.claude/skills/mesh-wallet
+cp -r core-cst ~/.claude/skills/mesh-core-cst
+```
+
+### Option 3: Project-Local (Team-Wide)
+
+Add to your repository so the whole team gets the skills:
+
+```bash
+mkdir -p .claude/skills
+cp -r transaction .claude/skills/mesh-transaction
+cp -r wallet .claude/skills/mesh-wallet
+cp -r core-cst .claude/skills/mesh-core-cst
+```
+
+Commit to git — any team member using Claude Code gets the skills when they clone the repo.
+
+### Option 4: Cursor IDE
+
+```bash
+# Single skill
+cp transaction/SKILL.md .cursorrules
+
+# Multiple skills
+cat transaction/SKILL.md wallet/SKILL.md > .cursorrules
+```
+
+## How It Works
+
+Each skill defines triggers in its frontmatter. When you mention trigger words like "mesh", "cardano transaction", or "browser wallet", the AI loads the relevant context including:
+
+- **Full API reference** — Every method, parameter, and return type
+- **Common patterns** — Working code recipes for typical tasks
+- **Troubleshooting** — Solutions to common errors
+
+## Usage Examples
+
+Once installed, ask your AI assistant:
+
+- "Build a transaction that sends 5 ADA"
+- "How do I mint an NFT with Mesh?"
+- "Help me connect a browser wallet"
+- "Show me how to interact with a Plutus script"
+- "Why am I getting 'missing required signer' error?"
+
+## Source
+
+The skills are open source: <Link href="https://github.com/MeshJS/Mesh-AI/tree/main/claude-skills">github.com/MeshJS/Mesh-AI/tree/main/claude-skills</Link>
