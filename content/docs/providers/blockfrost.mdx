@@ -346,20 +346,19 @@ const transactions = await provider.get(
 ## Complete Example
 
 ```tsx
-import { BlockfrostProvider, MeshTxBuilder, MeshWallet } from "@meshsdk/core";
+import { BlockfrostProvider, MeshTxBuilder } from "@meshsdk/core";
+import { MeshCardanoHeadlessWallet, AddressType } from "@meshsdk/wallet";
 
 // Initialize provider
 const provider = new BlockfrostProvider("<YOUR_API_KEY>");
 
 // Create wallet instance
-const wallet = new MeshWallet({
+const wallet = await MeshCardanoHeadlessWallet.fromMnemonic({
   networkId: 0, // 0 = testnet, 1 = mainnet
+  walletAddressType: AddressType.Base,
   fetcher: provider,
   submitter: provider,
-  key: {
-    type: "mnemonic",
-    words: ["your", "mnemonic", "phrase", "..."],
-  },
+  mnemonic: ["your", "mnemonic", "phrase", "..."],
 });
 
 // Build transaction
@@ -368,8 +367,8 @@ const txBuilder = new MeshTxBuilder({
   verbose: true,
 });
 
-const utxos = await wallet.getUtxos();
-const changeAddress = await wallet.getChangeAddress();
+const utxos = await wallet.getUtxosMesh();
+const changeAddress = await wallet.getChangeAddressBech32();
 
 const unsignedTx = await txBuilder
   .txOut("addr_test1qz...", [{ unit: "lovelace", quantity: "5000000" }])
@@ -378,7 +377,7 @@ const unsignedTx = await txBuilder
   .complete();
 
 // Sign and submit
-const signedTx = await wallet.signTx(unsignedTx);
+const signedTx = await wallet.signTx(unsignedTx, false);
 const txHash = await wallet.submitTx(signedTx);
 
 // Wait for confirmation

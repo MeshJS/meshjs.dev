@@ -145,12 +145,12 @@ Here is an example conversation after installing skills:
 
 ```typescript
 import { MeshTxBuilder, ForgeScript, Mint, AssetMetadata } from "@meshsdk/transaction";
-import { BrowserWallet } from "@meshsdk/wallet";
+import { MeshCardanoBrowserWallet } from "@meshsdk/wallet";
 
 // Connect wallet
-const wallet = await BrowserWallet.enable("eternl");
-const address = await wallet.getChangeAddress();
-const utxos = await wallet.getUtxos();
+const wallet = await MeshCardanoBrowserWallet.enable("eternl");
+const address = await wallet.getChangeAddressBech32();
+const utxos = await wallet.getUtxosMesh();
 
 // Create forge script from address
 const forgeScript = ForgeScript.fromAddress(address);
@@ -182,7 +182,7 @@ const unsignedTx = await txBuilder
   .complete();
 
 // Sign and submit
-const signedTx = await wallet.signTx(unsignedTx);
+const signedTx = await wallet.signTx(unsignedTx, false);
 const txHash = await wallet.submitTx(signedTx);
 
 console.log("Transaction submitted:", txHash);

@@ -20,7 +20,7 @@ import { HowToSchema, FAQSchema } from "@/components/seo";
   steps={[
     { name: "Install Mesh packages", text: "Run npm install @meshsdk/core @meshsdk/react to add Mesh to your project." },
     { name: "Configure a blockchain provider", text: "Set up Blockfrost, Koios, or another provider to connect to Cardano." },
-    { name: "Add wallet connection", text: "Use the CardanoWallet component or BrowserWallet API for wallet connectivity." },
+    { name: "Add wallet connection", text: "Use the CardanoWallet component or MeshCardanoBrowserWallet API for wallet connectivity." },
     { name: "Build and submit transactions", text: "Use MeshTxBuilder to construct transactions with automatic UTXO handling." }
   ]}
 />
@@ -37,7 +37,7 @@ import { HowToSchema, FAQSchema } from "@/components/seo";
     },
     {
       question: "Does Mesh support all Cardano wallets?",
-      answer: "Yes, Mesh supports all CIP-30 compatible wallets including Eternl, Lace, Yoroi, and more. The BrowserWallet API provides consistent behavior regardless of wallet."
+      answer: "Yes, Mesh supports all CIP-30 compatible wallets including Eternl, Lace, Yoroi, and more. The MeshCardanoBrowserWallet API provides consistent behavior regardless of wallet."
     },
     {
       question: "Is Mesh production-ready?",

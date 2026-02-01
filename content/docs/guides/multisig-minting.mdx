@@ -154,13 +154,13 @@ Create an API route that builds the minting transaction:
 
 import { NextResponse } from "next/server";
 import {
-  MeshWallet,
   MeshTxBuilder,
   BlockfrostProvider,
   ForgeScript,
   resolveScriptHash,
   stringToHex,
 } from "@meshsdk/core";
+import { MeshCardanoHeadlessWallet, AddressType } from "@meshsdk/wallet";
 import type { UTxO, AssetMetadata } from "@meshsdk/core";
 
 // Server wallet configuration (never expose in client)
@@ -178,18 +178,16 @@ export async function POST(request: Request) {
   // Initialize provider and application wallet
   const provider = new BlockfrostProvider(BLOCKFROST_KEY);
 
-  const appWallet = new MeshWallet({
+  const appWallet = await MeshCardanoHeadlessWallet.fromMnemonic({
     networkId: 0,
+    walletAddressType: AddressType.Base,
     fetcher: provider,
     submitter: provider,
-    key: {
-      type: "mnemonic",
-      words: MNEMONIC.split(" "),
-    },
+    mnemonic: MNEMONIC.split(" "),
   });
 
   // Create forging script from application wallet
-  const appAddress = appWallet.getChangeAddress();
+  const appAddress = await appWallet.getChangeAddressBech32();
   const forgingScript = ForgeScript.withOneSignature(appAddress);
   const policyId = resolveScriptHash(forgingScript);
 
@@ -246,7 +244,8 @@ Create an API route to add the server signature and submit:
 // app/api/mint/submit/route.ts
 
 import { NextResponse } from "next/server";
-import { MeshWallet, BlockfrostProvider } from "@meshsdk/core";
+import { BlockfrostProvider } from "@meshsdk/core";
+import { MeshCardanoHeadlessWallet, AddressType } from "@meshsdk/wallet";
 
 const MNEMONIC = process.env.MINTING_WALLET_MNEMONIC!;
 const BLOCKFROST_KEY = process.env.BLOCKFROST_KEY!;
@@ -256,14 +255,12 @@ export async function POST(request: Request) {
 
   const provider = new BlockfrostProvider(BLOCKFROST_KEY);
 
-  const appWallet = new MeshWallet({
+  const appWallet = await MeshCardanoHeadlessWallet.fromMnemonic({
     networkId: 0,
+    walletAddressType: AddressType.Base,
     fetcher: provider,
     submitter: provider,
-    key: {
-      type: "mnemonic",
-      words: MNEMONIC.split(" "),
-    },
+    mnemonic: MNEMONIC.split(" "),
   });
 
   // Add application signature (partial signing)

@@ -19,7 +19,7 @@ import { HowToSchema, FAQSchema } from "@/components/seo";
   steps={[
     { name: "Install Mesh SDK", text: "Run npm install @meshsdk/core @meshsdk/react to add the Cardano SDK to your project." },
     { name: "Set up a provider", text: "Configure a blockchain provider like Blockfrost or Koios to connect to the Cardano network." },
-    { name: "Initialize your wallet", text: "Use BrowserWallet or MeshWallet to connect and manage user wallets." },
+    { name: "Initialize your wallet", text: "Use MeshCardanoBrowserWallet or MeshCardanoHeadlessWallet to connect and manage user wallets." },
     { name: "Build your first transaction", text: "Use the MeshTxBuilder API to construct, sign, and submit transactions with automatic UTXO handling." }
   ]}
 />
@@ -102,9 +102,9 @@ const provider = new BlockfrostProvider("<your-api-key>");
 ### Step 3: Connect a wallet
 
 ```typescript
-import { BrowserWallet } from "@meshsdk/core";
+import { MeshCardanoBrowserWallet } from "@meshsdk/wallet";
 
-const wallet = await BrowserWallet.enable("eternl");
+const wallet = await MeshCardanoBrowserWallet.enable("eternl");
 ```
 
 ### Step 4: Build and submit a transaction
@@ -119,11 +119,11 @@ const txBuilder = new MeshTxBuilder({
 
 const unsignedTx = await txBuilder
   .txOut(recipientAddress, [{ unit: "lovelace", quantity: "5000000" }])
-  .changeAddress(await wallet.getChangeAddress())
-  .selectUtxosFrom(await wallet.getUtxos())
+  .changeAddress(await wallet.getChangeAddressBech32())
+  .selectUtxosFrom(await wallet.getUtxosMesh())
   .complete();
 
-const signedTx = await wallet.signTx(unsignedTx);
+const signedTx = await wallet.signTx(unsignedTx, false);
 const txHash = await wallet.submitTx(signedTx);
 ```
 

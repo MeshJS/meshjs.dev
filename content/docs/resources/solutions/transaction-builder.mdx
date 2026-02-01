@@ -50,10 +50,11 @@ npm install @meshsdk/core @meshsdk/react
 ### Basic transaction
 
 ```typescript
-import { MeshTxBuilder, BlockfrostProvider, BrowserWallet } from "@meshsdk/core";
+import { MeshTxBuilder, BlockfrostProvider } from "@meshsdk/core";
+import { MeshCardanoBrowserWallet } from "@meshsdk/wallet";
 
 const provider = new BlockfrostProvider("<your-api-key>");
-const wallet = await BrowserWallet.enable("eternl");
+const wallet = await MeshCardanoBrowserWallet.enable("eternl");
 
 const txBuilder = new MeshTxBuilder({
   fetcher: provider,
@@ -62,11 +63,11 @@ const txBuilder = new MeshTxBuilder({
 
 const unsignedTx = await txBuilder
   .txOut(recipientAddress, [{ unit: "lovelace", quantity: "5000000" }])
-  .changeAddress(await wallet.getChangeAddress())
-  .selectUtxosFrom(await wallet.getUtxos())
+  .changeAddress(await wallet.getChangeAddressBech32())
+  .selectUtxosFrom(await wallet.getUtxosMesh())
   .complete();
 
-const signedTx = await wallet.signTx(unsignedTx);
+const signedTx = await wallet.signTx(unsignedTx, false);
 const txHash = await wallet.submitTx(signedTx);
 ```
 

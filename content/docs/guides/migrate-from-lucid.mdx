@@ -13,7 +13,7 @@ import { HowToSchema } from "@/components/seo";
   steps={[
     { name: "Install Mesh packages", text: "Install @meshsdk/core and @meshsdk/react." },
     { name: "Replace provider setup", text: "Configure BlockfrostProvider, KoiosProvider, or another provider." },
-    { name: "Update wallet connection", text: "Use BrowserWallet or React hooks instead of Lucid wallet selection." },
+    { name: "Update wallet connection", text: "Use MeshCardanoBrowserWallet or React hooks instead of Lucid wallet selection." },
     { name: "Refactor transactions", text: "Map Lucid methods to Mesh MeshTxBuilder equivalents." },
     { name: "Update smart contract code", text: "Adjust script loading and datum handling for Mesh patterns." },
     { name: "Replace serialization", text: "Use Mesh serialization utilities." },
@@ -72,10 +72,11 @@ const tx = await lucid.newTx().payToAddress(...).complete();
 
 ```typescript
 // Mesh pattern
-import { BlockfrostProvider, MeshTxBuilder, BrowserWallet } from "@meshsdk/core";
+import { BlockfrostProvider, MeshTxBuilder } from "@meshsdk/core";
+import { MeshCardanoBrowserWallet } from "@meshsdk/wallet";
 
 const provider = new BlockfrostProvider("key");
-const wallet = await BrowserWallet.enable("eternl");
+const wallet = await MeshCardanoBrowserWallet.enable("eternl");
 const txBuilder = new MeshTxBuilder({ fetcher: provider });
 ```
 
@@ -148,13 +149,13 @@ const utxos = await lucid.wallet.getUtxos();
 **Mesh:**
 
 ```typescript
-import { BrowserWallet } from "@meshsdk/core";
+import { MeshCardanoBrowserWallet } from "@meshsdk/wallet";
 
-const wallet = await BrowserWallet.enable("eternl");
+const wallet = await MeshCardanoBrowserWallet.enable("eternl");
 
-const address = await wallet.getChangeAddress();
-const usedAddresses = await wallet.getUsedAddresses();
-const utxos = await wallet.getUtxos();
+const address = await wallet.getChangeAddressBech32();
+const usedAddresses = await wallet.getUsedAddressesBech32();
+const utxos = await wallet.getUtxosMesh();
 ```
 
 **React hooks (Mesh):**
@@ -196,8 +197,8 @@ import { MeshTxBuilder } from "@meshsdk/core";
 
 const txBuilder = new MeshTxBuilder({ fetcher: provider });
 
-const utxos = await wallet.getUtxos();
-const changeAddress = await wallet.getChangeAddress();
+const utxos = await wallet.getUtxosMesh();
+const changeAddress = await wallet.getChangeAddressBech32();
 
 const unsignedTx = await txBuilder
   .txOut("addr_test1...", [{ unit: "lovelace", quantity: "5000000" }])
@@ -205,7 +206,7 @@ const unsignedTx = await txBuilder
   .selectUtxosFrom(utxos)
   .complete();
 
-const signedTx = await wallet.signTx(unsignedTx);
+const signedTx = await wallet.signTx(unsignedTx, false);
 const txHash = await wallet.submitTx(signedTx);
 ```
 
@@ -247,13 +248,13 @@ import {
   stringToHex,
 } from "@meshsdk/core";
 
-const address = await wallet.getChangeAddress();
+const address = await wallet.getChangeAddressBech32();
 const forgingScript = ForgeScript.withOneSignature(address);
 const policyId = resolveScriptHash(forgingScript);
 const tokenNameHex = stringToHex("MyToken");
 
 const txBuilder = new MeshTxBuilder({ fetcher: provider });
-const utxos = await wallet.getUtxos();
+const utxos = await wallet.getUtxosMesh();
 
 const unsignedTx = await txBuilder
   .mint("1", policyId, tokenNameHex)
@@ -263,7 +264,7 @@ const unsignedTx = await txBuilder
   .selectUtxosFrom(utxos)
   .complete();
 
-const signedTx = await wallet.signTx(unsignedTx);
+const signedTx = await wallet.signTx(unsignedTx, false);
 const txHash = await wallet.submitTx(signedTx);
 ```
 
@@ -404,7 +405,7 @@ const yaci = new YaciProvider("http://localhost:8080");
 | Lucid | Mesh | Notes |
 |-------|------|-------|
 | `Lucid.new()` | `new BlockfrostProvider()` + `new MeshTxBuilder()` | Separate provider and builder |
-| `lucid.selectWallet()` | `BrowserWallet.enable()` | Returns wallet instance |
+| `lucid.selectWallet()` | `MeshCardanoBrowserWallet.enable()` | Returns wallet instance |
 | `lucid.newTx()` | `new MeshTxBuilder()` | Builder pattern |
 | `tx.payToAddress()` | `txBuilder.txOut()` | Output construction |
 | `tx.payToContract()` | `txBuilder.txOut()` + `txOutInlineDatumValue()` | With datum |
@@ -451,14 +452,15 @@ async function sendPayment() {
 **After (Mesh):**
 
 ```typescript
-import { BlockfrostProvider, MeshTxBuilder, BrowserWallet } from "@meshsdk/core";
+import { BlockfrostProvider, MeshTxBuilder } from "@meshsdk/core";
+import { MeshCardanoBrowserWallet } from "@meshsdk/wallet";
 
 async function sendPayment() {
   const provider = new BlockfrostProvider("key_preprod");
-  const wallet = await BrowserWallet.enable("eternl");
+  const wallet = await MeshCardanoBrowserWallet.enable("eternl");
 
-  const utxos = await wallet.getUtxos();
-  const changeAddress = await wallet.getChangeAddress();
+  const utxos = await wallet.getUtxosMesh();
+  const changeAddress = await wallet.getChangeAddressBech32();
 
   const txBuilder = new MeshTxBuilder({ fetcher: provider, submitter: provider });
 
@@ -468,7 +470,7 @@ async function sendPayment() {
     .selectUtxosFrom(utxos)
     .complete();
 
-  const signedTx = await wallet.signTx(unsignedTx);
+  const signedTx = await wallet.signTx(unsignedTx, false);
   const txHash = await wallet.submitTx(signedTx);
 
   console.log("TX:", txHash);
@@ -532,7 +534,7 @@ const datum: Data = {
 **Solution:** Fetch UTxOs immediately before building the transaction:
 
 ```typescript
-const utxos = await wallet.getUtxos();
+const utxos = await wallet.getUtxosMesh();
 // Build transaction immediately after
 const unsignedTx = await txBuilder
   .selectUtxosFrom(utxos)

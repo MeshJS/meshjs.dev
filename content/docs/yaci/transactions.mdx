@@ -35,25 +35,24 @@ npm install @meshsdk/core
 Send 1 ADA to another address:
 
 ```typescript
-import { YaciProvider, MeshWallet, MeshTxBuilder } from "@meshsdk/core";
+import { YaciProvider, MeshTxBuilder } from "@meshsdk/core";
+import { MeshCardanoHeadlessWallet, AddressType } from "@meshsdk/wallet";
 
 // Connect to devnet
 const provider = new YaciProvider("https://yaci-node.meshjs.dev/api/v1/");
 
 // Create wallet
-const wallet = new MeshWallet({
+const wallet = await MeshCardanoHeadlessWallet.fromMnemonic({
   networkId: 0,
+  walletAddressType: AddressType.Base,
   fetcher: provider,
   submitter: provider,
-  key: {
-    type: "mnemonic",
-    words: "your mnemonic words here".split(" "),
-  },
+  mnemonic: "your mnemonic words here".split(" "),
 });
 
 // Build and submit transaction
-const utxos = await wallet.getUtxos();
-const changeAddress = await wallet.getChangeAddress();
+const utxos = await wallet.getUtxosMesh();
+const changeAddress = await wallet.getChangeAddressBech32();
 
 const txBuilder = new MeshTxBuilder({ fetcher: provider });
 
@@ -63,7 +62,7 @@ const unsignedTx = await txBuilder
   .selectUtxosFrom(utxos)
   .complete();
 
-const signedTx = await wallet.signTx(unsignedTx);
+const signedTx = await wallet.signTx(unsignedTx, false);
 const txHash = await wallet.submitTx(signedTx);
 
 console.log("Transaction submitted:", txHash);
@@ -141,31 +140,30 @@ console.log("Min fee constant:", params.minFeeB);
 ### Step 1: Set up wallet and provider
 
 ```typescript
-import { YaciProvider, MeshWallet, MeshTxBuilder } from "@meshsdk/core";
+import { YaciProvider, MeshTxBuilder } from "@meshsdk/core";
+import { MeshCardanoHeadlessWallet, AddressType } from "@meshsdk/wallet";
 
 const provider = new YaciProvider();
 
-const wallet = new MeshWallet({
+const wallet = await MeshCardanoHeadlessWallet.fromMnemonic({
   networkId: 0, // testnet
+  walletAddressType: AddressType.Base,
   fetcher: provider,
   submitter: provider,
-  key: {
-    type: "mnemonic",
-    words: [
-      "test", "test", "test", "test", "test", "test",
-      "test", "test", "test", "test", "test", "test",
-      "test", "test", "test", "test", "test", "test",
-      "test", "test", "test", "test", "test", "sauce"
-    ],
-  },
+  mnemonic: [
+    "test", "test", "test", "test", "test", "test",
+    "test", "test", "test", "test", "test", "test",
+    "test", "test", "test", "test", "test", "test",
+    "test", "test", "test", "test", "test", "sauce"
+  ],
 });
 ```
 
 ### Step 2: Get UTxOs and addresses
 
 ```typescript
-const utxos = await wallet.getUtxos();
-const changeAddress = await wallet.getChangeAddress();
+const utxos = await wallet.getUtxosMesh();
+const changeAddress = await wallet.getChangeAddressBech32();
 
 console.log("Available UTxOs:", utxos.length);
 console.log("Change address:", changeAddress);
@@ -190,7 +188,7 @@ const unsignedTx = await txBuilder
 ### Step 4: Sign and submit
 
 ```typescript
-const signedTx = await wallet.signTx(unsignedTx);
+const signedTx = await wallet.signTx(unsignedTx, false);
 const txHash = await wallet.submitTx(signedTx);
 
 console.log("Transaction hash:", txHash);
@@ -201,7 +199,8 @@ console.log("Transaction hash:", txHash);
 Full working example with error handling:
 
 ```typescript
-import { YaciProvider, MeshWallet, MeshTxBuilder } from "@meshsdk/core";
+import { YaciProvider, MeshTxBuilder } from "@meshsdk/core";
+import { MeshCardanoHeadlessWallet, AddressType } from "@meshsdk/wallet";
 
 async function sendAda() {
   // Configuration
@@ -223,19 +222,17 @@ async function sendAda() {
   }
 
   // Initialize wallet
-  const wallet = new MeshWallet({
+  const wallet = await MeshCardanoHeadlessWallet.fromMnemonic({
     networkId: 0,
+    walletAddressType: AddressType.Base,
     fetcher: provider,
     submitter: provider,
-    key: {
-      type: "mnemonic",
-      words: MNEMONIC.split(" "),
-    },
+    mnemonic: MNEMONIC.split(" "),
   });
 
   // Get wallet state
-  const changeAddress = await wallet.getChangeAddress();
-  const utxos = await wallet.getUtxos();
+  const changeAddress = await wallet.getChangeAddressBech32();
+  const utxos = await wallet.getUtxosMesh();
 
   console.log("Sender address:", changeAddress);
   console.log("Available UTxOs:", utxos.length);
@@ -269,7 +266,7 @@ async function sendAda() {
     console.log("Transaction built successfully");
 
     // Sign transaction
-    const signedTx = await wallet.signTx(unsignedTx);
+    const signedTx = await wallet.signTx(unsignedTx, false);
     console.log("Transaction signed");
 
     // Submit transaction
@@ -357,7 +354,7 @@ devnet:default> topup <your-address> 1000
 Check your available balance:
 
 ```typescript
-const utxos = await wallet.getUtxos();
+const utxos = await wallet.getUtxosMesh();
 const total = utxos.reduce((sum, u) => {
   const lovelace = u.output.amount.find((a) => a.unit === "lovelace");
   return sum + BigInt(lovelace?.quantity || 0);

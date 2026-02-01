@@ -319,13 +319,13 @@ console.log("Escrow cancelled. Transaction hash:", txHash);
 ```typescript
 import { MeshEscrowContract } from "@meshsdk/contract";
 import { BlockfrostProvider, MeshTxBuilder, Asset } from "@meshsdk/core";
-import { BrowserWallet } from "@meshsdk/core";
+import { MeshCardanoBrowserWallet } from "@meshsdk/wallet";
 
 async function escrowDemo() {
   const provider = new BlockfrostProvider("<Your-API-Key>");
 
   // Party A: Wants to trade 10 ADA for an NFT
-  const partyAWallet = await BrowserWallet.enable("eternl");
+  const partyAWallet = await MeshCardanoBrowserWallet.enable("eternl");
 
   const contractA = new MeshEscrowContract({
     mesh: new MeshTxBuilder({ fetcher: provider, submitter: provider }),
@@ -347,7 +347,7 @@ async function escrowDemo() {
   await new Promise((r) => setTimeout(r, 60000));
 
   // Step 2: Party B deposits their NFT
-  const partyBWallet = await BrowserWallet.enable("nami");
+  const partyBWallet = await MeshCardanoBrowserWallet.enable("nami");
 
   const contractB = new MeshEscrowContract({
     mesh: new MeshTxBuilder({ fetcher: provider, submitter: provider }),
@@ -377,10 +377,10 @@ async function escrowDemo() {
 
   // Party A signs first
   const completeTx = await contractA.completeEscrow(finalUtxo);
-  const signedByA = await partyAWallet.signTx(completeTx, true);
+  const signedByA = await partyAWallet.signTx(completeTx, true, false);
 
   // Party B signs and submits
-  const signedByBoth = await partyBWallet.signTx(signedByA, true);
+  const signedByBoth = await partyBWallet.signTx(signedByA, true, false);
   const completeTxHash = await partyBWallet.submitTx(signedByBoth);
 
   console.log("Escrow completed:", completeTxHash);

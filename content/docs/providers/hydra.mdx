@@ -234,7 +234,8 @@ await provider.newTx(tx: HydraTransaction): Promise<string>
 **Example:**
 
 ```tsx
-import { HydraProvider, MeshTxBuilder, MeshWallet } from "@meshsdk/hydra";
+import { HydraProvider, MeshTxBuilder } from "@meshsdk/hydra";
+import { MeshCardanoHeadlessWallet, AddressType } from "@meshsdk/wallet";
 
 const provider = new HydraProvider({
   httpUrl: "http://123.45.67.890:4001",
@@ -243,18 +244,16 @@ const provider = new HydraProvider({
 await provider.connect();
 
 // Build a transaction
-const wallet = new MeshWallet({
+const wallet = await MeshCardanoHeadlessWallet.fromCliKeys({
   networkId: 0,
+  walletAddressType: AddressType.Enterprise,
   fetcher: provider,
   submitter: provider,
-  key: {
-    type: "cli",
-    payment: "58201aae63d93899640e91b51c5e8bd542262df3ecf3246c3854f39c40f4eb83557d",
-  },
+  paymentSkey: "58201aae63d93899640e91b51c5e8bd542262df3ecf3246c3854f39c40f4eb83557d",
 });
 
-const utxos = await wallet.getUtxos("enterprise");
-const changeAddress = await wallet.getChangeAddress();
+const utxos = await wallet.getUtxosMesh();
+const changeAddress = await wallet.getChangeAddressBech32();
 
 const txBuilder = new MeshTxBuilder({
   fetcher: provider,
@@ -585,7 +584,8 @@ console.log("Transaction submitted:", txHash);
 ## Complete Example
 
 ```tsx
-import { HydraProvider, MeshTxBuilder, MeshWallet } from "@meshsdk/hydra";
+import { HydraProvider, MeshTxBuilder } from "@meshsdk/hydra";
+import { MeshCardanoHeadlessWallet, AddressType } from "@meshsdk/wallet";
 
 async function hydraPayment() {
   // Initialize provider
@@ -604,20 +604,18 @@ async function hydraPayment() {
   });
 
   // Initialize wallet
-  const wallet = new MeshWallet({
+  const wallet = await MeshCardanoHeadlessWallet.fromCliKeys({
     networkId: 0,
+    walletAddressType: AddressType.Enterprise,
     fetcher: provider,
     submitter: provider,
-    key: {
-      type: "cli",
-      payment: "58201aae63d93899640e91b51c5e8bd542262df3ecf3246c3854f39c40f4eb83557d",
-    },
+    paymentSkey: "58201aae63d93899640e91b51c5e8bd542262df3ecf3246c3854f39c40f4eb83557d",
   });
 
   // Get protocol parameters and UTxOs
   const params = await provider.fetchProtocolParameters();
-  const utxos = await wallet.getUtxos("enterprise");
-  const changeAddress = await wallet.getChangeAddress();
+  const utxos = await wallet.getUtxosMesh();
+  const changeAddress = await wallet.getChangeAddressBech32();
 
   // Build transaction
   const txBuilder = new MeshTxBuilder({
@@ -634,7 +632,7 @@ async function hydraPayment() {
     .complete();
 
   // Sign and submit
-  const signedTx = await wallet.signTx(unsignedTx);
+  const signedTx = await wallet.signTx(unsignedTx, false);
   const txHash = await provider.submitTx(signedTx);
 
   console.log("Transaction submitted:", txHash);

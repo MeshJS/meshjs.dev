@@ -94,9 +94,10 @@ console.log("Script Address:", scriptAddress);
 Retrieve the user's address and payment key hash for the datum.
 
 ```typescript
-import { resolvePaymentKeyHash, BrowserWallet } from "@meshsdk/core";
+import { resolvePaymentKeyHash } from "@meshsdk/core";
+import { MeshCardanoBrowserWallet } from "@meshsdk/wallet";
 
-async function getWalletInfo(wallet: BrowserWallet) {
+async function getWalletInfo(wallet: MeshCardanoBrowserWallet) {
   // Get the user's address
   const addresses = await wallet.getUsedAddresses();
   const address = addresses[0];
@@ -137,8 +138,9 @@ Create a transaction that sends assets to the script address with the datum atta
 
 ```typescript
 import { MeshTxBuilder, BlockfrostProvider } from "@meshsdk/core";
+import { MeshCardanoBrowserWallet } from "@meshsdk/wallet";
 
-async function lockAssets(wallet: BrowserWallet, amount: string) {
+async function lockAssets(wallet: MeshCardanoBrowserWallet, amount: string) {
   const { scriptAddress } = getScript();
   const { address, hash } = await getWalletInfo(wallet);
 
@@ -227,8 +229,9 @@ Create a transaction that spends the script UTXO with the correct redeemer.
 
 ```typescript
 import { MeshTxBuilder, BlockfrostProvider } from "@meshsdk/core";
+import { MeshCardanoBrowserWallet } from "@meshsdk/wallet";
 
-async function redeemAssets(wallet: BrowserWallet) {
+async function redeemAssets(wallet: MeshCardanoBrowserWallet) {
   const { script, scriptAddress } = getScript();
   const { address, hash } = await getWalletInfo(wallet);
   const provider = new BlockfrostProvider("<YOUR_API_KEY>");
@@ -307,7 +310,6 @@ A full implementation showing both lock and redeem functionality.
 import {
   MeshTxBuilder,
   BlockfrostProvider,
-  BrowserWallet,
   applyParamsToScript,
   resolvePlutusScriptAddress,
   resolvePaymentKeyHash,
@@ -315,6 +317,7 @@ import {
   PlutusScript,
   Data,
 } from "@meshsdk/core";
+import { MeshCardanoBrowserWallet } from "@meshsdk/wallet";
 import blueprint from "./hello_world/plutus.json";
 
 // Configuration
@@ -338,7 +341,7 @@ function getScript(): { script: PlutusScript; scriptAddress: string } {
   return { script, scriptAddress };
 }
 
-async function getWalletInfo(wallet: BrowserWallet) {
+async function getWalletInfo(wallet: MeshCardanoBrowserWallet) {
   const addresses = await wallet.getUsedAddresses();
   const address = addresses[0];
   if (!address) throw new Error("No address found");
@@ -349,7 +352,7 @@ async function getWalletInfo(wallet: BrowserWallet) {
 
 // Lock assets at script address
 export async function lockAssets(
-  wallet: BrowserWallet,
+  wallet: MeshCardanoBrowserWallet,
   lovelaceAmount: string
 ): Promise<string> {
   const { scriptAddress } = getScript();
@@ -376,7 +379,7 @@ export async function lockAssets(
 }
 
 // Redeem assets from script address
-export async function redeemAssets(wallet: BrowserWallet): Promise<string> {
+export async function redeemAssets(wallet: MeshCardanoBrowserWallet): Promise<string> {
   const { script, scriptAddress } = getScript();
   const { address, hash } = await getWalletInfo(wallet);
 

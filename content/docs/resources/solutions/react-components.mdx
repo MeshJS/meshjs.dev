@@ -251,7 +251,7 @@ function NetworkBadge() {
 Build fully custom wallet interfaces:
 
 ```tsx
-import { BrowserWallet } from "@meshsdk/core";
+import { MeshCardanoBrowserWallet } from "@meshsdk/wallet";
 import { useWallet, useLovelace, useAssets } from "@meshsdk/react";
 
 function CustomWalletPanel() {
@@ -260,7 +260,7 @@ function CustomWalletPanel() {
   const assets = useAssets();
 
   if (!connected) {
-    const wallets = BrowserWallet.getInstalledWallets();
+    const wallets = MeshCardanoBrowserWallet.getInstalledWallets();
 
     return (
       <div className="wallet-selector">

@@ -49,14 +49,14 @@ Deploying Cardano dApps to production requires attention to security, reliabilit
 
 **Browser wallets for users:**
 
-Let users manage their own keys through wallet extensions. The `BrowserWallet` class handles CIP-30 wallet connections without your application touching private keys:
+Let users manage their own keys through wallet extensions. The `MeshCardanoBrowserWallet` class handles CIP-30 wallet connections without your application touching private keys:
 
 ```typescript
-import { BrowserWallet } from "@meshsdk/core";
+import { MeshCardanoBrowserWallet } from "@meshsdk/wallet";
 
 // User controls their own keys
-const wallet = await BrowserWallet.enable("eternl");
-const signedTx = await wallet.signTx(unsignedTx);
+const wallet = await MeshCardanoBrowserWallet.enable("eternl");
+const signedTx = await wallet.signTx(unsignedTx, false);
 ```
 
 **Server-side signing:**
@@ -64,18 +64,18 @@ const signedTx = await wallet.signTx(unsignedTx);
 When your application must sign transactions (automated systems, treasury):
 
 ```typescript
+import { MeshCardanoHeadlessWallet, AddressType } from "@meshsdk/wallet";
+
 // Store mnemonic in environment variables or secret manager
 const mnemonic = process.env.TREASURY_MNEMONIC;
 
 // Never log or expose the mnemonic
-const wallet = new MeshWallet({
+const wallet = await MeshCardanoHeadlessWallet.fromMnemonic({
   networkId: 1,
+  walletAddressType: AddressType.Base,
   fetcher: provider,
   submitter: provider,
-  key: {
-    type: "mnemonic",
-    words: mnemonic.split(" "),
-  },
+  mnemonic: mnemonic.split(" "),
 });
 ```
 

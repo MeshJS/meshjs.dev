@@ -122,10 +122,11 @@ Mesh lets you describe intent instead of managing UTXOs manually.
 ### Basic transaction
 
 ```typescript
-import { MeshTxBuilder, BlockfrostProvider, BrowserWallet } from "@meshsdk/core";
+import { MeshTxBuilder, BlockfrostProvider } from "@meshsdk/core";
+import { MeshCardanoBrowserWallet } from "@meshsdk/wallet";
 
 const provider = new BlockfrostProvider("<your-api-key>");
-const wallet = await BrowserWallet.enable("eternl");
+const wallet = await MeshCardanoBrowserWallet.enable("eternl");
 
 const txBuilder = new MeshTxBuilder({
   fetcher: provider,
@@ -134,8 +135,8 @@ const txBuilder = new MeshTxBuilder({
 
 const unsignedTx = await txBuilder
   .txOut(recipientAddress, [{ unit: "lovelace", quantity: "10000000" }])
-  .changeAddress(await wallet.getChangeAddress())
-  .selectUtxosFrom(await wallet.getUtxos())
+  .changeAddress(await wallet.getChangeAddressBech32())
+  .selectUtxosFrom(await wallet.getUtxosMesh())
   .complete();
 
 // Mesh automatically handles:
@@ -192,10 +193,10 @@ const tx = await txBuilder
 ## View wallet UTXOs
 
 ```typescript
-import { BrowserWallet } from "@meshsdk/core";
+import { MeshCardanoBrowserWallet } from "@meshsdk/wallet";
 
-const wallet = await BrowserWallet.enable("eternl");
-const utxos = await wallet.getUtxos();
+const wallet = await MeshCardanoBrowserWallet.enable("eternl");
+const utxos = await wallet.getUtxosMesh();
 
 utxos.forEach(utxo => {
   console.log(`UTXO: ${utxo.input.txHash}#${utxo.input.outputIndex}`);

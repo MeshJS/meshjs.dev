@@ -93,8 +93,11 @@ await lucid.selectWallet(walletApi);
 
 ```typescript
 // Mesh pattern
+import { MeshCardanoBrowserWallet } from "@meshsdk/wallet";
+import { BlockfrostProvider, MeshTxBuilder } from "@meshsdk/core";
+
 const provider = new BlockfrostProvider("key");
-const wallet = await BrowserWallet.enable("eternl");
+const wallet = await MeshCardanoBrowserWallet.enable("eternl");
 const txBuilder = new MeshTxBuilder({ fetcher: provider });
 ```
 

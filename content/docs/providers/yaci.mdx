@@ -725,7 +725,8 @@ console.log("Address topped up!");
 ## Complete Example
 
 ```tsx
-import { YaciProvider, MeshTxBuilder, MeshWallet } from "@meshsdk/core";
+import { YaciProvider, MeshTxBuilder } from "@meshsdk/core";
+import { MeshCardanoHeadlessWallet, AddressType } from "@meshsdk/wallet";
 
 async function developWithYaci() {
   // Initialize provider with admin access
@@ -739,17 +740,15 @@ async function developWithYaci() {
   console.log(`Devnet running on magic: ${devnetInfo.protocolMagic}`);
 
   // Initialize wallet
-  const wallet = new MeshWallet({
+  const wallet = await MeshCardanoHeadlessWallet.fromMnemonic({
     networkId: 0,
+    walletAddressType: AddressType.Base,
     fetcher: provider,
     submitter: provider,
-    key: {
-      type: "mnemonic",
-      words: ["your", "mnemonic", "phrase", "..."],
-    },
+    mnemonic: ["your", "mnemonic", "phrase", "..."],
   });
 
-  const address = await wallet.getChangeAddress();
+  const address = await wallet.getChangeAddressBech32();
 
   // Fund the wallet
   await provider.addressTopup(address, "1000000000"); // 1000 ADA
@@ -759,7 +758,7 @@ async function developWithYaci() {
   await new Promise((resolve) => setTimeout(resolve, 2000));
 
   // Get wallet data
-  const utxos = await wallet.getUtxos();
+  const utxos = await wallet.getUtxosMesh();
   console.log(`Wallet has ${utxos.length} UTxOs`);
 
   // Build transaction
@@ -774,7 +773,7 @@ async function developWithYaci() {
     .complete();
 
   // Sign and submit
-  const signedTx = await wallet.signTx(unsignedTx);
+  const signedTx = await wallet.signTx(unsignedTx, false);
   const txHash = await provider.submitTx(signedTx);
 
   console.log(`Transaction submitted: ${txHash}`);

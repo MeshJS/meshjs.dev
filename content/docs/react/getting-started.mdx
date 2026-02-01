@@ -260,7 +260,7 @@ Access wallet state and connection functions from any component.
 
 | Property | Type | Description |
 |----------|------|-------------|
-| `wallet` | `BrowserWallet` | Wallet instance with CIP-30 methods |
+| `wallet` | `MeshCardanoBrowserWallet` | Wallet instance with CIP-30 methods |
 | `connected` | `boolean` | Whether a wallet is connected |
 | `connecting` | `boolean` | Whether connection is in progress |
 | `name` | `string` | Name of the connected wallet |
@@ -510,10 +510,10 @@ import "@meshsdk/react/styles.css";
 
 **Problem:** TypeScript doesn't recognize wallet methods.
 
-**Solution:** The `wallet` object from `useWallet()` is a `BrowserWallet` instance. Import types from `@meshsdk/core`:
+**Solution:** The `wallet` object from `useWallet()` is a `MeshCardanoBrowserWallet` instance. Import types from `@meshsdk/wallet`:
 
 ```tsx
-import type { BrowserWallet } from "@meshsdk/core";
+import type { MeshCardanoBrowserWallet } from "@meshsdk/wallet";
 ```
 
 ## Related Links

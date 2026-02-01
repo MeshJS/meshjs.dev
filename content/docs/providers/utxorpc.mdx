@@ -687,7 +687,8 @@ provider.onTxConfirmed(txHash, () => {
 ## Complete Example
 
 ```tsx
-import { U5CProvider, MeshTxBuilder, MeshWallet } from "@meshsdk/core";
+import { U5CProvider, MeshTxBuilder } from "@meshsdk/core";
+import { MeshCardanoHeadlessWallet, AddressType } from "@meshsdk/wallet";
 
 async function sendAda() {
   // Initialize provider
@@ -699,19 +700,17 @@ async function sendAda() {
   });
 
   // Initialize wallet
-  const wallet = new MeshWallet({
+  const wallet = await MeshCardanoHeadlessWallet.fromMnemonic({
     networkId: 0,
+    walletAddressType: AddressType.Base,
     fetcher: provider,
     submitter: provider,
-    key: {
-      type: "mnemonic",
-      words: ["your", "mnemonic", "phrase", "..."],
-    },
+    mnemonic: ["your", "mnemonic", "phrase", "..."],
   });
 
   // Get wallet data
-  const utxos = await wallet.getUtxos();
-  const changeAddress = await wallet.getChangeAddress();
+  const utxos = await wallet.getUtxosMesh();
+  const changeAddress = await wallet.getChangeAddressBech32();
 
   // Build transaction
   const txBuilder = new MeshTxBuilder({ fetcher: provider });
@@ -725,7 +724,7 @@ async function sendAda() {
     .complete();
 
   // Sign and submit
-  const signedTx = await wallet.signTx(unsignedTx);
+  const signedTx = await wallet.signTx(unsignedTx, false);
   const txHash = await provider.submitTx(signedTx);
 
   console.log(`Transaction submitted: ${txHash}`);

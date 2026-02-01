@@ -187,11 +187,11 @@ console.log("Gift card redeemed. Transaction hash:", txHash);
 ```typescript
 import { MeshGiftCardContract } from "@meshsdk/contract";
 import { BlockfrostProvider, MeshTxBuilder, Asset } from "@meshsdk/core";
-import { BrowserWallet } from "@meshsdk/core";
+import { MeshCardanoBrowserWallet } from "@meshsdk/wallet";
 
 async function giftcardDemo() {
   // Connect wallet (gift card creator)
-  const creatorWallet = await BrowserWallet.enable("eternl");
+  const creatorWallet = await MeshCardanoBrowserWallet.enable("eternl");
 
   // Initialize provider
   const provider = new BlockfrostProvider("<Your-API-Key>");
@@ -227,7 +227,7 @@ async function giftcardDemo() {
   await new Promise((resolve) => setTimeout(resolve, 60000));
 
   // Step 2: Recipient redeems (switch wallet in production)
-  const recipientWallet = await BrowserWallet.enable("nami");
+  const recipientWallet = await MeshCardanoBrowserWallet.enable("nami");
 
   const recipientContract = new MeshGiftCardContract({
     mesh: new MeshTxBuilder({ fetcher: provider, submitter: provider }),

@@ -252,11 +252,11 @@ console.log("Mint Price:", oracleData.price / 1000000, "ADA");
 ```typescript
 import { MeshPlutusNFTContract } from "@meshsdk/contract";
 import { BlockfrostProvider, MeshTxBuilder } from "@meshsdk/core";
-import { BrowserWallet } from "@meshsdk/core";
+import { MeshCardanoBrowserWallet } from "@meshsdk/wallet";
 
 async function nftMintingMachineDemo() {
   // Connect wallet
-  const wallet = await BrowserWallet.enable("eternl");
+  const wallet = await MeshCardanoBrowserWallet.enable("eternl");
 
   // Initialize provider
   const provider = new BlockfrostProvider("<Your-API-Key>");

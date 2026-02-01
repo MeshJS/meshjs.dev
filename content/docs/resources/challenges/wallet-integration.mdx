@@ -13,7 +13,7 @@ import { HowToSchema, FAQSchema } from "@/components/seo";
   steps={[
     { name: "Install Mesh packages", text: "Run npm install @meshsdk/core @meshsdk/react to add wallet support." },
     { name: "Add CardanoWallet component", text: "Use the pre-built CardanoWallet React component for instant multi-wallet support." },
-    { name: "Access wallet methods", text: "Use the useWallet hook to access connected wallet methods like getUtxos, signTx, and submitTx." }
+    { name: "Access wallet methods", text: "Use the useWallet hook to access connected wallet methods like getUtxosMesh, signTx, and submitTx." }
   ]}
 />
 
@@ -29,7 +29,7 @@ import { HowToSchema, FAQSchema } from "@/components/seo";
     },
     {
       question: "How do I detect installed Cardano wallets?",
-      answer: "Mesh provides getInstalledWallets() to automatically detect all installed CIP-30 compatible wallets without manual detection code."
+      answer: "Mesh provides MeshCardanoBrowserWallet.getInstalledWallets() to automatically detect all installed CIP-30 compatible wallets without manual detection code."
     },
     {
       question: "Can I support all Cardano wallets with one integration?",
@@ -123,23 +123,23 @@ function WalletButton() {
 }
 ```
 
-### Option 3: BrowserWallet class
+### Option 3: MeshCardanoBrowserWallet class
 
 For full control:
 
 ```typescript
-import { BrowserWallet } from "@meshsdk/core";
+import { MeshCardanoBrowserWallet } from "@meshsdk/wallet";
 
 // Detect installed wallets
-const wallets = BrowserWallet.getInstalledWallets();
+const wallets = MeshCardanoBrowserWallet.getInstalledWallets();
 
 // Connect to specific wallet
-const wallet = await BrowserWallet.enable("eternl");
+const wallet = await MeshCardanoBrowserWallet.enable("eternl");
 
 // Unified API regardless of wallet
-const utxos = await wallet.getUtxos();
-const address = await wallet.getChangeAddress();
-const balance = await wallet.getBalance();
+const utxos = await wallet.getUtxosMesh();
+const address = await wallet.getChangeAddressBech32();
+const balance = await wallet.getBalanceMesh();
 ```
 
 ---
@@ -218,12 +218,12 @@ async function connectWallet(walletId) {
 Build a branded wallet selector:
 
 ```tsx
-import { BrowserWallet } from "@meshsdk/core";
+import { MeshCardanoBrowserWallet } from "@meshsdk/wallet";
 import { useWallet } from "@meshsdk/react";
 
 function CustomWalletSelector() {
   const { connect, connected, wallet, disconnect } = useWallet();
-  const installedWallets = BrowserWallet.getInstalledWallets();
+  const installedWallets = MeshCardanoBrowserWallet.getInstalledWallets();
 
   if (connected) {
     return (
@@ -254,23 +254,22 @@ function CustomWalletSelector() {
 For backend operations:
 
 ```typescript
-import { MeshWallet, BlockfrostProvider } from "@meshsdk/core";
+import { MeshCardanoHeadlessWallet, AddressType } from "@meshsdk/wallet";
+import { BlockfrostProvider } from "@meshsdk/core";
 
 const provider = new BlockfrostProvider("<api-key>");
 
-const wallet = new MeshWallet({
+const wallet = await MeshCardanoHeadlessWallet.fromMnemonic({
   networkId: 0,
+  walletAddressType: AddressType.Base,
   fetcher: provider,
   submitter: provider,
-  key: {
-    type: "mnemonic",
-    words: ["your", "mnemonic", "words", "..."],
-  },
+  mnemonic: ["your", "mnemonic", "words", "..."],
 });
 
-// Same API as BrowserWallet
-const address = wallet.getChangeAddress();
-const utxos = await wallet.getUtxos();
+// Same API as MeshCardanoBrowserWallet
+const address = await wallet.getChangeAddressBech32();
+const utxos = await wallet.getUtxosMesh();
 ```
 
 ---

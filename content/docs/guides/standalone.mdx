@@ -106,31 +106,29 @@ Create `index.ts`:
 ```typescript
 import {
   BlockfrostProvider,
-  MeshWallet,
   MeshTxBuilder,
 } from "@meshsdk/core";
+import { MeshCardanoHeadlessWallet, AddressType } from "@meshsdk/wallet";
 
 // Configure the blockchain provider
 const provider = new BlockfrostProvider("YOUR_BLOCKFROST_KEY");
 
 // Initialize wallet with mnemonic
-const wallet = new MeshWallet({
+const wallet = await MeshCardanoHeadlessWallet.fromMnemonic({
   networkId: 0, // 0 = testnet, 1 = mainnet
+  walletAddressType: AddressType.Base,
   fetcher: provider,
   submitter: provider,
-  key: {
-    type: "mnemonic",
-    words: [
-      "your", "twelve", "word", "mnemonic",
-      "phrase", "goes", "here", "replace",
-      "with", "actual", "words", "now",
-    ],
-  },
+  mnemonic: [
+    "your", "twelve", "word", "mnemonic",
+    "phrase", "goes", "here", "replace",
+    "with", "actual", "words", "now",
+  ],
 });
 
 // Get wallet info
-const utxos = await wallet.getUtxos();
-const changeAddress = await wallet.getChangeAddress();
+const utxos = await wallet.getUtxosMesh();
+const changeAddress = await wallet.getChangeAddressBech32();
 
 console.log("Wallet address:", changeAddress);
 console.log("UTxO count:", utxos.length);
@@ -148,7 +146,7 @@ const unsignedTx = await txBuilder
   .selectUtxosFrom(utxos)
   .complete();
 
-const signedTx = await wallet.signTx(unsignedTx);
+const signedTx = await wallet.signTx(unsignedTx, false);
 const txHash = await wallet.submitTx(signedTx);
 
 console.log("Transaction submitted:", txHash);
@@ -161,7 +159,7 @@ console.log("Transaction submitted:", txHash);
 Before running, replace the placeholder values:
 
 1. Get a Blockfrost API key from [blockfrost.io](https://blockfrost.io/)
-2. Generate a wallet mnemonic using `MeshWallet.brew()` or use an existing one
+2. Generate a wallet mnemonic using `generateMnemonic()` from `@meshsdk/core` or use an existing one
 3. Fund the wallet using the [Cardano testnet faucet](https://docs.cardano.org/cardano-testnets/tools/faucet)
 
 **What to expect:** Your script is configured with valid credentials.
@@ -189,9 +187,9 @@ Here is the complete `index.ts` with environment variables:
 ```typescript
 import {
   BlockfrostProvider,
-  MeshWallet,
   MeshTxBuilder,
 } from "@meshsdk/core";
+import { MeshCardanoHeadlessWallet, AddressType } from "@meshsdk/wallet";
 
 // Load from environment variables for security
 const BLOCKFROST_KEY = process.env.BLOCKFROST_KEY!;
@@ -204,19 +202,17 @@ if (!BLOCKFROST_KEY || !MNEMONIC) {
 
 const provider = new BlockfrostProvider(BLOCKFROST_KEY);
 
-const wallet = new MeshWallet({
-  networkId: 0,
-  fetcher: provider,
-  submitter: provider,
-  key: {
-    type: "mnemonic",
-    words: MNEMONIC.split(" "),
-  },
-});
-
 async function main() {
-  const utxos = await wallet.getUtxos();
-  const changeAddress = await wallet.getChangeAddress();
+  const wallet = await MeshCardanoHeadlessWallet.fromMnemonic({
+    networkId: 0,
+    walletAddressType: AddressType.Base,
+    fetcher: provider,
+    submitter: provider,
+    mnemonic: MNEMONIC.split(" "),
+  });
+
+  const utxos = await wallet.getUtxosMesh();
+  const changeAddress = await wallet.getChangeAddressBech32();
 
   console.log("Wallet address:", changeAddress);
   console.log("Available UTxOs:", utxos.length);
@@ -236,7 +232,7 @@ async function main() {
     .selectUtxosFrom(utxos)
     .complete();
 
-  const signedTx = await wallet.signTx(unsignedTx);
+  const signedTx = await wallet.signTx(unsignedTx, false);
   const txHash = await wallet.submitTx(signedTx);
 
   console.log("Transaction submitted:", txHash);
@@ -256,7 +252,7 @@ BLOCKFROST_KEY=your_key MNEMONIC="your twelve word phrase" npm run dev
 
 - <Link href="/apis/txbuilder">Learn transaction building options</Link> - Multiple outputs, metadata, minting
 - <Link href="/guides/minting-on-nodejs">Mint NFTs server-side</Link> - Create tokens without a browser
-- <Link href="/apis/wallets/meshwallet">Explore MeshWallet options</Link> - CLI keys, private keys, mnemonic
+- <Link href="/apis/wallets/meshwallet">Explore Headless Wallet options</Link> - Private keys, mnemonic
 - <Link href="/guides/aiken">Interact with smart contracts</Link> - Lock and unlock funds
 
 ## Troubleshooting
@@ -296,5 +292,5 @@ npm install @meshsdk/core@latest
 
 - <Link href="https://github.com/MeshJS/standalone-template">Complete template on GitHub</Link>
 - <Link href="/apis/txbuilder">Transaction Builder API</Link>
-- <Link href="/apis/wallets/meshwallet">MeshWallet API</Link>
+- <Link href="/apis/wallets/meshwallet">Headless Wallet API</Link>
 - <Link href="/providers">Blockchain Providers</Link>

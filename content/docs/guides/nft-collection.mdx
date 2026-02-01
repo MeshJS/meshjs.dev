@@ -86,22 +86,24 @@ bun add @meshsdk/core
 Create `scripts/generate-wallet.ts`:
 
 ```typescript
-import { MeshWallet } from "@meshsdk/core";
+import { MeshCardanoHeadlessWallet, AddressType } from "@meshsdk/wallet";
+import { generateMnemonic } from "@meshsdk/core";
 
 // Generate a new mnemonic phrase
-const words = MeshWallet.brew() as string[];
+const words = generateMnemonic(256);
 
 console.log("Mnemonic phrase:");
 console.log(words.join(" "));
 console.log("");
 
 // Create wallet from mnemonic
-const wallet = new MeshWallet({
-  key: { type: "mnemonic", words },
+const wallet = await MeshCardanoHeadlessWallet.fromMnemonic({
+  mnemonic: words,
   networkId: 0, // 0 = testnet
+  walletAddressType: AddressType.Base,
 });
 
-const address = await wallet.getChangeAddress();
+const address = await wallet.getChangeAddressBech32();
 console.log("Wallet address:");
 console.log(address);
 ```
@@ -141,13 +143,13 @@ Create `index.ts`:
 ```typescript
 import {
   MeshTxBuilder,
-  MeshWallet,
   BlockfrostProvider,
   ForgeScript,
   resolveScriptHash,
   stringToHex,
   deserializeAddress,
 } from "@meshsdk/core";
+import { MeshCardanoHeadlessWallet, AddressType } from "@meshsdk/wallet";
 import type { NativeScript, AssetMetadata } from "@meshsdk/core";
 
 // Load environment variables
@@ -160,17 +162,17 @@ if (!BLOCKFROST_KEY || !MNEMONIC) {
 
 // Initialize provider and wallet
 const provider = new BlockfrostProvider(BLOCKFROST_KEY);
-const words = MNEMONIC.split(" ");
 
-const wallet = new MeshWallet({
-  key: { type: "mnemonic", words },
+const wallet = await MeshCardanoHeadlessWallet.fromMnemonic({
+  mnemonic: MNEMONIC.split(" "),
   networkId: 0,
+  walletAddressType: AddressType.Base,
   fetcher: provider,
   submitter: provider,
 });
 
-const address = await wallet.getChangeAddress();
-const utxos = await wallet.getUtxos();
+const address = await wallet.getChangeAddressBech32();
+const utxos = await wallet.getUtxosMesh();
 const { pubKeyHash } = deserializeAddress(address);
 
 console.log("Wallet address:", address);
@@ -302,7 +304,7 @@ const unsignedTx = await txBuilder
   .selectUtxosFrom(utxos)
   .complete();
 
-const signedTx = await wallet.signTx(unsignedTx);
+const signedTx = await wallet.signTx(unsignedTx, false);
 const txHash = await wallet.submitTx(signedTx);
 
 console.log("Transaction submitted!");
@@ -329,13 +331,13 @@ Here is the complete `index.ts`:
 ```typescript
 import {
   MeshTxBuilder,
-  MeshWallet,
   BlockfrostProvider,
   ForgeScript,
   resolveScriptHash,
   stringToHex,
   deserializeAddress,
 } from "@meshsdk/core";
+import { MeshCardanoHeadlessWallet, AddressType } from "@meshsdk/wallet";
 import type { NativeScript } from "@meshsdk/core";
 
 // Configuration
@@ -377,15 +379,16 @@ function createMetadata(
 async function main() {
   // Initialize
   const provider = new BlockfrostProvider(BLOCKFROST_KEY);
-  const wallet = new MeshWallet({
-    key: { type: "mnemonic", words: MNEMONIC.split(" ") },
+  const wallet = await MeshCardanoHeadlessWallet.fromMnemonic({
+    mnemonic: MNEMONIC.split(" "),
     networkId: 0,
+    walletAddressType: AddressType.Base,
     fetcher: provider,
     submitter: provider,
   });
 
-  const address = await wallet.getChangeAddress();
-  const utxos = await wallet.getUtxos();
+  const address = await wallet.getChangeAddressBech32();
+  const utxos = await wallet.getUtxosMesh();
   const { pubKeyHash } = deserializeAddress(address);
 
   console.log("Wallet:", address);
@@ -428,7 +431,7 @@ async function main() {
     .selectUtxosFrom(utxos)
     .complete();
 
-  const signedTx = await wallet.signTx(unsignedTx);
+  const signedTx = await wallet.signTx(unsignedTx, false);
   const txHash = await wallet.submitTx(signedTx);
 
   console.log("Success! TX:", txHash);

@@ -217,11 +217,11 @@ console.log("Payout triggered. Transaction hash:", txHash);
 ```typescript
 import { MeshPaymentSplitterContract } from "@meshsdk/contract";
 import { BlockfrostProvider, MeshTxBuilder } from "@meshsdk/core";
-import { BrowserWallet } from "@meshsdk/core";
+import { MeshCardanoBrowserWallet } from "@meshsdk/wallet";
 
 async function paymentSplitterDemo() {
   // Connect wallet
-  const wallet = await BrowserWallet.enable("eternl");
+  const wallet = await MeshCardanoBrowserWallet.enable("eternl");
 
   // Initialize provider
   const provider = new BlockfrostProvider("<Your-API-Key>");

@@ -277,7 +277,8 @@ Once open, submit transactions directly to the Head.
 Use the same transaction format as Layer 1:
 
 ```ts
-import { MeshTxBuilder, MeshWallet } from "@meshsdk/core";
+import { MeshTxBuilder } from "@meshsdk/core";
+import { MeshCardanoHeadlessWallet } from "@meshsdk/wallet";
 
 // Build transaction (same as Layer 1!)
 const txBuilder = new MeshTxBuilder();
@@ -287,7 +288,7 @@ const unsignedTx = await txBuilder
   .selectUtxosFrom(headUtxos)
   .complete();
 
-const signedTx = await wallet.signTx(unsignedTx);
+const signedTx = await wallet.signTx(unsignedTx, false);
 ```
 
 ### Submit to the Head
@@ -369,14 +370,15 @@ hydra-demo/
 
 ```ts
 import WebSocket from "ws";
-import { MeshTxBuilder, MeshWallet } from "@meshsdk/core";
+import { MeshTxBuilder } from "@meshsdk/core";
+import { MeshCardanoHeadlessWallet } from "@meshsdk/wallet";
 
 export class HydraClient {
   private ws: WebSocket;
-  private wallet: MeshWallet;
+  private wallet: MeshCardanoHeadlessWallet;
   private headUtxos: Map<string, any> = new Map();
 
-  constructor(nodeUrl: string, wallet: MeshWallet) {
+  constructor(nodeUrl: string, wallet: MeshCardanoHeadlessWallet) {
     this.ws = new WebSocket(nodeUrl);
     this.wallet = wallet;
     this.setupListeners();
@@ -418,7 +420,7 @@ export class HydraClient {
 
   async sendPayment(recipient: string, amount: string) {
     const txBuilder = new MeshTxBuilder();
-    const myAddress = await this.wallet.getChangeAddress();
+    const myAddress = await this.wallet.getChangeAddressBech32();
 
     const unsignedTx = await txBuilder
       .txOut(recipient, [{ unit: "lovelace", quantity: amount }])
@@ -426,7 +428,7 @@ export class HydraClient {
       .selectUtxosFrom(Array.from(this.headUtxos.values()))
       .complete();
 
-    const signedTx = await this.wallet.signTx(unsignedTx);
+    const signedTx = await this.wallet.signTx(unsignedTx, false);
 
     this.ws.send(JSON.stringify({
       tag: "NewTx",

@@ -207,11 +207,11 @@ console.log("Assets unlocked. Transaction hash:", txHash);
 ```typescript
 import { MeshHelloWorldContract } from "@meshsdk/contract";
 import { BlockfrostProvider, MeshTxBuilder, Asset } from "@meshsdk/core";
-import { BrowserWallet } from "@meshsdk/core";
+import { MeshCardanoBrowserWallet } from "@meshsdk/wallet";
 
 async function helloWorldDemo() {
   // Connect wallet
-  const wallet = await BrowserWallet.enable("eternl");
+  const wallet = await MeshCardanoBrowserWallet.enable("eternl");
 
   // Initialize provider
   const provider = new BlockfrostProvider("<Your-API-Key>");

@@ -29,7 +29,8 @@ Before using HydraInstance, ensure you have:
 
 ```typescript
 import { HydraInstance, HydraProvider } from "@meshsdk/hydra";
-import { BlockfrostProvider, MeshWallet } from "@meshsdk/core";
+import { BlockfrostProvider } from "@meshsdk/core";
+import { MeshCardanoHeadlessWallet, AddressType } from "@meshsdk/wallet";
 
 // Set up providers
 const blockfrost = new BlockfrostProvider("<YOUR_BLOCKFROST_KEY>");
@@ -94,10 +95,10 @@ Request an empty commit transaction to open the Head without committing funds. U
 
 ```typescript
 import { HydraInstance, HydraProvider } from "@meshsdk/hydra";
-import { MeshWallet } from "@meshsdk/core";
+import { MeshCardanoHeadlessWallet } from "@meshsdk/wallet";
 
 const commit = await instance.commitEmpty();
-const signedTx = await wallet.signTx(commit);
+const signedTx = await wallet.signTx(commit, false);
 const txHash = await wallet.submitTx(signedTx);
 
 console.log("Empty commit submitted:", txHash);
@@ -118,7 +119,7 @@ Commit a specific UTxO to the Hydra Head. The committed funds become available o
 
 ```typescript
 import { HydraInstance, HydraProvider } from "@meshsdk/hydra";
-import { MeshWallet } from "@meshsdk/core";
+import { MeshCardanoHeadlessWallet } from "@meshsdk/wallet";
 
 const txHash = "abc123...";
 const outputIndex = 0;
@@ -152,7 +153,8 @@ Commit a Cardano transaction blueprint to the Hydra Head. Use this for advanced 
 
 ```typescript
 import { HydraInstance, HydraProvider } from "@meshsdk/hydra";
-import { MeshTxBuilder, MeshWallet } from "@meshsdk/core";
+import { MeshTxBuilder } from "@meshsdk/core";
+import { MeshCardanoHeadlessWallet } from "@meshsdk/wallet";
 
 // Build the blueprint transaction
 const txBuilder = new MeshTxBuilder({
@@ -174,7 +176,7 @@ const commitTx = await instance.commitBlueprint(txHash, outputIndex, {
   type: "Tx ConwayEra",
 });
 
-const signedTx = await wallet.signTx(commitTx);
+const signedTx = await wallet.signTx(commitTx, false);
 const commitTxHash = await wallet.submitTx(signedTx);
 
 console.log("Blueprint committed:", commitTxHash);
@@ -243,7 +245,8 @@ This example demonstrates the full workflow of connecting to a Hydra node and co
 
 ```typescript
 import { HydraInstance, HydraProvider } from "@meshsdk/hydra";
-import { BlockfrostProvider, MeshWallet } from "@meshsdk/core";
+import { BlockfrostProvider } from "@meshsdk/core";
+import { MeshCardanoHeadlessWallet, AddressType } from "@meshsdk/wallet";
 
 // Initialize providers
 const blockfrost = new BlockfrostProvider("<YOUR_BLOCKFROST_KEY>");
@@ -259,14 +262,12 @@ const instance = new HydraInstance({
 });
 
 // Set up wallet
-const wallet = new MeshWallet({
+const wallet = await MeshCardanoHeadlessWallet.fromMnemonic({
   networkId: 0,
+  walletAddressType: AddressType.Base,
   fetcher: blockfrost,
   submitter: blockfrost,
-  key: {
-    type: "mnemonic",
-    words: ["your", "mnemonic", "words", "..."],
-  },
+  mnemonic: ["your", "mnemonic", "words", "..."],
 });
 
 // Connect to Hydra
@@ -285,7 +286,7 @@ hydraProvider.onMessage(async (message) => {
     status.headStatus === "Initializing"
   ) {
     // Get a UTxO to commit
-    const utxos = await wallet.getUtxos();
+    const utxos = await wallet.getUtxosMesh();
     const utxoToCommit = utxos[0];
 
     // Commit funds to the Head

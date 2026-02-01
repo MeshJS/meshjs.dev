@@ -63,7 +63,7 @@ Your `package.json` now looks like this:
 
 ## Step 3: Generate a Wallet
 
-The `MeshWallet` class provides methods to create wallets, generate mnemonic phrases, and retrieve addresses.
+The `MeshCardanoHeadlessWallet` class provides methods to create wallets, generate mnemonic phrases, and retrieve addresses.
 
 ### Key Concepts
 
@@ -76,23 +76,21 @@ The `MeshWallet` class provides methods to create wallets, generate mnemonic phr
 Create a new file called `mnemonic.ts`:
 
 ```ts
-import { MeshWallet } from "@meshsdk/core";
+import { MeshCardanoHeadlessWallet, AddressType } from "@meshsdk/wallet";
 
 // Generate new mnemonic phrases for your wallet
-const mnemonic = MeshWallet.brew();
+const mnemonic = MeshCardanoHeadlessWallet.brew();
 console.log("Your mnemonic phrases are:", mnemonic);
 
 // Initialize the wallet with the mnemonic key
-const wallet = new MeshWallet({
+const wallet = await MeshCardanoHeadlessWallet.fromMnemonic({
   networkId: 0, // preprod testnet
-  key: {
-    type: "mnemonic",
-    words: mnemonic as string[],
-  },
+  walletAddressType: AddressType.Base,
+  mnemonic: mnemonic as string[],
 });
 
 // Get the wallet address
-const address = await wallet.getChangeAddress();
+const address = await wallet.getChangeAddressBech32();
 console.log("Your wallet address is:", address);
 ```
 
@@ -168,28 +166,27 @@ Now you can send lovelace to another address using `MeshTxBuilder`.
 Create a new file called `send-lovelace.ts`:
 
 ```ts
-import { BlockfrostProvider, MeshTxBuilder, MeshWallet } from "@meshsdk/core";
+import { BlockfrostProvider, MeshTxBuilder } from "@meshsdk/core";
+import { MeshCardanoHeadlessWallet, AddressType } from "@meshsdk/wallet";
 
 // Set up the blockchain provider with your API key
 const provider = new BlockfrostProvider("YOUR_BLOCKFROST_API_KEY");
 
 // Initialize the wallet with your mnemonic
-const wallet = new MeshWallet({
+const wallet = await MeshCardanoHeadlessWallet.fromMnemonic({
   networkId: 0,
+  walletAddressType: AddressType.Base,
   fetcher: provider,
   submitter: provider,
-  key: {
-    type: "mnemonic",
-    words: [
-      "your", "mnemonic", "phrases", "here",
-      // ... all 24 words
-    ],
-  },
+  mnemonic: [
+    "your", "mnemonic", "phrases", "here",
+    // ... all 24 words
+  ],
 });
 
 // Get wallet data needed for the transaction
-const utxos = await wallet.getUtxos();
-const changeAddress = await wallet.getChangeAddress();
+const utxos = await wallet.getUtxosMesh();
+const changeAddress = await wallet.getChangeAddressBech32();
 
 // Create the transaction
 const txBuilder = new MeshTxBuilder({
@@ -207,7 +204,7 @@ const unsignedTx = await txBuilder
   .complete();
 
 // Sign and submit the transaction
-const signedTx = await wallet.signTx(unsignedTx);
+const signedTx = await wallet.signTx(unsignedTx, false);
 const txHash = await wallet.submitTx(signedTx);
 
 console.log("Transaction hash:", txHash);
@@ -281,42 +278,39 @@ mesh-hello-world/
 ### mnemonic.ts
 
 ```ts
-import { MeshWallet } from "@meshsdk/core";
+import { MeshCardanoHeadlessWallet, AddressType } from "@meshsdk/wallet";
 
-const mnemonic = MeshWallet.brew();
+const mnemonic = MeshCardanoHeadlessWallet.brew();
 console.log("Your mnemonic phrases are:", mnemonic);
 
-const wallet = new MeshWallet({
+const wallet = await MeshCardanoHeadlessWallet.fromMnemonic({
   networkId: 0,
-  key: {
-    type: "mnemonic",
-    words: mnemonic as string[],
-  },
+  walletAddressType: AddressType.Base,
+  mnemonic: mnemonic as string[],
 });
 
-const address = await wallet.getChangeAddress();
+const address = await wallet.getChangeAddressBech32();
 console.log("Your wallet address is:", address);
 ```
 
 ### send-lovelace.ts
 
 ```ts
-import { BlockfrostProvider, MeshTxBuilder, MeshWallet } from "@meshsdk/core";
+import { BlockfrostProvider, MeshTxBuilder } from "@meshsdk/core";
+import { MeshCardanoHeadlessWallet, AddressType } from "@meshsdk/wallet";
 
 const provider = new BlockfrostProvider("YOUR_BLOCKFROST_API_KEY");
 
-const wallet = new MeshWallet({
+const wallet = await MeshCardanoHeadlessWallet.fromMnemonic({
   networkId: 0,
+  walletAddressType: AddressType.Base,
   fetcher: provider,
   submitter: provider,
-  key: {
-    type: "mnemonic",
-    words: ["your", "24", "word", "mnemonic", "phrase", "here"],
-  },
+  mnemonic: ["your", "24", "word", "mnemonic", "phrase", "here"],
 });
 
-const utxos = await wallet.getUtxos();
-const changeAddress = await wallet.getChangeAddress();
+const utxos = await wallet.getUtxosMesh();
+const changeAddress = await wallet.getChangeAddressBech32();
 
 const txBuilder = new MeshTxBuilder({
   fetcher: provider,
@@ -332,7 +326,7 @@ const unsignedTx = await txBuilder
   .selectUtxosFrom(utxos)
   .complete();
 
-const signedTx = await wallet.signTx(unsignedTx);
+const signedTx = await wallet.signTx(unsignedTx, false);
 const txHash = await wallet.submitTx(signedTx);
 
 console.log("Transaction hash:", txHash);
@@ -340,16 +334,16 @@ console.log("Transaction hash:", txHash);
 
 ## Key Concepts Explained
 
-### MeshWallet
+### MeshCardanoHeadlessWallet
 
-The `MeshWallet` class manages your wallet:
+The `MeshCardanoHeadlessWallet` class manages your wallet:
 
 | Method | Description |
 |--------|-------------|
-| `MeshWallet.brew()` | Generates a new 24-word mnemonic |
-| `getChangeAddress()` | Returns the wallet's receiving address |
-| `getUtxos()` | Fetches all UTXOs owned by the wallet |
-| `signTx(tx)` | Signs a transaction with the wallet's private key |
+| `MeshCardanoHeadlessWallet.brew()` | Generates a new 24-word mnemonic |
+| `getChangeAddressBech32()` | Returns the wallet's receiving address |
+| `getUtxosMesh()` | Fetches all UTXOs owned by the wallet |
+| `signTx(tx, partialSign)` | Signs a transaction with the wallet's private key |
 | `submitTx(tx)` | Submits a signed transaction to the network |
 
 ### MeshTxBuilder

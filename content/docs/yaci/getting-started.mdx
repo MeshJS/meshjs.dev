@@ -301,7 +301,8 @@ yaci_store_db_password=<password>
 Set up a local devnet and verify it works:
 
 ```typescript
-import { YaciProvider, MeshWallet, MeshTxBuilder } from "@meshsdk/core";
+import { YaciProvider, MeshTxBuilder } from "@meshsdk/core";
+import { MeshCardanoHeadlessWallet, AddressType } from "@meshsdk/wallet";
 
 async function main() {
   // Connect to local devnet
@@ -312,18 +313,16 @@ async function main() {
   console.log("Devnet protocol version:", params.protocolVersion);
 
   // Create wallet from default mnemonic
-  const wallet = new MeshWallet({
+  const wallet = await MeshCardanoHeadlessWallet.fromMnemonic({
     networkId: 0,
+    walletAddressType: AddressType.Base,
     fetcher: provider,
     submitter: provider,
-    key: {
-      type: "mnemonic",
-      words: "test test test test test test test test test test test test test test test test test test test test test test test sauce".split(" "),
-    },
+    mnemonic: "test test test test test test test test test test test test test test test test test test test test test test test sauce".split(" "),
   });
 
   // Get wallet address
-  const address = await wallet.getChangeAddress();
+  const address = await wallet.getChangeAddressBech32();
   console.log("Wallet address:", address);
 
   // Fund wallet (use yaci-cli topup command first)

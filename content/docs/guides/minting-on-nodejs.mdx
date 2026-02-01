@@ -160,13 +160,13 @@ Create `src/main.ts`:
 
 ```typescript
 import {
-  MeshWallet,
   MeshTxBuilder,
   ForgeScript,
   BlockfrostProvider,
   resolveScriptHash,
   stringToHex,
 } from "@meshsdk/core";
+import { MeshCardanoHeadlessWallet, AddressType } from "@meshsdk/wallet";
 import type { AssetMetadata } from "@meshsdk/core";
 
 import { metadata } from "./metadata.js";
@@ -176,39 +176,29 @@ import { recipients } from "./recipients.js";
 const BLOCKFROST_KEY = "your_blockfrost_preprod_key";
 const NETWORK_ID = 0; // 0 = testnet, 1 = mainnet
 
-// Wallet configuration (choose one method)
-const walletConfig = {
-  // Option 1: Mnemonic phrase
-  type: "mnemonic" as const,
-  words: [
-    "your", "twenty", "four", "word", "mnemonic",
-    "phrase", "goes", "here", "replace", "with",
-    "actual", "words", "from", "your", "wallet",
-    "that", "has", "been", "funded", "with",
-    "test", "ada", "from", "faucet",
-  ],
-};
-
-// Option 2: CLI keys (uncomment to use)
-// const walletConfig = {
-//   type: "cli" as const,
-//   payment: "5820aaca553a7b95b38b5d9b82a5daa7a27ac8e34f3cf27152a978f4576520dd6503",
-//   stake: "582097c458f19a3111c3b965220b1bef7d548fd75bc140a7f0a4f080e03cce604f0e",
-// };
+// Wallet mnemonic (24 words)
+const MNEMONIC = [
+  "your", "twenty", "four", "word", "mnemonic",
+  "phrase", "goes", "here", "replace", "with",
+  "actual", "words", "from", "your", "wallet",
+  "that", "has", "been", "funded", "with",
+  "test", "ada", "from", "faucet",
+];
 
 async function main() {
   // Initialize provider
   const provider = new BlockfrostProvider(BLOCKFROST_KEY);
 
   // Initialize wallet
-  const wallet = new MeshWallet({
+  const wallet = await MeshCardanoHeadlessWallet.fromMnemonic({
     networkId: NETWORK_ID,
+    walletAddressType: AddressType.Base,
     fetcher: provider,
     submitter: provider,
-    key: walletConfig,
+    mnemonic: MNEMONIC,
   });
 
-  const walletAddress = wallet.getPaymentAddress();
+  const walletAddress = await wallet.getChangeAddressBech32();
   console.log("Wallet address:", walletAddress);
 
   // Create forging script from wallet address
@@ -217,7 +207,7 @@ async function main() {
   console.log("Policy ID:", policyId);
 
   // Get UTxOs
-  const utxos = await wallet.getUtxos();
+  const utxos = await wallet.getUtxosMesh();
   if (utxos.length === 0) {
     throw new Error("No UTxOs available. Fund the wallet first.");
   }
@@ -265,7 +255,7 @@ async function main() {
     .complete();
 
   // Sign and submit
-  const signedTx = await wallet.signTx(unsignedTx);
+  const signedTx = await wallet.signTx(unsignedTx, false);
   const txHash = await wallet.submitTx(signedTx);
 
   console.log("");
@@ -328,7 +318,7 @@ nodejs-minting/
 
 - <Link href="/apis/txbuilder/minting">Minting API reference</Link> - Advanced minting options
 - <Link href="/guides/multisig-minting">Multi-signature minting</Link> - Coordinate multiple signers
-- <Link href="/apis/wallets/meshwallet">MeshWallet options</Link> - Different key types
+- <Link href="/apis/wallets/meshwallet">Headless Wallet options</Link> - Different key types
 - <Link href="/guides/nft-collection">Mint a collection</Link> - Batch minting with Bun
 
 ## Troubleshooting
@@ -366,6 +356,6 @@ nodejs-minting/
 ## Related Links
 
 - <Link href="/apis/txbuilder/minting">Minting API Reference</Link>
-- <Link href="/apis/wallets/meshwallet">MeshWallet Documentation</Link>
+- <Link href="/apis/wallets/meshwallet">Headless Wallet Documentation</Link>
 - <Link href="https://cips.cardano.org/cip/CIP-25">CIP-25 Metadata Standard</Link>
 - <Link href="/providers">Blockchain Providers</Link>

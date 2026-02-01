@@ -171,7 +171,8 @@ console.log(`Transaction submitted: ${txHash}`);
 This example shows how to build, evaluate, and submit a smart contract transaction using Ogmios for evaluation and submission, combined with another provider for data fetching:
 
 ```tsx
-import { OgmiosProvider, MeshTxBuilder, MeshWallet, BlockfrostProvider } from "@meshsdk/core";
+import { OgmiosProvider, MeshTxBuilder, BlockfrostProvider } from "@meshsdk/core";
+import { MeshCardanoHeadlessWallet, AddressType } from "@meshsdk/wallet";
 
 async function interactWithSmartContract() {
   // Use Ogmios for evaluation and submission
@@ -181,19 +182,17 @@ async function interactWithSmartContract() {
   const fetcher = new BlockfrostProvider("<YOUR_API_KEY>");
 
   // Initialize wallet
-  const wallet = new MeshWallet({
+  const wallet = await MeshCardanoHeadlessWallet.fromMnemonic({
     networkId: 0,
+    walletAddressType: AddressType.Base,
     fetcher: fetcher,
     submitter: ogmios,
-    key: {
-      type: "mnemonic",
-      words: ["your", "mnemonic", "phrase", "..."],
-    },
+    mnemonic: ["your", "mnemonic", "phrase", "..."],
   });
 
   // Get wallet data
-  const utxos = await wallet.getUtxos();
-  const changeAddress = await wallet.getChangeAddress();
+  const utxos = await wallet.getUtxosMesh();
+  const changeAddress = await wallet.getChangeAddressBech32();
 
   // Build transaction
   const txBuilder = new MeshTxBuilder({
@@ -217,7 +216,7 @@ async function interactWithSmartContract() {
   console.log("Script execution costs:", evaluation);
 
   // Sign and submit
-  const signedTx = await wallet.signTx(unsignedTx);
+  const signedTx = await wallet.signTx(unsignedTx, false);
   const txHash = await ogmios.submitTx(signedTx);
 
   console.log(`Transaction submitted: ${txHash}`);

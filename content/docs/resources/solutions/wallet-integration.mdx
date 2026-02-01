@@ -30,11 +30,11 @@ import { HowToSchema, FAQSchema } from "@/components/seo";
     },
     {
       question: "How do I detect installed wallets?",
-      answer: "Use BrowserWallet.getInstalledWallets() to get a list of all installed CIP-30 wallets with metadata including name, icon, and identifier."
+      answer: "Use MeshCardanoBrowserWallet.getInstalledWallets() to get a list of all installed CIP-30 wallets with metadata including name, icon, and identifier."
     },
     {
       question: "Can I customize the wallet UI?",
-      answer: "Yes. While CardanoWallet provides a ready-to-use component, you can build fully custom UIs using BrowserWallet and useWallet hook."
+      answer: "Yes. While CardanoWallet provides a ready-to-use component, you can build fully custom UIs using MeshCardanoBrowserWallet and useWallet hook."
     }
   ]}
 />
@@ -134,23 +134,23 @@ const {
 } = useWallet();
 ```
 
-### BrowserWallet class
+### MeshCardanoBrowserWallet class
 
 For full control:
 
 ```typescript
-import { BrowserWallet } from "@meshsdk/core";
+import { MeshCardanoBrowserWallet } from "@meshsdk/wallet";
 
 // Detect installed wallets
-const wallets = BrowserWallet.getInstalledWallets();
+const wallets = MeshCardanoBrowserWallet.getInstalledWallets();
 
 // Connect to specific wallet
-const wallet = await BrowserWallet.enable("eternl");
+const wallet = await MeshCardanoBrowserWallet.enable("eternl");
 
-// Unified API
-const utxos = await wallet.getUtxos();
-const address = await wallet.getChangeAddress();
-const balance = await wallet.getBalance();
+// Unified API (Mesh format)
+const utxos = await wallet.getUtxosMesh();
+const address = await wallet.getChangeAddressBech32();
+const balance = await wallet.getBalanceMesh();
 ```
 
 ---
@@ -211,12 +211,12 @@ try {
 ## Custom wallet UI
 
 ```tsx
-import { BrowserWallet } from "@meshsdk/core";
+import { MeshCardanoBrowserWallet } from "@meshsdk/wallet";
 import { useWallet } from "@meshsdk/react";
 
 function CustomWalletButton() {
   const { connect, connected, disconnect, name } = useWallet();
-  const wallets = BrowserWallet.getInstalledWallets();
+  const wallets = MeshCardanoBrowserWallet.getInstalledWallets();
 
   if (connected) {
     return (

@@ -288,7 +288,6 @@ Before minting NFTs, initialize the oracle with its state thread token.
 import {
   BlockfrostProvider,
   MeshTxBuilder,
-  MeshWallet,
   applyParamsToScript,
   resolveScriptHash,
   serializePlutusScript,
@@ -297,21 +296,23 @@ import {
   mPubKeyAddress,
   deserializeAddress,
 } from "@meshsdk/core";
+import { MeshCardanoHeadlessWallet, AddressType } from "@meshsdk/wallet";
 import blueprint from "./plutus.json";
 
 const provider = new BlockfrostProvider("YOUR_BLOCKFROST_API_KEY");
 
 // Initialize wallet
-const wallet = new MeshWallet({
+const wallet = await MeshCardanoHeadlessWallet.fromMnemonic({
   networkId: 0,
+  walletAddressType: AddressType.Base,
   fetcher: provider,
   submitter: provider,
-  key: { type: "mnemonic", words: ["your", "mnemonic"] },
+  mnemonic: ["your", "mnemonic"],
 });
 
-const utxos = await wallet.getUtxos();
+const utxos = await wallet.getUtxosMesh();
 const collateral = (await wallet.getCollateral())[0];
-const walletAddress = await wallet.getChangeAddress();
+const walletAddress = await wallet.getChangeAddressBech32();
 
 // Select a UTXO to parameterize the one-time minting policy
 const paramUtxo = utxos[0];
@@ -376,7 +377,7 @@ const unsignedTx = await txBuilder
   .selectUtxosFrom(utxos)
   .complete();
 
-const signedTx = await wallet.signTx(unsignedTx);
+const signedTx = await wallet.signTx(unsignedTx, false);
 const txHash = await wallet.submitTx(signedTx);
 
 console.log("Oracle setup transaction:", txHash);
@@ -415,9 +416,9 @@ const getOracleData = async () => {
 
 // Mint the NFT
 const mintNft = async () => {
-  const utxos = await wallet.getUtxos();
+  const utxos = await wallet.getUtxosMesh();
   const collateral = (await wallet.getCollateral())[0];
-  const walletAddress = await wallet.getChangeAddress();
+  const walletAddress = await wallet.getChangeAddressBech32();
 
   const collectionName = "MyNFTCollection";
 
@@ -494,7 +495,7 @@ const mintNft = async () => {
     .selectUtxosFrom(utxos);
 
   const unsignedTx = await txBuilder.complete();
-  const signedTx = await wallet.signTx(unsignedTx);
+  const signedTx = await wallet.signTx(unsignedTx, false);
   const txHash = await wallet.submitTx(signedTx);
 
   console.log("NFT minted:", tokenName);

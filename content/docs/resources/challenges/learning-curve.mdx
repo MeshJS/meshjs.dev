@@ -12,7 +12,7 @@ import { HowToSchema, FAQSchema } from "@/components/seo";
   totalTime="PT15M"
   steps={[
     { name: "Install Mesh SDK", text: "Run npm install @meshsdk/core @meshsdk/react to add the Cardano SDK." },
-    { name: "Connect a wallet", text: "Use BrowserWallet to connect any Cardano wallet with a single function call." },
+    { name: "Connect a wallet", text: "Use MeshCardanoBrowserWallet to connect any Cardano wallet with a single function call." },
     { name: "Build your first transaction", text: "Use MeshTxBuilder to construct and submit a simple ADA transfer." }
   ]}
 />
@@ -121,9 +121,11 @@ You say "send 5 ADA to this address." Mesh handles UTXO selection, fee calculati
 | Balance checking | UTXO aggregation |
 
 ```typescript
-const wallet = await BrowserWallet.enable("eternl");
-const address = await wallet.getChangeAddress();
-const utxos = await wallet.getUtxos();
+import { MeshCardanoBrowserWallet } from "@meshsdk/wallet";
+
+const wallet = await MeshCardanoBrowserWallet.enable("eternl");
+const address = await wallet.getChangeAddressBech32();
+const utxos = await wallet.getUtxosMesh();
 ```
 
 ### Week 2: Native assets
@@ -199,12 +201,16 @@ const tx = await txBuilder
 ### Familiar patterns
 
 ```typescript
+import { MeshCardanoHeadlessWallet, AddressType } from "@meshsdk/wallet";
+import { BlockfrostProvider } from "@meshsdk/core";
+
 // Similar to ethers.js pattern
 const provider = new BlockfrostProvider("<api-key>");
-const wallet = new MeshWallet({
+const wallet = await MeshCardanoHeadlessWallet.fromMnemonic({
   networkId: 0,
+  walletAddressType: AddressType.Base,
   fetcher: provider,
-  key: { type: "mnemonic", words: [...] },
+  mnemonic: ["your", "mnemonic", "words", "..."],
 });
 ```
 

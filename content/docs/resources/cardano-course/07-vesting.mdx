@@ -232,13 +232,13 @@ Create a transaction that locks funds in the vesting contract.
 import {
   BlockfrostProvider,
   MeshTxBuilder,
-  MeshWallet,
   deserializeAddress,
   serializePlutusScript,
   mConStr0,
   integer,
   byteString,
 } from "@meshsdk/core";
+import { MeshCardanoHeadlessWallet, AddressType } from "@meshsdk/wallet";
 import blueprint from "./plutus.json";
 
 const provider = new BlockfrostProvider("YOUR_BLOCKFROST_API_KEY");
@@ -274,18 +274,16 @@ const assets = [
 
 ```ts
 // Initialize wallet
-const wallet = new MeshWallet({
+const wallet = await MeshCardanoHeadlessWallet.fromMnemonic({
   networkId: 0,
+  walletAddressType: AddressType.Base,
   fetcher: provider,
   submitter: provider,
-  key: {
-    type: "mnemonic",
-    words: ["your", "mnemonic", "here"],
-  },
+  mnemonic: ["your", "mnemonic", "here"],
 });
 
-const utxos = await wallet.getUtxos();
-const changeAddress = await wallet.getChangeAddress();
+const utxos = await wallet.getUtxosMesh();
+const changeAddress = await wallet.getChangeAddressBech32();
 
 // Get public key hashes
 const { pubKeyHash: ownerPubKeyHash } = deserializeAddress(changeAddress);
@@ -312,7 +310,7 @@ const unsignedTx = await txBuilder
   .complete();
 
 // Sign and submit
-const signedTx = await wallet.signTx(unsignedTx);
+const signedTx = await wallet.signTx(unsignedTx, false);
 const txHash = await wallet.submitTx(signedTx);
 
 console.log("Deposit transaction hash:", txHash);

@@ -321,11 +321,11 @@ console.log("Listing cancelled. Transaction hash:", txHash);
 ```typescript
 import { MeshMarketplaceContract } from "@meshsdk/contract";
 import { BlockfrostProvider, MeshTxBuilder } from "@meshsdk/core";
-import { BrowserWallet } from "@meshsdk/core";
+import { MeshCardanoBrowserWallet } from "@meshsdk/wallet";
 
 async function marketplaceDemo() {
   // Connect seller wallet
-  const sellerWallet = await BrowserWallet.enable("eternl");
+  const sellerWallet = await MeshCardanoBrowserWallet.enable("eternl");
 
   // Initialize provider
   const provider = new BlockfrostProvider("<Your-API-Key>");
@@ -362,7 +362,7 @@ async function marketplaceDemo() {
   await new Promise((resolve) => setTimeout(resolve, 60000));
 
   // Step 2: Buyer purchases (switch wallet in production)
-  const buyerWallet = await BrowserWallet.enable("nami");
+  const buyerWallet = await MeshCardanoBrowserWallet.enable("nami");
 
   const buyerContract = new MeshMarketplaceContract(
     {

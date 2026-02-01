@@ -367,10 +367,10 @@ console.log("Owner token:", content.ownerToken);
 ```typescript
 import { MeshContentOwnershipContract } from "@meshsdk/contract";
 import { BlockfrostProvider, MeshTxBuilder } from "@meshsdk/core";
-import { BrowserWallet } from "@meshsdk/core";
+import { MeshCardanoBrowserWallet } from "@meshsdk/wallet";
 
 async function contentOwnershipDemo() {
-  const wallet = await BrowserWallet.enable("eternl");
+  const wallet = await MeshCardanoBrowserWallet.enable("eternl");
   const provider = new BlockfrostProvider("<Your-API-Key>");
 
   // Step 1: Initial Setup (ONE TIME)

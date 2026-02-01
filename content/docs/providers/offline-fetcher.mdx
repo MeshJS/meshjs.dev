@@ -551,7 +551,8 @@ await fetcher.fetchGovernanceProposal(txHash: string, certIndex: number): Promis
 ## Complete Example
 
 ```tsx
-import { OfflineFetcher, MeshTxBuilder, MeshWallet } from "@meshsdk/core";
+import { OfflineFetcher, MeshTxBuilder } from "@meshsdk/core";
+import { MeshCardanoHeadlessWallet, AddressType } from "@meshsdk/wallet";
 
 // Create and populate fetcher
 const fetcher = new OfflineFetcher("preprod");
@@ -591,16 +592,14 @@ fetcher.addUTxOs([
 
 // Use in tests
 async function testTransaction() {
-  const wallet = new MeshWallet({
+  const wallet = await MeshCardanoHeadlessWallet.fromMnemonic({
     networkId: 0,
+    walletAddressType: AddressType.Base,
     fetcher: fetcher,
-    key: {
-      type: "mnemonic",
-      words: ["test", "test", "test", "test", "test", "test", "test", "test", "test", "test", "test", "test", "test", "test", "test", "test", "test", "test", "test", "test", "test", "test", "test", "test"],
-    },
+    mnemonic: ["test", "test", "test", "test", "test", "test", "test", "test", "test", "test", "test", "test", "test", "test", "test", "test", "test", "test", "test", "test", "test", "test", "test", "test"],
   });
 
-  const utxos = await wallet.getUtxos();
+  const utxos = await wallet.getUtxosMesh();
   console.log(`Wallet has ${utxos.length} UTxOs`);
 
   const txBuilder = new MeshTxBuilder({
@@ -609,7 +608,7 @@ async function testTransaction() {
 
   const unsignedTx = await txBuilder
     .txOut("addr_test1...", [{ unit: "lovelace", quantity: "5000000" }])
-    .changeAddress(await wallet.getChangeAddress())
+    .changeAddress(await wallet.getChangeAddressBech32())
     .selectUtxosFrom(utxos)
     .complete();
 

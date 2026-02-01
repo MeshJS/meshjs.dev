@@ -181,22 +181,21 @@ const unsignedTx = await txBuilder
 Create transactions requiring multiple signatures:
 
 ```tsx
-import { MeshTxBuilder, MeshWallet, ForgeScript, resolveScriptHash, stringToHex } from "@meshsdk/core";
+import { MeshTxBuilder, ForgeScript, resolveScriptHash, stringToHex } from "@meshsdk/core";
+import { MeshCardanoHeadlessWallet, AddressType } from "@meshsdk/wallet";
 
 // Create minting wallet
-const mintingWallet = new MeshWallet({
+const mintingWallet = await MeshCardanoHeadlessWallet.fromMnemonic({
   networkId: 0,
+  walletAddressType: AddressType.Base,
   fetcher: provider,
   submitter: provider,
-  key: {
-    type: "mnemonic",
-    words: ["your", "mnemonic", "words", "..."],
-  },
+  mnemonic: ["your", "mnemonic", "words", "..."],
 });
 
 // Create forging script
 const forgingScript = ForgeScript.withOneSignature(
-  await mintingWallet.getChangeAddress()
+  await mintingWallet.getChangeAddressBech32()
 );
 
 const policyId = resolveScriptHash(forgingScript);
@@ -225,8 +224,8 @@ const unsignedTx = await txBuilder
   .complete();
 
 // Sign with both wallets (partial signing)
-const signedTx1 = await wallet.signTx(unsignedTx, true);
-const signedTx2 = await mintingWallet.signTx(signedTx1, true);
+const signedTx1 = await wallet.signTx(unsignedTx, true, false);
+const signedTx2 = await mintingWallet.signTx(signedTx1, true, false);
 
 // Submit final transaction
 const txHash = await wallet.submitTx(signedTx2);
@@ -274,8 +273,8 @@ const unsignedTx = await txBuilder
   .complete();
 
 // Both wallets must sign
-const signedTx1 = await wallet1.signTx(unsignedTx, true);
-const signedTx2 = await wallet2.signTx(signedTx1, true);
+const signedTx1 = await wallet1.signTx(unsignedTx, true, false);
+const signedTx2 = await wallet2.signTx(signedTx1, true, false);
 const txHash = await wallet1.submitTx(signedTx2);
 ```
 

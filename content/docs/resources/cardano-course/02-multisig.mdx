@@ -143,7 +143,6 @@ import { CardanoWallet, useWallet } from "@meshsdk/react";
 import {
   BlockfrostProvider,
   MeshTxBuilder,
-  MeshWallet,
   ForgeScript,
   NativeScript,
   deserializeAddress,
@@ -151,6 +150,7 @@ import {
   stringToHex,
 } from "@meshsdk/core";
 import type { UTxO } from "@meshsdk/core";
+import { MeshCardanoHeadlessWallet, AddressType } from "@meshsdk/wallet";
 
 // Configuration - Replace with your Blockfrost API key
 const provider = new BlockfrostProvider("YOUR_BLOCKFROST_API_KEY");
@@ -193,17 +193,15 @@ Create a function that builds the multi-sig minting transaction:
 ```tsx
 async function buildMintTx(inputs: UTxO[], changeAddress: string) {
   // Initialize the minting wallet
-  const wallet = new MeshWallet({
+  const wallet = await MeshCardanoHeadlessWallet.fromMnemonic({
     networkId: 0,
-    key: {
-      type: "mnemonic",
-      words: mintingWallet,
-    },
+    walletAddressType: AddressType.Base,
+    mnemonic: mintingWallet,
   });
 
   // Get the minting wallet's public key hash
   const { pubKeyHash: keyHash } = deserializeAddress(
-    await wallet.getChangeAddress()
+    await wallet.getChangeAddressBech32()
   );
 
   // Create the native script with time lock and signature requirement
@@ -358,7 +356,6 @@ import { CardanoWallet, useWallet } from "@meshsdk/react";
 import {
   BlockfrostProvider,
   MeshTxBuilder,
-  MeshWallet,
   ForgeScript,
   NativeScript,
   deserializeAddress,
@@ -366,6 +363,7 @@ import {
   stringToHex,
 } from "@meshsdk/core";
 import type { UTxO } from "@meshsdk/core";
+import { MeshCardanoHeadlessWallet, AddressType } from "@meshsdk/wallet";
 
 const provider = new BlockfrostProvider("YOUR_BLOCKFROST_API_KEY");
 
@@ -379,16 +377,14 @@ const demoAssetMetadata = {
 const mintingWallet = ["your", "mnemonic", "phrases", "here"];
 
 async function buildMintTx(inputs: UTxO[], changeAddress: string) {
-  const wallet = new MeshWallet({
+  const wallet = await MeshCardanoHeadlessWallet.fromMnemonic({
     networkId: 0,
-    key: {
-      type: "mnemonic",
-      words: mintingWallet,
-    },
+    walletAddressType: AddressType.Base,
+    mnemonic: mintingWallet,
   });
 
   const { pubKeyHash: keyHash } = deserializeAddress(
-    await wallet.getChangeAddress()
+    await wallet.getChangeAddressBech32()
   );
 
   const nativeScript: NativeScript = {

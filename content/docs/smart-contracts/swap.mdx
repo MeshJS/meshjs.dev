@@ -260,13 +260,13 @@ console.log("Swap cancelled. Transaction hash:", txHash);
 ```typescript
 import { MeshSwapContract } from "@meshsdk/contract";
 import { BlockfrostProvider, MeshTxBuilder, Asset } from "@meshsdk/core";
-import { BrowserWallet } from "@meshsdk/core";
+import { MeshCardanoBrowserWallet } from "@meshsdk/wallet";
 
 async function swapDemo() {
   const provider = new BlockfrostProvider("<Your-API-Key>");
 
   // Party A wants to trade 10 ADA for an NFT
-  const partyAWallet = await BrowserWallet.enable("eternl");
+  const partyAWallet = await MeshCardanoBrowserWallet.enable("eternl");
 
   const contractA = new MeshSwapContract({
     mesh: new MeshTxBuilder({ fetcher: provider, submitter: provider }),
@@ -297,7 +297,7 @@ async function swapDemo() {
   await new Promise((r) => setTimeout(r, 60000));
 
   // Step 2: Party B accepts the swap
-  const partyBWallet = await BrowserWallet.enable("nami");
+  const partyBWallet = await MeshCardanoBrowserWallet.enable("nami");
 
   const contractB = new MeshSwapContract({
     mesh: new MeshTxBuilder({ fetcher: provider, submitter: provider }),

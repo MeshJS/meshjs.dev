@@ -13,7 +13,7 @@ import { HowToSchema, FAQSchema } from "@/components/seo";
   steps={[
     { name: "Install Mesh packages", text: "Run npm install @meshsdk/core to add the fully-typed Cardano SDK to your project." },
     { name: "Configure TypeScript", text: "Ensure tsconfig.json has strict mode enabled for maximum type safety benefits." },
-    { name: "Import typed modules", text: "Import MeshTxBuilder, BrowserWallet, and other typed classes from @meshsdk/core." },
+    { name: "Import typed modules", text: "Import MeshTxBuilder from @meshsdk/core and MeshCardanoBrowserWallet from @meshsdk/wallet." },
     { name: "Use IDE autocompletion", text: "Leverage IntelliSense to explore available methods and required parameters with full type hints." }
   ]}
 />
@@ -63,12 +63,13 @@ npm install @meshsdk/core @meshsdk/react
 ### Build with types
 
 ```typescript
-import { MeshTxBuilder, BrowserWallet } from "@meshsdk/core";
+import { MeshTxBuilder } from "@meshsdk/core";
+import { MeshCardanoBrowserWallet } from "@meshsdk/wallet";
 import type { UTxO, Asset } from "@meshsdk/core";
 
-const wallet = await BrowserWallet.enable("eternl");
-const utxos: UTxO[] = await wallet.getUtxos();
-const changeAddress: string = await wallet.getChangeAddress();
+const wallet = await MeshCardanoBrowserWallet.enable("eternl");
+const utxos: UTxO[] = await wallet.getUtxosMesh();
+const changeAddress: string = await wallet.getChangeAddressBech32();
 
 const txBuilder = new MeshTxBuilder();
 const unsignedTx = await txBuilder
@@ -100,12 +101,13 @@ const signedTx = await wallet.signTx(unsignedTx);
 ### Transaction building
 
 ```typescript
-import { MeshTxBuilder, BrowserWallet } from "@meshsdk/core";
+import { MeshTxBuilder } from "@meshsdk/core";
+import { MeshCardanoBrowserWallet } from "@meshsdk/wallet";
 import type { UTxO, Asset } from "@meshsdk/core";
 
-const wallet = await BrowserWallet.enable("eternl");
-const utxos: UTxO[] = await wallet.getUtxos();
-const changeAddress: string = await wallet.getChangeAddress();
+const wallet = await MeshCardanoBrowserWallet.enable("eternl");
+const utxos: UTxO[] = await wallet.getUtxosMesh();
+const changeAddress: string = await wallet.getChangeAddressBech32();
 
 const txBuilder = new MeshTxBuilder();
 
@@ -132,16 +134,16 @@ const unsignedTx: string = await txBuilder
 ### Wallet APIs
 
 ```typescript
-import { BrowserWallet } from "@meshsdk/core";
+import { MeshCardanoBrowserWallet } from "@meshsdk/wallet";
 import type { UTxO, Asset } from "@meshsdk/core";
 
-const wallet = await BrowserWallet.enable("eternl");
+const wallet = await MeshCardanoBrowserWallet.enable("eternl");
 
 // Typed return values
-const address: string = await wallet.getChangeAddress();
+const address: string = await wallet.getChangeAddressBech32();
 const networkId: number = await wallet.getNetworkId();
-const utxos: UTxO[] = await wallet.getUtxos();
-const balance: Asset[] = await wallet.getBalance();
+const utxos: UTxO[] = await wallet.getUtxosMesh();
+const balance: Asset[] = await wallet.getBalanceMesh();
 
 // UTxO type includes all fields
 utxos.forEach(utxo => {

@@ -42,7 +42,8 @@ If you already have Hydra nodes running, connect to a Head with Mesh:
 
 ```typescript
 import { HydraProvider, HydraInstance } from "@meshsdk/hydra";
-import { BlockfrostProvider, MeshWallet, MeshTxBuilder } from "@meshsdk/core";
+import { BlockfrostProvider, MeshTxBuilder } from "@meshsdk/core";
+import { MeshCardanoHeadlessWallet, AddressType } from "@meshsdk/wallet";
 
 // Connect to Hydra
 const hydraProvider = new HydraProvider({
@@ -220,7 +221,8 @@ For complete configuration options, see the <Link href="https://hydra.family/hea
 
 ```typescript
 import { HydraProvider, HydraInstance } from "@meshsdk/hydra";
-import { BlockfrostProvider, MeshWallet } from "@meshsdk/core";
+import { BlockfrostProvider } from "@meshsdk/core";
+import { MeshCardanoHeadlessWallet, AddressType } from "@meshsdk/wallet";
 
 const blockfrost = new BlockfrostProvider("<YOUR_BLOCKFROST_KEY>");
 
@@ -249,16 +251,14 @@ await hydraProvider.init();
 Set up your wallet and commit funds when the Head is initializing:
 
 ```typescript
-import { MeshWallet } from "@meshsdk/core";
+import { MeshCardanoHeadlessWallet, AddressType } from "@meshsdk/wallet";
 
-const wallet = new MeshWallet({
+const wallet = await MeshCardanoHeadlessWallet.fromCliKeys({
   networkId: 0, // testnet
+  walletAddressType: AddressType.Base,
   fetcher: blockfrost,
   submitter: blockfrost,
-  key: {
-    type: "cli",
-    payment: "credentials/alice-funds.sk",
-  },
+  paymentSkey: "credentials/alice-funds.sk",
 });
 
 // Listen for Head status changes
@@ -273,7 +273,7 @@ hydraProvider.onMessage(async (message) => {
     status.headStatus === "Initializing"
   ) {
     // Get UTxOs to commit
-    const utxos = await wallet.getUtxos();
+    const utxos = await wallet.getUtxosMesh();
     const utxo = utxos[0];
 
     // Commit funds
@@ -281,7 +281,7 @@ hydraProvider.onMessage(async (message) => {
       utxo.input.txHash,
       utxo.input.outputIndex
     );
-    const signedTx = await wallet.signTx(commitTx, true);
+    const signedTx = await wallet.signTx(commitTx, true, false);
     const txHash = await wallet.submitTx(signedTx);
 
     console.log("Committed funds:", txHash);
@@ -328,7 +328,7 @@ import { MeshTxBuilder } from "@meshsdk/core";
 const protocolParams = await hydraProvider.fetchProtocolParameters();
 
 // Get Alice's UTxOs
-const aliceAddress = await wallet.getChangeAddress();
+const aliceAddress = await wallet.getChangeAddressBech32();
 const utxos = await hydraProvider.fetchAddressUTxOs(aliceAddress);
 
 // Build the transaction
@@ -347,7 +347,7 @@ const unsignedTx = await txBuilder
   .complete();
 
 // Sign and submit
-const signedTx = await wallet.signTx(unsignedTx);
+const signedTx = await wallet.signTx(unsignedTx, false);
 const txHash = await hydraProvider.submitTx(signedTx);
 
 console.log("L2 transaction submitted:", txHash);
@@ -409,7 +409,8 @@ Here is the full workflow in a single script:
 
 ```typescript
 import { HydraProvider, HydraInstance } from "@meshsdk/hydra";
-import { BlockfrostProvider, MeshWallet, MeshTxBuilder } from "@meshsdk/core";
+import { BlockfrostProvider, MeshTxBuilder } from "@meshsdk/core";
+import { MeshCardanoHeadlessWallet, AddressType } from "@meshsdk/wallet";
 
 async function main() {
   // Setup providers
@@ -426,17 +427,15 @@ async function main() {
   });
 
   // Setup wallet
-  const wallet = new MeshWallet({
+  const wallet = await MeshCardanoHeadlessWallet.fromCliKeys({
     networkId: 0,
+    walletAddressType: AddressType.Base,
     fetcher: blockfrost,
     submitter: blockfrost,
-    key: {
-      type: "cli",
-      payment: "credentials/alice-funds.sk",
-    },
+    paymentSkey: "credentials/alice-funds.sk",
   });
 
-  const aliceAddress = await wallet.getChangeAddress();
+  const aliceAddress = await wallet.getChangeAddressBech32();
   const bobAddress = "addr_test1..."; // Bob's address
 
   // Connect to Hydra
@@ -447,12 +446,12 @@ async function main() {
     switch (message.tag) {
       case "HeadIsInitializing":
         console.log("Head initializing, committing funds...");
-        const utxos = await wallet.getUtxos();
+        const utxos = await wallet.getUtxosMesh();
         const commitTx = await instance.commitFunds(
           utxos[0].input.txHash,
           utxos[0].input.outputIndex
         );
-        const signedCommit = await wallet.signTx(commitTx, true);
+        const signedCommit = await wallet.signTx(commitTx, true, false);
         await wallet.submitTx(signedCommit);
         break;
 
@@ -476,7 +475,7 @@ async function main() {
           .setNetwork("preprod")
           .complete();
 
-        const signedTx = await wallet.signTx(unsignedTx);
+        const signedTx = await wallet.signTx(unsignedTx, false);
         await hydraProvider.submitTx(signedTx);
         break;
 

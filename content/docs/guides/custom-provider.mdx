@@ -521,11 +521,12 @@ export class CustomProvider implements IFetcher, ISubmitter {
 Use the custom provider with Mesh:
 
 ```typescript
-import { MeshTxBuilder, BrowserWallet } from "@meshsdk/core";
+import { MeshTxBuilder } from "@meshsdk/core";
+import { MeshCardanoBrowserWallet } from "@meshsdk/wallet";
 import { CustomProvider } from "./providers/custom-provider";
 
 const provider = new CustomProvider("https://your-api.com", "your-api-key");
-const wallet = await BrowserWallet.enable("eternl");
+const wallet = await MeshCardanoBrowserWallet.enable("eternl");
 
 const txBuilder = new MeshTxBuilder({
   fetcher: provider,

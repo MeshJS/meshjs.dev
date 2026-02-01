@@ -22,18 +22,19 @@ npm install @meshsdk/core
 ```
 
 ```tsx
-import { MeshTxBuilder, BlockfrostProvider, BrowserWallet } from "@meshsdk/core";
+import { MeshTxBuilder, BlockfrostProvider } from "@meshsdk/core";
+import { MeshCardanoBrowserWallet } from "@meshsdk/wallet";
 
 // Connect to a browser wallet
-const wallet = await BrowserWallet.enable("eternl");
+const wallet = await MeshCardanoBrowserWallet.enable("eternl");
 
 // Initialize provider and transaction builder
 const provider = new BlockfrostProvider("<YOUR_API_KEY>");
 const txBuilder = new MeshTxBuilder({ fetcher: provider });
 
 // Build and submit a transaction
-const utxos = await wallet.getUtxos();
-const changeAddress = await wallet.getChangeAddress();
+const utxos = await wallet.getUtxosMesh();
+const changeAddress = await wallet.getChangeAddressBech32();
 
 const unsignedTx = await txBuilder
   .txOut("addr_test1...", [{ unit: "lovelace", quantity: "5000000" }])
@@ -41,7 +42,7 @@ const unsignedTx = await txBuilder
   .selectUtxosFrom(utxos)
   .complete();
 
-const signedTx = await wallet.signTx(unsignedTx);
+const signedTx = await wallet.signTx(unsignedTx, false);
 const txHash = await wallet.submitTx(signedTx);
 ```
 
@@ -49,7 +50,7 @@ const txHash = await wallet.submitTx(signedTx);
 
 | Category | Purpose | Key Classes |
 |----------|---------|-------------|
-| [Wallets](/apis/wallets) | Connect and interact with user wallets | `BrowserWallet`, `MeshWallet` |
+| [Wallets](/apis/wallets) | Connect and interact with user wallets | `MeshCardanoBrowserWallet`, `MeshCardanoHeadlessWallet` |
 | [Transaction Builder](/apis/txbuilder) | Construct and customize transactions | `MeshTxBuilder` |
 | [Transaction Parser](/apis/txparser) | Parse and test transaction data | `MeshTxParser`, `TxTester` |
 | [Data](/apis/data) | Handle Cardano data types and conversions | `MeshValue`, JSON/Mesh formats |
@@ -61,15 +62,16 @@ Connect to browser extension wallets (CIP-30) or create server-side wallets for 
 
 ```tsx
 // Browser wallet (frontend)
-import { BrowserWallet } from "@meshsdk/core";
-const wallet = await BrowserWallet.enable("eternl");
+import { MeshCardanoBrowserWallet } from "@meshsdk/wallet";
+const wallet = await MeshCardanoBrowserWallet.enable("eternl");
 
-// Mesh wallet (backend)
-import { MeshWallet } from "@meshsdk/core";
-const wallet = new MeshWallet({
+// Headless wallet (backend)
+import { MeshCardanoHeadlessWallet, AddressType } from "@meshsdk/wallet";
+const wallet = await MeshCardanoHeadlessWallet.fromMnemonic({
   networkId: 0,
+  walletAddressType: AddressType.Base,
   fetcher: provider,
-  key: { type: "mnemonic", words: ["..."] },
+  mnemonic: ["..."],
 });
 ```
 
