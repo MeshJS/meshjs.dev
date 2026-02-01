@@ -3,12 +3,7 @@ title: "Headless Wallet"
 description: "Build server-side wallet functionality for minting, multi-signature transactions, and automated blockchain operations."
 ---
 
-`CardanoHeadlessWallet` and `MeshCardanoHeadlessWallet` provide programmatic access to wallet functionality without requiring a browser extension. Use them for minting scripts, automated transactions, multi-signature coordination, and any scenario where your application needs to sign transactions directly.
-
-| Class | Description |
-|-------|-------------|
-| `CardanoHeadlessWallet` | Low-level implementation returning raw CBOR hex |
-| `MeshCardanoHeadlessWallet` | Extended class with Mesh-friendly convenience methods |
+`MeshCardanoHeadlessWallet` provides programmatic access to wallet functionality without requiring a browser extension. Use it for minting scripts, automated transactions, multi-signature coordination, and any scenario where your application needs to sign transactions directly.
 
 ## Installation
 
@@ -114,8 +109,6 @@ walletAddressType: AddressType.Enterprise
 The most common initialization method using a BIP39 recovery phrase:
 
 ```tsx
-import { MeshCardanoHeadlessWallet, AddressType } from '@meshsdk/wallet';
-
 const wallet = await MeshCardanoHeadlessWallet.fromMnemonic({
   networkId: 0, // 0: testnet, 1: mainnet
   walletAddressType: AddressType.Base,
@@ -177,33 +170,17 @@ const wallet = await MeshCardanoHeadlessWallet.fromCredentialSources({
 });
 ```
 
-### Configuration Reference
-
-```tsx
-interface CardanoHeadlessWalletConfig {
-  addressSource: AddressSource;       // Key/credential source
-  networkId: number;                  // 0 = testnet, 1 = mainnet
-  walletAddressType: WalletAddressType; // Base or Enterprise
-  fetcher?: IFetcher;                 // For querying blockchain data
-  submitter?: ISubmitter;             // For submitting transactions
-}
-```
-
 ## Query Wallet Data
 
-### getBalance / getBalanceMesh
+### getBalanceMesh
 
 Retrieve all assets in the wallet:
 
 ```tsx
-// CBOR hex format (CardanoHeadlessWallet)
-const balanceCbor = await wallet.getBalance();
-
-// Mesh Asset format (MeshCardanoHeadlessWallet)
 const balance = await wallet.getBalanceMesh();
 ```
 
-**Response (Mesh format):**
+**Response:**
 ```tsx
 [
   { "unit": "lovelace", "quantity": "796105407" },
@@ -211,19 +188,15 @@ const balance = await wallet.getBalanceMesh();
 ]
 ```
 
-### getUtxos / getUtxosMesh
+### getUtxosMesh
 
 List all unspent transaction outputs:
 
 ```tsx
-// CBOR hex format (CardanoHeadlessWallet)
-const utxosCbor = await wallet.getUtxos();
-
-// Mesh UTxO format (MeshCardanoHeadlessWallet)
 const utxos = await wallet.getUtxosMesh();
 ```
 
-**Response (Mesh format):**
+**Response:**
 ```tsx
 [
   {
@@ -244,51 +217,35 @@ const utxos = await wallet.getUtxosMesh();
 
 ## Address Management
 
-### getChangeAddress / getChangeAddressBech32
+### getChangeAddressBech32
 
 The address where transaction change is sent:
 
 ```tsx
-// Hex format
-const changeAddressHex = await wallet.getChangeAddress();
-
-// Bech32 format (MeshCardanoHeadlessWallet)
 const changeAddress = await wallet.getChangeAddressBech32();
 ```
 
-### getUsedAddresses / getUsedAddressesBech32
+### getUsedAddressesBech32
 
 Addresses that have received transactions:
 
 ```tsx
-// Hex format
-const usedAddressesHex = await wallet.getUsedAddresses();
-
-// Bech32 format (MeshCardanoHeadlessWallet)
 const usedAddresses = await wallet.getUsedAddressesBech32();
 ```
 
-### getUnusedAddresses / getUnusedAddressesBech32
+### getUnusedAddressesBech32
 
 Fresh addresses for new transactions:
 
 ```tsx
-// Hex format
-const unusedAddressesHex = await wallet.getUnusedAddresses();
-
-// Bech32 format (MeshCardanoHeadlessWallet)
 const unusedAddresses = await wallet.getUnusedAddressesBech32();
 ```
 
-### getRewardAddresses / getRewardAddressesBech32
+### getRewardAddressesBech32
 
 Stake addresses for staking rewards:
 
 ```tsx
-// Hex format
-const rewardAddressesHex = await wallet.getRewardAddresses();
-
-// Bech32 format (MeshCardanoHeadlessWallet)
 const rewardAddresses = await wallet.getRewardAddressesBech32();
 // ["stake_test1uzx0ksy9f4qnj2mzfdncqyjy84sszh64w43853nug5pedjgytgke9"]
 ```
@@ -317,7 +274,7 @@ const witnessSet = await wallet.signTx(unsignedTx, true);
 
 > **Note:** This method requires a fetcher to resolve input UTxOs for determining required signers.
 
-### signTxReturnFullTx (MeshCardanoHeadlessWallet)
+### signTxReturnFullTx
 
 Sign a transaction and return the full signed transaction with witnesses merged:
 
@@ -357,15 +314,11 @@ Verify signatures using the [wallet ownership guide](https://meshjs.dev/guides/p
 
 ## Collateral Management
 
-### getCollateral / getCollateralMesh
+### getCollateralMesh
 
 Retrieve UTXOs suitable for Plutus script collateral:
 
 ```tsx
-// CBOR hex format
-const collateralCbor = await wallet.getCollateral();
-
-// Mesh UTxO format (MeshCardanoHeadlessWallet)
 const collateral = await wallet.getCollateralMesh();
 ```
 
@@ -383,49 +336,40 @@ This is useful for getting UTxOs in the native Mesh format without CBOR conversi
 
 ## API Reference
 
-### CardanoHeadlessWallet (Base Class)
-
 | Method | Returns | Description |
 |--------|---------|-------------|
-| `create(config)` | `Promise<CardanoHeadlessWallet>` | Static - Create from config |
-| `fromMnemonic(config)` | `Promise<CardanoHeadlessWallet>` | Static - Create from mnemonic |
-| `fromBip32Root(config)` | `Promise<CardanoHeadlessWallet>` | Static - Create from bech32 key |
-| `fromBip32RootHex(config)` | `Promise<CardanoHeadlessWallet>` | Static - Create from hex key |
-| `fromCredentialSources(config)` | `Promise<CardanoHeadlessWallet>` | Static - Create from credentials |
+| `create(config)` | `Promise<MeshCardanoHeadlessWallet>` | Static - Create from config |
+| `fromMnemonic(config)` | `Promise<MeshCardanoHeadlessWallet>` | Static - Create from mnemonic |
+| `fromBip32Root(config)` | `Promise<MeshCardanoHeadlessWallet>` | Static - Create from bech32 key |
+| `fromBip32RootHex(config)` | `Promise<MeshCardanoHeadlessWallet>` | Static - Create from hex key |
+| `fromCredentialSources(config)` | `Promise<MeshCardanoHeadlessWallet>` | Static - Create from credentials |
 | `getNetworkId()` | `Promise<number>` | Network ID (0=testnet, 1=mainnet) |
-| `getUtxos()` | `Promise<string[]>` | UTXOs in CBOR hex |
-| `getCollateral()` | `Promise<string[]>` | Collateral UTXOs in CBOR hex |
-| `getBalance()` | `Promise<string>` | Balance in CBOR hex |
-| `getUsedAddresses()` | `Promise<string[]>` | Used addresses in hex |
-| `getUnusedAddresses()` | `Promise<string[]>` | Unused addresses in hex |
-| `getChangeAddress()` | `Promise<string>` | Change address in hex |
-| `getRewardAddresses()` | `Promise<string[]>` | Reward addresses in hex |
+| `getUtxos()` | `Promise<string[]>` | UTXOs in CBOR hex format |
+| `getUtxosMesh()` | `Promise<UTxO[]>` | UTXOs in Mesh format |
+| `getCollateral()` | `Promise<string[]>` | Collateral UTXOs in CBOR hex format |
+| `getCollateralMesh()` | `Promise<UTxO[]>` | Collateral UTXOs in Mesh format |
+| `getBalance()` | `Promise<string>` | Balance in CBOR hex format |
+| `getBalanceMesh()` | `Promise<Asset[]>` | Balance as Asset array |
+| `getUsedAddresses()` | `Promise<string[]>` | Used addresses in hex format |
+| `getUsedAddressesBech32()` | `Promise<string[]>` | Used addresses in Bech32 |
+| `getUnusedAddresses()` | `Promise<string[]>` | Unused addresses in hex format |
+| `getUnusedAddressesBech32()` | `Promise<string[]>` | Unused addresses in Bech32 |
+| `getChangeAddress()` | `Promise<string>` | Change address in hex format |
+| `getChangeAddressBech32()` | `Promise<string>` | Change address in Bech32 |
+| `getRewardAddresses()` | `Promise<string[]>` | Reward addresses in hex format |
+| `getRewardAddressesBech32()` | `Promise<string[]>` | Reward addresses in Bech32 |
 | `signTx(tx, partialSign)` | `Promise<string>` | Sign transaction |
+| `signTxReturnFullTx(tx, partialSign)` | `Promise<string>` | Sign and return full transaction |
 | `signData(address, data)` | `Promise<DataSignature>` | Sign arbitrary data |
 | `submitTx(tx)` | `Promise<string>` | Submit transaction |
 | `fetchAccountUtxos()` | `Promise<UTxO[]>` | Fetch UTxOs directly |
-
-### MeshCardanoHeadlessWallet (Extended Class)
-
-Inherits all methods from `CardanoHeadlessWallet` plus:
-
-| Method | Returns | Description |
-|--------|---------|-------------|
-| `getUtxosMesh()` | `Promise<UTxO[]>` | UTXOs in Mesh format |
-| `getCollateralMesh()` | `Promise<UTxO[]>` | Collateral in Mesh format |
-| `getBalanceMesh()` | `Promise<Asset[]>` | Balance as Asset array |
-| `getUsedAddressesBech32()` | `Promise<string[]>` | Used addresses in Bech32 |
-| `getUnusedAddressesBech32()` | `Promise<string[]>` | Unused addresses in Bech32 |
-| `getChangeAddressBech32()` | `Promise<string>` | Change address in Bech32 |
-| `getRewardAddressesBech32()` | `Promise<string[]>` | Reward addresses in Bech32 |
-| `signTxReturnFullTx(tx, partialSign)` | `Promise<string>` | Sign and return full transaction |
 
 ## Important Notes
 
 ### Stateless Design
 
 The headless wallet is stateless and does not track:
-- Which UTxOs are set as collateral (overlap possible between `getUtxos()` and `getCollateral()`)
+- Which UTxOs are set as collateral (overlap possible between `getUtxosMesh()` and `getCollateralMesh()`)
 - Which addresses have been previously used
 - Address derivation history
 
@@ -434,9 +378,9 @@ This makes it effective as a **single-address wallet**.
 ### Fetcher Requirement
 
 Many operations require a fetcher:
-- `getUtxos()` / `getUtxosMesh()`
-- `getBalance()` / `getBalanceMesh()`
-- `getCollateral()` / `getCollateralMesh()`
+- `getUtxosMesh()`
+- `getBalanceMesh()`
+- `getCollateralMesh()`
 - `signTx()` - needs to resolve input UTxOs for determining required signers
 
 ### Submitter Requirement
@@ -475,7 +419,6 @@ Key changes:
 - Use factory methods instead of constructor
 - Specify `walletAddressType` (Base or Enterprise)
 - No `init()` call needed
-- Methods like `getBalance()` return CBOR hex; use `getBalanceMesh()` for Mesh format
 
 ## Related Resources
 

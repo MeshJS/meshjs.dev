@@ -7,14 +7,9 @@ import Link from "fumadocs-core/link";
 
 ## Overview
 
-`CardanoBrowserWallet` and `MeshCardanoBrowserWallet` enable your dApp to connect with users' browser extension wallets following the [CIP-30](https://cips.cardano.org/cip/CIP-30) standard. This provides a consistent interface for wallet discovery, connection, transaction signing, and data queries across all compatible wallets.
+`MeshCardanoBrowserWallet` enables your dApp to connect with users' browser extension wallets following the [CIP-30](https://cips.cardano.org/cip/CIP-30) standard. This provides a consistent interface for wallet discovery, connection, transaction signing, and data queries across all compatible wallets.
 
 **Supported wallets include:** Eternl, Nami, Lace, Flint, Typhon, GeroWallet, and any CIP-30 compliant wallet.
-
-| Class | Description |
-|-------|-------------|
-| `CardanoBrowserWallet` | Low-level CIP-30 implementation returning raw CBOR hex |
-| `MeshCardanoBrowserWallet` | Extended class with Mesh-friendly convenience methods |
 
 ## Quick Start
 
@@ -27,10 +22,10 @@ const wallets = MeshCardanoBrowserWallet.getInstalledWallets();
 // 2. Connect to a wallet
 const wallet = await MeshCardanoBrowserWallet.enable("eternl");
 
-// 3. Get wallet balance (Mesh format)
+// 3. Get wallet balance
 const balance = await wallet.getBalanceMesh();
 
-// 4. Get wallet address (Bech32 format)
+// 4. Get wallet address
 const address = await wallet.getChangeAddressBech32();
 ```
 
@@ -41,9 +36,7 @@ const address = await wallet.getChangeAddressBech32();
 Retrieve all CIP-30 compatible wallets installed on the user's device.
 
 ```tsx
-import { CardanoBrowserWallet } from "@meshsdk/wallet";
-
-const wallets = CardanoBrowserWallet.getInstalledWallets();
+const wallets = MeshCardanoBrowserWallet.getInstalledWallets();
 ```
 
 **Returns:**
@@ -79,8 +72,6 @@ const wallets = CardanoBrowserWallet.getInstalledWallets();
 Connect to a specific wallet. This prompts the user to grant permission.
 
 ```tsx
-import { MeshCardanoBrowserWallet } from "@meshsdk/wallet";
-
 const wallet = await MeshCardanoBrowserWallet.enable("eternl");
 ```
 
@@ -109,78 +100,58 @@ const networkId = await wallet.getNetworkId();
 
 ---
 
-### getChangeAddress / getChangeAddressBech32
+### getChangeAddressBech32
 
 Get the address where transaction change should be sent.
 
 ```tsx
-// Raw hex format (CardanoBrowserWallet)
-const changeAddressHex = await wallet.getChangeAddress();
-
-// Bech32 format (MeshCardanoBrowserWallet)
 const changeAddress = await wallet.getChangeAddressBech32();
 // "addr_test1qz..."
 ```
 
 ---
 
-### getUsedAddresses / getUsedAddressesBech32
+### getUsedAddressesBech32
 
 Get all addresses that have received funds.
 
 ```tsx
-// Raw hex format
-const usedAddressesHex = await wallet.getUsedAddresses();
-
-// Bech32 format (MeshCardanoBrowserWallet)
 const usedAddresses = await wallet.getUsedAddressesBech32();
 // ["addr_test1qz...", "addr_test1qr..."]
 ```
 
 ---
 
-### getUnusedAddresses / getUnusedAddressesBech32
+### getUnusedAddressesBech32
 
 Get addresses that have never received funds.
 
 ```tsx
-// Raw hex format
-const unusedAddressesHex = await wallet.getUnusedAddresses();
-
-// Bech32 format (MeshCardanoBrowserWallet)
 const unusedAddresses = await wallet.getUnusedAddressesBech32();
 ```
 
 ---
 
-### getRewardAddresses / getRewardAddressesBech32
+### getRewardAddressesBech32
 
 Get stake addresses associated with the wallet.
 
 ```tsx
-// Raw hex format
-const rewardAddressesHex = await wallet.getRewardAddresses();
-
-// Bech32 format (MeshCardanoBrowserWallet)
 const stakeAddresses = await wallet.getRewardAddressesBech32();
 // ["stake_test1uz..."]
 ```
 
 ## Balance & Assets
 
-### getBalance / getBalanceMesh
+### getBalanceMesh
 
 Get the complete balance including ADA and all native assets.
 
 ```tsx
-// CBOR hex format (CardanoBrowserWallet)
-const balanceCbor = await wallet.getBalance();
-
-// Mesh Asset format (MeshCardanoBrowserWallet)
 const balance = await wallet.getBalanceMesh();
 ```
 
-**Returns (Mesh format):**
+**Returns:**
 
 ```tsx
 [
@@ -191,19 +162,15 @@ const balance = await wallet.getBalanceMesh();
 
 ## UTXOs & Collateral
 
-### getUtxos / getUtxosMesh
+### getUtxosMesh
 
 Get all unspent transaction outputs controlled by the wallet.
 
 ```tsx
-// CBOR hex format (CardanoBrowserWallet)
-const utxosCbor = await wallet.getUtxos();
-
-// Mesh UTxO format (MeshCardanoBrowserWallet)
 const utxos = await wallet.getUtxosMesh();
 ```
 
-**Returns (Mesh format):**
+**Returns:**
 
 ```tsx
 [
@@ -225,15 +192,11 @@ const utxos = await wallet.getUtxosMesh();
 
 ---
 
-### getCollateral / getCollateralMesh
+### getCollateralMesh
 
 Get UTXOs suitable for use as collateral in Plutus script transactions.
 
 ```tsx
-// CBOR hex format (CardanoBrowserWallet)
-const collateralCbor = await wallet.getCollateral();
-
-// Mesh UTxO format (MeshCardanoBrowserWallet)
 const collateral = await wallet.getCollateralMesh();
 ```
 
@@ -260,7 +223,7 @@ const witnessSet = await wallet.signTx(unsignedTx, true);
 
 ---
 
-### signTxReturnFullTx (MeshCardanoBrowserWallet)
+### signTxReturnFullTx
 
 Sign a transaction and return the full signed transaction with witnesses merged.
 
@@ -288,6 +251,7 @@ const txHash = await wallet.submitTx(signedTx);
 Sign arbitrary data using CIP-8 message signing. Useful for authentication and proof of wallet ownership.
 
 ```tsx
+const address = await wallet.getChangeAddressBech32();
 const signature = await wallet.signData(address, "Hello, Mesh!");
 ```
 
@@ -372,38 +336,29 @@ See <Link href="/react/getting-started">React Getting Started</Link> for full in
 
 ## API Reference
 
-### CardanoBrowserWallet (Base Class)
-
 | Method | Returns | Description |
 |--------|---------|-------------|
 | `getInstalledWallets()` | `Wallet[]` | Static - Get installed wallets |
-| `enable(walletName, extensions?)` | `Promise<ICardanoWallet>` | Static - Connect to wallet |
+| `enable(walletName, extensions?)` | `Promise<MeshCardanoBrowserWallet>` | Static - Connect to wallet |
 | `getNetworkId()` | `Promise<number>` | Network ID (0=testnet, 1=mainnet) |
-| `getUtxos()` | `Promise<string[]>` | UTXOs in CBOR hex |
-| `getCollateral()` | `Promise<string[]>` | Collateral UTXOs in CBOR hex |
-| `getBalance()` | `Promise<string>` | Balance in CBOR hex |
-| `getUsedAddresses()` | `Promise<string[]>` | Used addresses in hex |
-| `getUnusedAddresses()` | `Promise<string[]>` | Unused addresses in hex |
-| `getChangeAddress()` | `Promise<string>` | Change address in hex |
-| `getRewardAddresses()` | `Promise<string[]>` | Reward addresses in hex |
+| `getUtxos()` | `Promise<string[]>` | UTXOs in CBOR hex format |
+| `getUtxosMesh()` | `Promise<UTxO[]>` | UTXOs in Mesh format |
+| `getCollateral()` | `Promise<string[]>` | Collateral UTXOs in CBOR hex format |
+| `getCollateralMesh()` | `Promise<UTxO[]>` | Collateral UTXOs in Mesh format |
+| `getBalance()` | `Promise<string>` | Balance in CBOR hex format |
+| `getBalanceMesh()` | `Promise<Asset[]>` | Balance as Asset array |
+| `getUsedAddresses()` | `Promise<string[]>` | Used addresses in hex format |
+| `getUsedAddressesBech32()` | `Promise<string[]>` | Used addresses in Bech32 |
+| `getUnusedAddresses()` | `Promise<string[]>` | Unused addresses in hex format |
+| `getUnusedAddressesBech32()` | `Promise<string[]>` | Unused addresses in Bech32 |
+| `getChangeAddress()` | `Promise<string>` | Change address in hex format |
+| `getChangeAddressBech32()` | `Promise<string>` | Change address in Bech32 |
+| `getRewardAddresses()` | `Promise<string[]>` | Reward addresses in hex format |
+| `getRewardAddressesBech32()` | `Promise<string[]>` | Reward addresses in Bech32 |
 | `signTx(tx, partialSign)` | `Promise<string>` | Sign transaction, return witness set |
+| `signTxReturnFullTx(tx, partialSign)` | `Promise<string>` | Sign and return full transaction |
 | `signData(address, data)` | `Promise<DataSignature>` | Sign arbitrary data |
 | `submitTx(tx)` | `Promise<string>` | Submit transaction |
-
-### MeshCardanoBrowserWallet (Extended Class)
-
-Inherits all methods from `CardanoBrowserWallet` plus:
-
-| Method | Returns | Description |
-|--------|---------|-------------|
-| `getUtxosMesh()` | `Promise<UTxO[]>` | UTXOs in Mesh format |
-| `getCollateralMesh()` | `Promise<UTxO[]>` | Collateral in Mesh format |
-| `getBalanceMesh()` | `Promise<Asset[]>` | Balance as Asset array |
-| `getUsedAddressesBech32()` | `Promise<string[]>` | Used addresses in Bech32 |
-| `getUnusedAddressesBech32()` | `Promise<string[]>` | Unused addresses in Bech32 |
-| `getChangeAddressBech32()` | `Promise<string>` | Change address in Bech32 |
-| `getRewardAddressesBech32()` | `Promise<string[]>` | Reward addresses in Bech32 |
-| `signTxReturnFullTx(tx, partialSign)` | `Promise<string>` | Sign and return full transaction |
 
 ## Troubleshooting
 
