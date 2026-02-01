@@ -1,7 +1,8 @@
 ---
-title: "How to Deploy Cardano dApps to Production"
-description: "Security best practices, deployment checklists, and error handling for production Cardano dApp development with the Mesh TypeScript blockchain SDK."
+title: "Deploy Cardano dApps to Production"
+description: "Security best practices, deployment checklists, and error handling for production Cardano dApps with Mesh SDK."
 ---
+
 import Link from "fumadocs-core/link";
 import { HowToSchema } from "@/components/seo";
 
@@ -10,96 +11,179 @@ import { HowToSchema } from "@/components/seo";
   description="Comprehensive checklist for deploying secure, reliable Cardano dApps to production environments."
   totalTime="PT90M"
   steps={[
-    { name: "Secure private keys", text: "Use browser wallets for user keys, isolate server-side signing, implement audit logging." },
-    { name: "Validate transactions", text: "Check amount bounds, address formats, asset verification, and metadata limits." },
-    { name: "Audit smart contracts", text: "Have contracts professionally audited, test thoroughly with TxTester and testnets." },
-    { name: "Protect API keys", text: "Proxy blockchain requests through backend, implement rate limiting, rotate keys periodically." },
-    { name: "Configure providers", text: "Set up primary and fallback providers with health checks for redundancy." },
-    { name: "Implement error handling", text: "Handle transaction failures gracefully, manage UTxO contention, implement provider failover." },
-    { name: "Set up monitoring", text: "Track transaction metrics, user metrics, and infrastructure metrics with alerting." }
+    { name: "Secure private keys", text: "Use browser wallets for users, isolate server-side signing." },
+    { name: "Validate transactions", text: "Check amounts, addresses, and metadata before building." },
+    { name: "Configure providers", text: "Set up primary and fallback providers with health checks." },
+    { name: "Implement error handling", text: "Handle failures gracefully with user-friendly messages." },
+    { name: "Set up monitoring", text: "Track transaction metrics and infrastructure health." }
   ]}
 />
 
-Deploying Cardano dApps to production requires careful attention to security, reliability, and user experience. This guide covers essential practices for enterprise-grade Cardano dApp development and JavaScript Web3 deployment—from private key management to monitoring and disaster recovery using the Mesh Cardano SDK.
+## Overview
 
-## What Are the Security Best Practices?
+Deploying Cardano dApps to production requires attention to security, reliability, and user experience. This guide covers essential practices for enterprise-grade deployments.
+
+### What you will learn
+
+- Private key management best practices
+- Transaction validation patterns
+- Provider configuration and failover
+- Error handling strategies
+- Monitoring and alerting setup
+
+### Prerequisites
+
+- A working Cardano dApp (see <Link href="/guides/nextjs">Next.js guide</Link>)
+- Basic understanding of deployment environments
+- Access to production infrastructure
+
+### Time to complete
+
+90 minutes to review and implement
+
+## Security Best Practices
 
 ### Private Key Management
 
-Never expose private keys in client-side code. For production applications:
+**Never expose private keys in client-side code.** For production applications:
 
-**Browser wallets only** - Let users manage their own keys through wallet extensions. The Mesh Cardano SDK's `BrowserWallet` class handles CIP-30 wallet connections securely without your application touching private keys.
+**Browser wallets for users:**
 
-**Server-side signing** - When your application must sign transactions (automated systems, treasury management), isolate signing in secure backend services:
+Let users manage their own keys through wallet extensions. The `BrowserWallet` class handles CIP-30 wallet connections without your application touching private keys:
 
-- Use environment variables or secret management services for keys
-- Run signing services in isolated network segments
-- Implement audit logging for all signing operations
-- Consider hardware security modules (HSMs) for high-value operations
+```typescript
+import { BrowserWallet } from "@meshsdk/core";
+
+// User controls their own keys
+const wallet = await BrowserWallet.enable("eternl");
+const signedTx = await wallet.signTx(unsignedTx);
+```
+
+**Server-side signing:**
+
+When your application must sign transactions (automated systems, treasury):
+
+```typescript
+// Store mnemonic in environment variables or secret manager
+const mnemonic = process.env.TREASURY_MNEMONIC;
+
+// Never log or expose the mnemonic
+const wallet = new MeshWallet({
+  networkId: 1,
+  fetcher: provider,
+  submitter: provider,
+  key: {
+    type: "mnemonic",
+    words: mnemonic.split(" "),
+  },
+});
+```
+
+**Security checklist:**
+
+- [ ] Use environment variables for credentials
+- [ ] Run signing services in isolated network segments
+- [ ] Implement audit logging for all signing operations
+- [ ] Consider hardware security modules (HSMs) for high-value operations
+- [ ] Rotate keys periodically
 
 ### Transaction Validation
 
-Validate all transaction parameters before building:
+Validate all parameters before building transactions:
 
-- **Amount bounds** — Check that values are positive and within expected ranges
-- **Address format** — Validate recipient addresses before sending funds
-- **Asset verification** — Confirm policy IDs and asset names match expectations
-- **Metadata limits** — Ensure metadata fits within protocol limits
+```typescript
+function validateTransaction(params: {
+  recipient: string;
+  amount: string;
+}) {
+  // Check amount is positive and within bounds
+  const lovelace = BigInt(params.amount);
+  if (lovelace <= 0n) {
+    throw new Error("Amount must be positive");
+  }
+  if (lovelace > 45_000_000_000_000_000n) {
+    throw new Error("Amount exceeds maximum supply");
+  }
 
-### Smart Contract Security
+  // Validate address format
+  if (!params.recipient.startsWith("addr")) {
+    throw new Error("Invalid Cardano address");
+  }
 
-For applications interacting with Cardano smart contracts:
-
-- **Audit contracts** — Have Cardano smart contracts professionally audited before mainnet deployment
-- **Test thoroughly** — Use the Mesh SDK's `TxTester` and testnet deployments
-- **Validate datums** — Check datum structure matches contract expectations
-- **Monitor contracts** — Track contract interactions post-deployment
+  // Check minimum UTxO requirement
+  if (lovelace < 1_000_000n) {
+    throw new Error("Amount below minimum UTxO");
+  }
+}
+```
 
 ### API Key Protection
 
 Never expose provider API keys in client-side code:
 
-- Proxy blockchain requests through your backend
-- Implement rate limiting to prevent abuse
-- Use separate API keys for development and production
-- Rotate keys periodically and after any potential exposure
+```typescript
+// BAD: Key exposed in browser bundle
+const provider = new BlockfrostProvider("proj_live_abc123");
 
-## What Should Your Deployment Checklist Include?
+// GOOD: Proxy through your backend
+const response = await fetch("/api/blockchain/utxos", {
+  method: "POST",
+  body: JSON.stringify({ address }),
+});
+```
 
-### Pre-Launch
+**API route example:**
 
-**Infrastructure:**
-- [ ] Provider API keys stored securely (not in client bundle)
-- [ ] Backend proxy configured for blockchain queries
-- [ ] Rate limiting implemented for API endpoints
-- [ ] Error monitoring and alerting configured
-- [ ] Load testing completed for expected traffic
+```typescript
+// app/api/blockchain/utxos/route.ts
+import { BlockfrostProvider } from "@meshsdk/core";
 
-**Smart Contracts:**
-- [ ] Contracts audited by independent party
-- [ ] Testnet deployment validated thoroughly
-- [ ] Contract addresses verified on mainnet
-- [ ] Reference scripts deployed if used
-- [ ] Monitoring configured for contract interactions
+const provider = new BlockfrostProvider(process.env.BLOCKFROST_KEY!);
 
-**Application:**
-- [ ] All console.log statements removed from production build
-- [ ] Source maps disabled or properly secured
-- [ ] CSP headers configured appropriately
-- [ ] HTTPS enforced with valid certificates
-- [ ] Input validation comprehensive
+export async function POST(request: Request) {
+  const { address } = await request.json();
+  const utxos = await provider.fetchAddressUTxOs(address);
+  return Response.json(utxos);
+}
+```
 
-### Network Configuration
+## Deployment Checklist
 
-**Provider Selection:**
+### Pre-Launch Infrastructure
 
-For production applications, configure provider redundancy:
+| Task | Status |
+|------|--------|
+| Provider API keys stored securely (not in client bundle) | [ ] |
+| Backend proxy configured for blockchain queries | [ ] |
+| Rate limiting implemented on API endpoints | [ ] |
+| Error monitoring and alerting configured | [ ] |
+| Load testing completed for expected traffic | [ ] |
 
-- Primary provider for normal operations
-- Fallback provider for outages
-- Health checks to detect provider issues
+### Smart Contracts
 
-Consider provider characteristics:
+| Task | Status |
+|------|--------|
+| Contracts audited by independent party | [ ] |
+| Testnet deployment validated thoroughly | [ ] |
+| Contract addresses verified on mainnet | [ ] |
+| Reference scripts deployed if used | [ ] |
+| Monitoring configured for contract interactions | [ ] |
+
+### Application
+
+| Task | Status |
+|------|--------|
+| Console.log statements removed from production build | [ ] |
+| Source maps disabled or properly secured | [ ] |
+| CSP headers configured appropriately | [ ] |
+| HTTPS enforced with valid certificates | [ ] |
+| Input validation comprehensive | [ ] |
+
+## Provider Configuration
+
+### Provider Selection
+
+For production applications, consider:
 
 | Provider | Strength | Consideration |
 |----------|----------|---------------|
@@ -108,91 +192,175 @@ Consider provider characteristics:
 | Maestro | Rich data, marketplace support | Enterprise pricing |
 | Self-hosted Ogmios | Full control, no rate limits | Infrastructure overhead |
 
-**Network Selection:**
+### Provider Failover
 
-- **Preview** — Testing new features, unstable
-- **Preprod** — Production-like testing, recommended for staging
-- **Mainnet** — Production deployment
+Implement automatic failover when providers fail:
 
-## How Should You Handle Errors?
+```typescript
+class ResilientProvider implements IFetcher {
+  private providers: IFetcher[];
+  private currentIndex = 0;
+
+  constructor(providers: IFetcher[]) {
+    this.providers = providers;
+  }
+
+  async fetchAddressUTxOs(address: string, asset?: string) {
+    for (let attempt = 0; attempt < this.providers.length; attempt++) {
+      try {
+        const index = (this.currentIndex + attempt) % this.providers.length;
+        return await this.providers[index].fetchAddressUTxOs(address, asset);
+      } catch (error) {
+        console.warn(`Provider ${attempt} failed, trying next`);
+      }
+    }
+    throw new Error("All providers failed");
+  }
+
+  // Implement other IFetcher methods similarly
+}
+
+// Usage
+const provider = new ResilientProvider([
+  new BlockfrostProvider(process.env.BLOCKFROST_KEY!),
+  new KoiosProvider("mainnet"),
+]);
+```
+
+### Network Selection
+
+| Network | Use Case |
+|---------|----------|
+| Preview | Testing new features, unstable |
+| Preprod | Production-like testing, staging |
+| Mainnet | Production deployment |
+
+## Error Handling
 
 ### Transaction Failures
 
-Handle transaction failures gracefully:
+Handle failures gracefully with user-friendly messages:
 
-**Validation errors** - Catch before submission:
-- Insufficient funds for transaction
-- Invalid addresses
-- Missing required UTxOs
-- Script validation failures
+```typescript
+async function submitTransaction(unsignedTx: string) {
+  try {
+    const signedTx = await wallet.signTx(unsignedTx);
+    const txHash = await wallet.submitTx(signedTx);
+    return { success: true, txHash };
+  } catch (error: any) {
+    // Parse and categorize errors
+    if (error.message.includes("INSUFFICIENT_FUNDS")) {
+      return {
+        success: false,
+        error: "Insufficient funds. Please add more ADA to your wallet.",
+      };
+    }
 
-**Submission errors** - Handle post-validation:
-- Network connectivity issues
-- Provider rate limiting
-- UTxO contention (already spent)
-- Mempool congestion
+    if (error.message.includes("UTXO_ALREADY_SPENT")) {
+      return {
+        success: false,
+        error: "Transaction conflict. Please try again.",
+      };
+    }
 
-**User communication:**
-- Display clear error messages, not technical stack traces
-- Provide actionable next steps (retry, check wallet, etc.)
-- Log technical details for debugging without exposing to users
+    if (error.message.includes("User rejected")) {
+      return {
+        success: false,
+        error: "Transaction cancelled.",
+      };
+    }
+
+    // Log technical details for debugging
+    console.error("Transaction failed:", error);
+
+    return {
+      success: false,
+      error: "Transaction failed. Please try again later.",
+    };
+  }
+}
+```
 
 ### UTxO Contention
 
 In high-traffic applications, UTxOs may be spent between query and submission:
 
-**Detection** - Watch for "UTxO already spent" errors
+```typescript
+async function buildWithRetry(
+  buildFn: () => Promise<string>,
+  maxRetries = 3
+) {
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      return await buildFn();
+    } catch (error: any) {
+      if (
+        error.message.includes("UTXO_ALREADY_SPENT") &&
+        attempt < maxRetries - 1
+      ) {
+        // Wait briefly and retry with fresh UTxOs
+        await new Promise((r) => setTimeout(r, 1000 * (attempt + 1)));
+        continue;
+      }
+      throw error;
+    }
+  }
+}
+```
 
-**Prevention strategies:**
-- Minimize time between UTxO query and transaction submission
-- Implement optimistic locking in backend services
-- Use queue systems for sequential transaction building
-- Design smart contracts to minimize UTxO contention
-
-### Provider Failover
-
-Implement automatic failover when providers fail:
-
-**Health monitoring:**
-- Track response times and error rates
-- Set thresholds for failover triggering
-- Alert on sustained provider issues
-
-**Failover logic:**
-- Maintain multiple provider configurations
-- Switch to backup on primary failure
-- Auto-recover to primary when healthy
-
-## How Do You Optimize Performance?
+## Performance Optimization
 
 ### Bundle Size
 
 Minimize client bundle size:
 
-- Import specific modules rather than entire packages
-- Use tree shaking in your build configuration
-- Lazy load Mesh components not needed at initial page load
-- Consider code splitting for wallet-specific features
+```typescript
+// Import specific functions instead of entire package
+import { MeshTxBuilder, BlockfrostProvider } from "@meshsdk/core";
 
-### Caching Strategies
+// Use dynamic imports for wallet-specific features
+const ConnectWallet = dynamic(() => import("./ConnectWallet"), {
+  ssr: false,
+});
+```
+
+### Caching
 
 Reduce redundant blockchain queries:
 
-- Cache UTxO queries with short TTL (5-30 seconds)
-- Cache protocol parameters longer (update epoch boundaries)
-- Cache resolved metadata (CIP-25 NFT metadata)
-- Invalidate caches on transaction submission
+```typescript
+class CachedProvider implements IFetcher {
+  private provider: IFetcher;
+  private cache = new Map<string, { data: any; expiry: number }>();
 
-### Transaction Optimization
+  constructor(provider: IFetcher) {
+    this.provider = provider;
+  }
 
-Build efficient transactions:
+  async fetchProtocolParameters(epoch?: number) {
+    const cacheKey = `protocol-${epoch || "current"}`;
+    const cached = this.cache.get(cacheKey);
 
-- Batch multiple outputs in single transactions when possible
-- Use reference scripts to reduce transaction size
-- Minimize datum sizes in smart contract interactions
-- Consider inline datums for frequently accessed data
+    if (cached && cached.expiry > Date.now()) {
+      return cached.data;
+    }
 
-## What Should You Monitor?
+    const data = await this.provider.fetchProtocolParameters(epoch);
+
+    // Cache for 1 hour (protocol params rarely change)
+    this.cache.set(cacheKey, {
+      data,
+      expiry: Date.now() + 3600000,
+    });
+
+    return data;
+  }
+
+  // Implement other methods with appropriate cache TTLs
+}
+```
+
+## Monitoring
 
 ### Key Metrics
 
@@ -218,67 +386,49 @@ Track these metrics for production dApps:
 
 Configure alerts for:
 
-- Sustained transaction failure rates above threshold
-- Provider connectivity issues
+- Sustained transaction failure rates above 5%
+- Provider connectivity issues lasting > 1 minute
 - Smart contract interaction anomalies
-- Unusual transaction patterns (potential attacks)
+- Unusual transaction patterns
 
-### Logging
+## Next Steps
 
-Structure logs for analysis:
+- <Link href="/providers">Configure providers</Link> for your deployment
+- <Link href="/guides/aiken">Review smart contract security</Link>
+- <Link href="https://discord.gg/dH48jH3BKa">Join the community</Link> for support
 
-- Include correlation IDs for transaction flows
-- Log transaction hashes for blockchain correlation
-- Avoid logging sensitive data (addresses may be semi-sensitive)
-- Retain logs for compliance requirements
+## Troubleshooting
 
-## What Are the Compliance Requirements?
+### Transactions timing out
 
-For enterprise Cardano dApp deployments, consider:
+**Cause:** Network congestion or provider issues.
 
-**Regulatory:**
-- Know Your Customer (KYC) requirements
-- Anti-Money Laundering (AML) monitoring
-- Geographic restrictions on services
-- Tax reporting obligations
+**Solution:** Implement longer timeouts and retry logic. Consider using multiple providers for redundancy.
 
-**Data protection:**
-- GDPR compliance for EU users
-- Data retention policies
-- User consent mechanisms
-- Right to deletion implementation
+### Wallet connection failing in production
 
-**Audit trails:**
-- Transaction logging for compliance review
-- Access control documentation
-- Change management records
+**Cause:** CSP headers blocking wallet extension communication.
 
-## How Do You Plan for Disaster Recovery?
+**Solution:** Configure Content Security Policy to allow wallet connections:
 
-### Backup Strategies
+```javascript
+// next.config.js
+const securityHeaders = [
+  {
+    key: "Content-Security-Policy",
+    value: "default-src 'self'; script-src 'self' 'unsafe-eval';",
+  },
+];
+```
 
-Maintain recovery capabilities:
+### Rate limiting errors
 
-- Document all deployed contract addresses
-- Backup parameterized script configurations
-- Store reference script deployment information
-- Document provider configurations
+**Cause:** Exceeding provider API limits.
 
-### Incident Response
+**Solution:** Implement request queuing, caching, or upgrade to a higher tier. Consider self-hosted options for high-traffic applications.
 
-Prepare for security incidents:
+## Related Links
 
-- Define escalation procedures
-- Document emergency contact information
-- Prepare communication templates for users
-- Test recovery procedures periodically
-
-## What Should You Do Next?
-
-After completing this checklist:
-
-- <Link href="/providers">Configure providers</Link> for your deployment environment
-- <Link href="/guides/aiken">Review smart contract best practices</Link> if using Plutus
-- <Link href="https://discord.gg/dH48jH3BKa">Join the community</Link> for ongoing support
-
-Production deployment is an iterative process. Monitor your application closely post-launch and refine based on real-world usage patterns.
+- <Link href="/providers">Blockchain Providers</Link>
+- <Link href="/guides/aiken">Smart Contract Security</Link>
+- <Link href="https://discord.gg/dH48jH3BKa">Mesh Discord Community</Link>

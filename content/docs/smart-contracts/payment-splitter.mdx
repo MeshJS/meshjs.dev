@@ -1,40 +1,47 @@
 ---
 title: "Payment Splitter"
-description: "Split payouts equally among a list of specified payees"
+description: "Automatically split payments equally among multiple recipients"
 ---
-import Link from "fumadocs-core/link";
 
-A payment splitter can be used for example to create a shared project donation address, ensuring that all payees receive the same amount
+import Link from "next/link";
 
-Sending lovelace to the contract works similarly to sending lovelace to any other address. The payout transaction can only be submitted by one of the payees, and the output addresses are restricted to the payees. The output sum must be equally divided to ensure the transaction is successful.
+The Payment Splitter contract distributes funds equally among a predefined list of payees. Send lovelace to the contract, and any payee can trigger a payout that splits the balance evenly among all recipients.
 
-There are 2 actions (or endpoints) available to interact with this smart contract:
+## Use Cases
 
-- Send Lovelace to Payment Splitter
-- Trigger Payout
+- Shared project donation addresses
+- Revenue splitting for collaborators
+- Team payment distribution
+- Royalty sharing agreements
+- Automated expense splitting
 
-### Install package [!toc]
+## Quick Start
 
-First you can to install the `@meshsdk/contracts` package:
+### Install the Package
 
-```tsx
-npm install @meshsdk/contract
+```bash
+npm install @meshsdk/contract @meshsdk/core
 ```
 
-### Initialize the contract [!toc]
+### Initialize the Contract
 
-To initialize the payment splitter, we need to initialize a <Link href="https://meshjs.dev/providers">provider</Link>, a `MeshTxBuilder`, and a `MeshPaymentSplitterContract`. Additionally, a list of payees is required to define the allowed payout addresses for the contract.
-
-```tsx
+```typescript
 import { MeshPaymentSplitterContract } from "@meshsdk/contract";
-import { MeshTxBuilder } from "@meshsdk/core";
+import { BlockfrostProvider, MeshTxBuilder } from "@meshsdk/core";
 
-const provider = new BlockfrostProvider('<Your-API-Key>');
+const provider = new BlockfrostProvider("<Your-API-Key>");
 
 const meshTxBuilder = new MeshTxBuilder({
   fetcher: provider,
   submitter: provider,
 });
+
+const payees = [
+  "addr_test1qp...alice_address",
+  "addr_test1qp...bob_address",
+  "addr_test1qp...charlie_address",
+  "addr_test1qp...diana_address",
+];
 
 const contract = new MeshPaymentSplitterContract(
   {
@@ -43,56 +50,298 @@ const contract = new MeshPaymentSplitterContract(
     wallet: wallet,
     networkId: 0,
   },
-  [
-    'addr_test1vpg334d6skwu6xxq0r4lqrnsjd5293n8s3d80em60kf6guc7afx8k',
-    'addr_test1vp4l2kk0encl7t7972ngepgm0044fu8695prkgh5vjj5l6sxu0l3p',
-    'addr_test1vqqnfs2vt42nq4htq460wd6gjxaj05jg9vzg76ur6ws4sngs55pwr',
-    'addr_test1vqv2qhqddxmf87pzky2nkd9wm4y5599mhp62mu4atuss5dgdja5pw',
-  ]
+  payees
 );
 ```
 
-Both on-chain and off-chain codes are open-source and available on <Link href="https://github.com/MeshJS/mesh/tree/main/packages/mesh-contract/src/payment-splitter">Mesh Github Repository</Link>.
+### Configuration Parameters
 
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `payees` | `string[]` | Array of Bech32 addresses that receive payments |
 
-## Send Lovelace to Payment Splitter
+## Contract Logic
 
-`sendLovelaceToSplitter()` will lock Lovelace in the contract. The function accepts the following parameters:
+The Payment Splitter enforces equal distribution:
 
-- lovelaceAmount (number) - the amount of Lovelace you want to send to the contract
+| Rule | Description |
+|------|-------------|
+| **Fixed Payees** | Recipients are defined at contract initialization |
+| **Equal Split** | All payees receive exactly the same amount |
+| **Payee Trigger** | Only a payee can trigger the payout |
+| **Full Distribution** | The entire contract balance is distributed |
 
-The function returns a transaction hash.
+### Split Calculation
 
-<Card>
-  ### Send Lovelace to Payment Splitter [!toc]
+```
+amount_per_payee = total_balance / number_of_payees
+```
 
-  Send Lovelace to the Payment Splitter contract to be distributed to the beneficiaries.
+For example, with 4 payees and 100 ADA in the contract:
+- Each payee receives: 100 ADA / 4 = 25 ADA
 
-  **Listing price in Lovelace**
-  `15000000`
+### Validation Rules
 
-  ```tsx
-  const tx = await contract.sendLovelaceToSplitter(15000000);
-  const signedTx = await wallet.signTx(tx);
-  const txHash = await wallet.submitTx(signedTx);
-  ```
-</Card>
+1. Transaction must be signed by one of the payees
+2. All outputs must go to payee addresses
+3. All payees must receive equal amounts
+4. The sum must equal the contract balance (minus fees)
 
+## Available Actions
 
-## Trigger Payout
+### Send Lovelace to Splitter
 
-`triggerPayout()` will split the locked amount equally among the list of payees. The function doesn't need any parameters.
+Deposit lovelace into the payment splitter contract.
 
-The function returns a transaction hash if the payout has been done successfully.
+#### Method Signature
 
-<Card>
-  ### Trigger Payout [!toc]
+```typescript
+contract.sendLovelaceToSplitter(lovelaceAmount: number): Promise<string>
+```
 
-  After the amount has been locked in the contract, you can trigger the payout to the payees.
+#### Parameters
 
-  ```tsx
-  const tx = await contract.triggerPayout();
-  const signedTx = await wallet.signTx(tx, true);
-  const txHash = await wallet.submitTx(signedTx);
-  ```
-</Card>
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `lovelaceAmount` | `number` | Amount of lovelace to send to the contract |
+
+#### Code Example
+
+```typescript
+import { MeshPaymentSplitterContract } from "@meshsdk/contract";
+import { BlockfrostProvider, MeshTxBuilder } from "@meshsdk/core";
+
+// Initialize provider and contract
+const provider = new BlockfrostProvider("<Your-API-Key>");
+
+const meshTxBuilder = new MeshTxBuilder({
+  fetcher: provider,
+  submitter: provider,
+});
+
+const payees = [
+  "addr_test1qp...alice",
+  "addr_test1qp...bob",
+  "addr_test1qp...charlie",
+  "addr_test1qp...diana",
+];
+
+const contract = new MeshPaymentSplitterContract(
+  {
+    mesh: meshTxBuilder,
+    fetcher: provider,
+    wallet: wallet,
+    networkId: 0,
+  },
+  payees
+);
+
+// Send 20 ADA to the splitter (will be split 4 ways = 5 ADA each)
+const lovelaceAmount = 20000000; // 20 ADA
+
+const tx = await contract.sendLovelaceToSplitter(lovelaceAmount);
+const signedTx = await wallet.signTx(tx);
+const txHash = await wallet.submitTx(signedTx);
+
+console.log("Funds deposited. Transaction hash:", txHash);
+```
+
+#### What Happens on Success
+
+- Lovelace transfers from your wallet to the contract address
+- Funds accumulate until a payee triggers payout
+- Anyone can send funds to the contract (not just payees)
+
+### Trigger Payout
+
+Distribute the contract balance equally among all payees.
+
+#### Method Signature
+
+```typescript
+contract.triggerPayout(): Promise<string>
+```
+
+#### Parameters
+
+None. The contract distributes its entire balance.
+
+#### Code Example
+
+```typescript
+import { MeshPaymentSplitterContract } from "@meshsdk/contract";
+import { BlockfrostProvider, MeshTxBuilder } from "@meshsdk/core";
+
+// Initialize provider and contract (must be a payee's wallet)
+const provider = new BlockfrostProvider("<Your-API-Key>");
+
+const meshTxBuilder = new MeshTxBuilder({
+  fetcher: provider,
+  submitter: provider,
+});
+
+const payees = [
+  "addr_test1qp...alice",
+  "addr_test1qp...bob",
+  "addr_test1qp...charlie",
+  "addr_test1qp...diana",
+];
+
+const contract = new MeshPaymentSplitterContract(
+  {
+    mesh: meshTxBuilder,
+    fetcher: provider,
+    wallet: payeeWallet, // Must be one of the payees
+    networkId: 0,
+  },
+  payees
+);
+
+// Trigger the payout
+const tx = await contract.triggerPayout();
+const signedTx = await payeeWallet.signTx(tx, true);
+const txHash = await payeeWallet.submitTx(signedTx);
+
+console.log("Payout triggered. Transaction hash:", txHash);
+```
+
+#### What Happens on Success
+
+- Contract balance is divided equally among all payees
+- Each payee receives their share
+- Contract balance becomes zero
+- New deposits can be made and split again
+
+## Full Working Example
+
+```typescript
+import { MeshPaymentSplitterContract } from "@meshsdk/contract";
+import { BlockfrostProvider, MeshTxBuilder } from "@meshsdk/core";
+import { BrowserWallet } from "@meshsdk/core";
+
+async function paymentSplitterDemo() {
+  // Connect wallet
+  const wallet = await BrowserWallet.enable("eternl");
+
+  // Initialize provider
+  const provider = new BlockfrostProvider("<Your-API-Key>");
+
+  const meshTxBuilder = new MeshTxBuilder({
+    fetcher: provider,
+    submitter: provider,
+  });
+
+  // Define payees (4 team members)
+  const payees = [
+    "addr_test1qp...alice",
+    "addr_test1qp...bob",
+    "addr_test1qp...charlie",
+    "addr_test1qp...diana",
+  ];
+
+  // Initialize contract
+  const contract = new MeshPaymentSplitterContract(
+    {
+      mesh: meshTxBuilder,
+      fetcher: provider,
+      wallet: wallet,
+      networkId: 0,
+    },
+    payees
+  );
+
+  // Step 1: Donor sends 16 ADA to the splitter
+  const depositTx = await contract.sendLovelaceToSplitter(16000000);
+  const signedDepositTx = await wallet.signTx(depositTx);
+  const depositTxHash = await wallet.submitTx(signedDepositTx);
+
+  console.log("Deposited:", depositTxHash);
+
+  // Wait for confirmation
+  await new Promise((resolve) => setTimeout(resolve, 60000));
+
+  // Step 2: A payee triggers the payout (each gets 4 ADA)
+  // In production, switch to a payee's wallet
+  const payoutTx = await contract.triggerPayout();
+  const signedPayoutTx = await wallet.signTx(payoutTx, true);
+  const payoutTxHash = await wallet.submitTx(signedPayoutTx);
+
+  console.log("Payout triggered:", payoutTxHash);
+  console.log("Each payee receives: 4 ADA");
+}
+
+paymentSplitterDemo().catch(console.error);
+```
+
+## Accumulating Donations
+
+The contract can receive multiple deposits before triggering a payout:
+
+```typescript
+// Donation 1: 10 ADA
+await contract.sendLovelaceToSplitter(10000000);
+
+// Donation 2: 5 ADA
+await contract.sendLovelaceToSplitter(5000000);
+
+// Donation 3: 5 ADA
+await contract.sendLovelaceToSplitter(5000000);
+
+// Total in contract: 20 ADA
+// Trigger payout: each of 4 payees gets 5 ADA
+await contract.triggerPayout();
+```
+
+## Minimum Payout Considerations
+
+Ensure the contract balance is large enough to cover:
+1. Minimum UTxO value for each output (approximately 1 ADA per payee)
+2. Transaction fees
+
+```typescript
+const minPerPayee = 1000000; // 1 ADA minimum
+const numPayees = 4;
+const minDeposit = minPerPayee * numPayees + 500000; // 4.5 ADA minimum
+
+// Always deposit at least this amount
+await contract.sendLovelaceToSplitter(minDeposit);
+```
+
+## Troubleshooting
+
+### Common Errors
+
+| Error | Cause | Solution |
+|-------|-------|----------|
+| `Script validation failed` | Unequal distribution | Contract enforces equal splits; check calculations |
+| `Missing required signer` | Non-payee triggering | Only payees can trigger payouts |
+| `Insufficient funds` | Balance too low | Ensure enough funds for all payees + fees |
+| `Output below minimum` | Balance divided too small | Deposit more funds before payout |
+
+### Debugging Tips
+
+1. **Verify payee list**: Ensure all payee addresses are correct and match initialization
+2. **Check wallet is a payee**: The wallet triggering payout must be in the payee list
+3. **Calculate minimum deposit**: `(min_utxo * num_payees) + fees`
+4. **Use partial signing**: Always pass `true` to `signTx()` for payout transactions
+
+### Calculating Split Amounts
+
+```typescript
+const contractBalance = 20000000; // 20 ADA
+const numPayees = 4;
+const estimatedFees = 200000; // ~0.2 ADA
+
+const distributableAmount = contractBalance - estimatedFees;
+const amountPerPayee = Math.floor(distributableAmount / numPayees);
+
+console.log(`Each payee receives: ${amountPerPayee / 1000000} ADA`);
+// Output: Each payee receives: 4.95 ADA
+```
+
+## Related Links
+
+- [Source Code on GitHub](https://github.com/MeshJS/mesh/tree/main/packages/mesh-contract/src/payment-splitter)
+- [MeshTxBuilder Documentation](/apis/transaction)
+- [Wallet Integration Guide](/wallets)
+- [Providers Setup Guide](/providers)

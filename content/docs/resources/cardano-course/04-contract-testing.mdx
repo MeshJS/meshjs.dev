@@ -1,29 +1,59 @@
 ---
-title: "Contract Testing"
-description: "Testing Aiken smart contracts."
+title: "Lesson 4: Contract Testing"
+description: "Test Aiken smart contracts using mock transactions and the vodka testing library."
 ---
 import Link from "fumadocs-core/link";
 
-Testing Aiken contracts is crucial to ensure they behave as expected. In this lesson, we will cover:
+## Learning Objectives
 
-- Preparing a complex contract for testing
-- Building mock transactions in Aiken and running tests
+By the end of this lesson, you will be able to:
 
-## Preparing a Complex Contract
+- Write unit tests for Aiken validators
+- Build mock transactions using the `mocktail` library
+- Test success and failure cases systematically
+- Use parameterized test cases for comprehensive coverage
+- Understand the `expect` keyword and `?` tracing operator
 
-We will enhance the withdrawal contract from the previous lesson to include two user actions: `ContinueCounting` or `StopCounting`.
+## Prerequisites
 
-1. **ContinueCounting**:
-   - Verify the transaction is signed by the app owner.
-   - Ensure the app is not expired (using a POSIX timestamp).
-   - Carry forward the state thread token to the output.
-   - Increment the count in the state thread token's datum by 1.
+Before starting this lesson, ensure you have:
 
-2. **StopCounting**:
-   - Verify the transaction is signed by the app owner.
-   - Ensure the state thread token is burned (not carried forward to any output).
+- Completed <Link href="/resources/cardano-course/03-aiken-contracts">Lesson 3: Aiken Contracts</Link>
+- An Aiken project set up with validators
+- The `vodka` library added to your project
 
-### Contract Code
+## Key Concepts
+
+### Why Test Contracts?
+
+Smart contracts manage real value. Bugs can lead to:
+
+- Locked funds that can never be retrieved
+- Unauthorized spending
+- Protocol exploits
+
+Thorough testing catches issues before deployment.
+
+### Testing Philosophy
+
+Aiken validators are pure functions - given the same inputs, they always produce the same outputs. This makes them ideal for unit testing:
+
+1. Create mock transaction data
+2. Call the validator function
+3. Assert the result is `True` or `False`
+
+## Step 1: Create a Complex Contract
+
+Build a withdrawal contract with two user actions: `ContinueCounting` and `StopCounting`.
+
+### Requirements
+
+| Action | Conditions |
+|--------|------------|
+| `ContinueCounting` | Owner signed, app not expired, state token carried forward, count incremented |
+| `StopCounting` | Owner signed, state thread token burned |
+
+### Define Types
 
 ```rs
 use aiken/crypto.{VerificationKeyHash}
@@ -31,84 +61,6 @@ use cardano/address.{Address, Credential}
 use cardano/assets.{PolicyId}
 use cardano/certificate.{Certificate}
 use cardano/transaction.{Transaction}
-use cocktail.{input_inline_datum, inputs_with_policy, key_signed, valid_before}
-
-pub type OracleDatum {
-  app_owner: VerificationKeyHash,
-  app_expiry: Int,
-  spending_validator_address: Address,
-  state_thread_token_policy_id: PolicyId,
-}
-
-pub type MyRedeemer {
-  ContinueCounting
-  StopCounting
-}
-
-validator complex_withdrawal_contract(oracle_nft: PolicyId) {
-  withdraw(redeemer: MyRedeemer, _credential: Credential, tx: Transaction) {
-    let Transaction {
-      reference_inputs,
-      mint,
-      extra_signatories,
-      validity_range,
-      ..
-    } = tx
-
-    expect [oracle_ref_input] = inputs_with_policy(reference_inputs, oracle_nft)
-    expect OracleDatum {
-      app_owner,
-      app_expiry,
-      ..
-    } = input_inline_datum(oracle_ref_input)
-
-    let is_app_owner_signed = key_signed(extra_signatories, app_owner)
-
-    when redeemer is {
-      ContinueCounting -> {
-        let is_app_not_expired = valid_before(validity_range, app_expiry)
-        let is_nothing_minted = mint == assets.zero
-
-        is_app_owner_signed? && is_app_not_expired? && is_nothing_minted?
-      }
-      StopCounting -> todo
-    }
-  }
-
-  publish(_redeemer: Data, _credential: Certificate, _tx: Transaction) {
-    True
-  }
-
-  else(_) {
-    fail @"unsupported purpose"
-  }
-}
-```
-
-In this setup, we define 2 potential user action with `MyRedeemer`, either to `ContinueCounting` or `StopCounting`. We built the partial logics for `ContinueCounting` action, which we put all the logics we have learnt from lesson 3.
-
-### `expect`
-
-Notice we touch on the syntax of `expect` the first time here. `expect` is used to enforce the exact pattern for a variable. In above example, `inputs_with_policy(reference_inputs, oracle_nft)` returns `List<Input>`. However, since in this application we are confident that there is always one item in the list, perhaps since `oracle_nft` is unique, it is impossible to obtain two inputs with `oracle_nft` in value. So that we can use `expect` here.
-
-### `?` operator
-
-In the last line of `ContinueCounting` branch, you may notice the use of `?` operator. This operator is a tracing operator that helps to trace which condition fails when the validator fails. For example, if `is_app_owner_signed` is false, then the validator will fail with message `is_app_owner_signed?` which helps to identify the root cause of failure.
-
-## Validating Input & Output
-
-We complete the contract by validating inputs and outputs:
-
-```rs
-use aiken/crypto.{VerificationKeyHash}
-use cardano/address.{Address, Credential}
-use cardano/assets.{PolicyId, without_lovelace}
-use cardano/certificate.{Certificate}
-use cardano/transaction.{Transaction}
-use cocktail.{
-  input_inline_datum, inputs_at_with_policy, inputs_with_policy, key_signed,
-  output_inline_datum, outputs_at_with_policy, valid_before,
-}
 
 pub type OracleDatum {
   app_owner: VerificationKeyHash,
@@ -125,6 +77,16 @@ pub type MyRedeemer {
   ContinueCounting
   StopCounting
 }
+```
+
+### Implement the Validator
+
+```rs
+use cocktail.{
+  input_inline_datum, inputs_at_with_policy, inputs_with_policy, key_signed,
+  output_inline_datum, outputs_at_with_policy, valid_before,
+}
+use cardano/assets.{without_lovelace}
 
 validator complex_withdrawal_contract(oracle_nft: PolicyId) {
   withdraw(redeemer: MyRedeemer, _credential: Credential, tx: Transaction) {
@@ -138,6 +100,7 @@ validator complex_withdrawal_contract(oracle_nft: PolicyId) {
       ..
     } = tx
 
+    // Extract oracle data from reference input
     expect [oracle_ref_input] = inputs_with_policy(reference_inputs, oracle_nft)
     expect OracleDatum {
       app_owner,
@@ -146,6 +109,7 @@ validator complex_withdrawal_contract(oracle_nft: PolicyId) {
       state_thread_token_policy_id,
     } = input_inline_datum(oracle_ref_input)
 
+    // Find state thread token input
     expect [state_thread_input] =
       inputs_at_with_policy(
         inputs,
@@ -193,34 +157,42 @@ validator complex_withdrawal_contract(oracle_nft: PolicyId) {
 }
 ```
 
-We have used some new techniques here. We have extracted the inline datum of the state thread token input and output using `input_inline_datum` and `output_inline_datum`. We have also used `inputs_at_with_policy` and `outputs_at_with_policy` to filter the inputs and outputs at a specific address with a specific policy ID. With that, we can compare the datum of input and output to ensure the count is incremented by 1.
+### Understanding `expect`
 
-In `StopCounting` case, we ensure the state thread token is burned by checking the `mint` field of the transaction. We use `without_lovelace` to ignore the lovelace part of the value when comparing.
-
-## Build mock transaction in Aiken
-
-All Aiken contracts can be interpreted as simple functions, which takes in a few parameters and returns a boolean value. This makes it easy to test the contract by providing mock data.
-
-In Aiken, we can build testing functions with `test` keyword, followed by running `aiken check` in project root to execute the tests.
-
-The vanilla example:
+The `expect` keyword enforces exact pattern matching:
 
 ```rs
-test always_true() {
-  True
-}
+expect [oracle_ref_input] = inputs_with_policy(reference_inputs, oracle_nft)
 ```
 
-With `aiken check`, we will see:
+This line:
+1. Calls `inputs_with_policy` which returns `List<Input>`
+2. Asserts the list has exactly one element
+3. Binds that element to `oracle_ref_input`
+4. Fails if the pattern does not match
 
-![Dummy Test](../../../../public/lessons/04-contract-testing/dummy-test.png)
+Use `expect` when you are confident about the structure (e.g., the oracle NFT is unique).
 
-### Testing always succeed and always fail cases
+### Understanding the `?` Operator
 
-In our complex withdrawal contract, we have a `publish` function that always returns `True`. We can write a test for it:
+The `?` operator enables tracing for debugging:
 
 ```rs
-use mocktail.{complete, mock_utxo_ref, mocktail_tx}
+is_app_owner_signed? && is_app_not_expired? && is_count_added
+```
+
+If `is_app_owner_signed` is `False`, the validator fails with the message `is_app_owner_signed?`, making it easy to identify which condition failed.
+
+## Step 2: Write Basic Tests
+
+Aiken tests use the `test` keyword. Run tests with `aiken check`.
+
+### Test Always-True Cases
+
+```rs
+use mocktail.{complete, mocktail_tx}
+use cardano/certificate.{RegisterCredential}
+use cardano/address.{Script}
 
 test test_publish() {
   let data = Void
@@ -233,11 +205,16 @@ test test_publish() {
 }
 ```
 
-In this test, we call the `publish` function of our contract with mock parameters. We use `mocktail_tx()` to create a mock transaction and `complete()` to provide an empty `Transaction`.
+This tests the `publish` function which always returns `True`.
 
-For the rest of script purposes, it will fallback to the `else` branch which always fails. We can write a test for it:
+### Test Always-Fail Cases
+
+Use the `fail` keyword after the test name to indicate expected failure:
 
 ```rs
+use mocktail.{mock_utxo_ref}
+use cardano/script_context.{ScriptContext, Spending}
+
 test test_else() fail {
   complex_withdrawal_contract.else(
     "",
@@ -250,30 +227,30 @@ test test_else() fail {
 }
 ```
 
-Note that the test is not returning a `False`, but the programme breaks with `fail`. We can indicate that the test is expected to fail by adding `fail` after the test name.
+Run the tests:
 
-Running `aiken check` will show:
+```bash
+aiken check
+```
 
-![Always Succeed and Always Fail Test](../../../../public/lessons/04-contract-testing/always-succeed-n-fail.png)
+## Step 3: Build Mock Transactions
 
-### Testing `withdraw` function
+The `mocktail` module from vodka provides functions to construct mock transactions for testing.
 
-You will notice the `withdraw` function is validated the `Transaction` mostly, therefore, we should craft the `Transaction` carefully. However, crafting it with mock data is a bit tricky especially when we have to deal with all the Aiken types. `vodka` library comes to rescue.
-
-In `vodka`, the `mocktail` module provides a set of functions to create mock data for testing Aiken contracts. We can use `mocktail_tx()` to create a mock `Transaction` and then use various functions to modify the transaction to fit our test case. 
+### Define Mock Constants
 
 ```rs
+use mocktail.{
+  mock_policy_id, mock_script_address, mock_pub_key_hash, mock_tx_hash,
+}
+
 const mock_oracle_nft = mock_policy_id(0)
-
 const mock_oracle_address = mock_script_address(0, None)
-
 const mock_oracle_value =
   assets.from_asset(mock_oracle_nft, "", 1) |> assets.add("", "", 2_000_000)
 
 const mock_app_owner = mock_pub_key_hash(0)
-
 const mock_spending_validator_address = mock_script_address(1, None)
-
 const mock_state_thread_token_policy_id = mock_policy_id(1)
 
 const mock_state_thread_value =
@@ -287,9 +264,22 @@ const mock_oracle_datum =
     spending_validator_address: mock_spending_validator_address,
     state_thread_token_policy_id: mock_state_thread_token_policy_id,
   }
+```
 
+### Create Helper Functions
+
+```rs
 fn mock_datum(count: Int) -> SpendingValidatorDatum {
   SpendingValidatorDatum { count }
+}
+```
+
+### Build a Mock Transaction
+
+```rs
+use mocktail.{
+  ref_tx_in, ref_tx_in_inline_datum, tx_in, tx_in_inline_datum,
+  tx_out, tx_out_inline_datum, required_signer_hash, invalid_hereafter,
 }
 
 fn mock_continue_counting_tx() -> Transaction {
@@ -318,9 +308,24 @@ fn mock_continue_counting_tx() -> Transaction {
 }
 ```
 
-We can import all the `mock_...` functions from `mocktail` module to build up the types we need. In above example, we create a mock transaction for `ContinueCounting` action. We create the oracle NFT input with inline datum, the state thread token input with inline datum, the state thread token output with inline datum, the required signer and the validity range.
+### Mock Transaction Methods
 
-Now we can write a test for `ContinueCounting` action:
+| Method | Description |
+|--------|-------------|
+| `mocktail_tx()` | Creates an empty mock transaction |
+| `ref_tx_in(include, hash, index, value, address)` | Adds a reference input |
+| `ref_tx_in_inline_datum(include, datum)` | Attaches datum to previous ref input |
+| `tx_in(include, hash, index, value, address)` | Adds a spending input |
+| `tx_in_inline_datum(include, datum)` | Attaches datum to previous input |
+| `tx_out(include, address, value)` | Adds an output |
+| `tx_out_inline_datum(include, datum)` | Attaches datum to previous output |
+| `required_signer_hash(include, key_hash)` | Adds required signer |
+| `invalid_hereafter(include, slot)` | Sets validity upper bound |
+| `complete()` | Finalizes the transaction |
+
+The first `Bool` parameter controls whether the element is included - this enables dynamic test cases.
+
+## Step 4: Write Success Tests
 
 ```rs
 test success_continue_counting() {
@@ -333,9 +338,9 @@ test success_continue_counting() {
 }
 ```
 
-### Dynamically Testing Failure Cases
+## Step 5: Create Parameterized Test Cases
 
-In the mocktail transaction building methods, we can pass a boolean parameter to indicate whether we want the field to be present or not. This allows us to dynamically create failure cases by omitting certain fields.
+Define a test case type to systematically test failure conditions:
 
 ```rs
 type ContinueCountingTest {
@@ -346,7 +351,11 @@ type ContinueCountingTest {
   is_app_owner_signed: Bool,
   is_tx_not_expired: Bool,
 }
+```
 
+### Parameterized Mock Transaction
+
+```rs
 fn mock_continue_counting_tx(test_case: ContinueCountingTest) -> Transaction {
   let ContinueCountingTest {
     is_ref_input_presented,
@@ -361,8 +370,9 @@ fn mock_continue_counting_tx(test_case: ContinueCountingTest) -> Transaction {
     if is_count_added {
       mock_datum(1)
     } else {
-      mock_datum(0)
+      mock_datum(0)  // Same as input - count not incremented
     }
+
   mocktail_tx()
     |> ref_tx_in(
         is_ref_input_presented,
@@ -392,7 +402,7 @@ fn mock_continue_counting_tx(test_case: ContinueCountingTest) -> Transaction {
 }
 ```
 
-And we update the successful test accordingly:
+### Updated Success Test
 
 ```rs
 test success_continue_counting() {
@@ -415,13 +425,17 @@ test success_continue_counting() {
 }
 ```
 
-And we can populate the failure cases at ease:
+## Step 6: Write Failure Tests
+
+Test each failure condition by toggling one parameter:
+
+### Missing Reference Input
 
 ```rs
 test fail_continue_counting_no_ref_input() fail {
   let test_case =
     ContinueCountingTest {
-      is_ref_input_presented: False,
+      is_ref_input_presented: False,  // Changed to False
       is_thread_input_presented: True,
       is_thread_output_presented: True,
       is_count_added: True,
@@ -436,12 +450,16 @@ test fail_continue_counting_no_ref_input() fail {
     mock_continue_counting_tx(test_case),
   )
 }
+```
 
+### Missing Thread Input
+
+```rs
 test fail_continue_counting_no_thread_input() fail {
   let test_case =
     ContinueCountingTest {
       is_ref_input_presented: True,
-      is_thread_input_presented: False,
+      is_thread_input_presented: False,  // Changed to False
       is_thread_output_presented: True,
       is_count_added: True,
       is_app_owner_signed: True,
@@ -455,73 +473,22 @@ test fail_continue_counting_no_thread_input() fail {
     mock_continue_counting_tx(test_case),
   )
 }
+```
 
-test fail_continue_counting_no_thread_output() fail {
-  let test_case =
-    ContinueCountingTest {
-      is_ref_input_presented: True,
-      is_thread_input_presented: True,
-      is_thread_output_presented: False,
-      is_count_added: True,
-      is_app_owner_signed: True,
-      is_tx_not_expired: True,
-    }
+### Incorrect Count
 
-  complex_withdrawal_contract.withdraw(
-    mock_oracle_nft,
-    ContinueCounting,
-    Credential.Script(#""),
-    mock_continue_counting_tx(test_case),
-  )
-}
+For tests where the validator returns `False` (rather than failing), negate the result:
 
+```rs
 test fail_continue_counting_incorrect_count() {
   let test_case =
     ContinueCountingTest {
       is_ref_input_presented: True,
       is_thread_input_presented: True,
       is_thread_output_presented: True,
-      is_count_added: False,
+      is_count_added: False,  // Count not incremented
       is_app_owner_signed: True,
       is_tx_not_expired: True,
-    }
-
-  !complex_withdrawal_contract.withdraw(
-    mock_oracle_nft,
-    ContinueCounting,
-    Credential.Script(#""),
-    mock_continue_counting_tx(test_case),
-  )
-}
-
-test fail_continue_counting_not_signed_by_owner() {
-  let test_case =
-    ContinueCountingTest {
-      is_ref_input_presented: True,
-      is_thread_input_presented: True,
-      is_thread_output_presented: True,
-      is_count_added: True,
-      is_app_owner_signed: False,
-      is_tx_not_expired: True,
-    }
-
-  !complex_withdrawal_contract.withdraw(
-    mock_oracle_nft,
-    ContinueCounting,
-    Credential.Script(#""),
-    mock_continue_counting_tx(test_case),
-  )
-}
-
-test fail_continue_counting_app_expired() {
-  let test_case =
-    ContinueCountingTest {
-      is_ref_input_presented: True,
-      is_thread_input_presented: True,
-      is_thread_output_presented: True,
-      is_count_added: True,
-      is_app_owner_signed: True,
-      is_tx_not_expired: False,
     }
 
   !complex_withdrawal_contract.withdraw(
@@ -533,9 +500,122 @@ test fail_continue_counting_app_expired() {
 }
 ```
 
-Running `aiken check` will show:
-![Continue Counting Tests](../../../../public/lessons/04-contract-testing/all-tests.png)
+The `!` negates the result - the test passes if the validator returns `False`.
 
-### Exercise
+### Not Signed by Owner
 
-Write tests for `StopCounting` action. Refer to `ContinueCounting` tests for guidance. Suggested answers are in the code example.
+```rs
+test fail_continue_counting_not_signed_by_owner() {
+  let test_case =
+    ContinueCountingTest {
+      is_ref_input_presented: True,
+      is_thread_input_presented: True,
+      is_thread_output_presented: True,
+      is_count_added: True,
+      is_app_owner_signed: False,  // Not signed
+      is_tx_not_expired: True,
+    }
+
+  !complex_withdrawal_contract.withdraw(
+    mock_oracle_nft,
+    ContinueCounting,
+    Credential.Script(#""),
+    mock_continue_counting_tx(test_case),
+  )
+}
+```
+
+### App Expired
+
+```rs
+test fail_continue_counting_app_expired() {
+  let test_case =
+    ContinueCountingTest {
+      is_ref_input_presented: True,
+      is_thread_input_presented: True,
+      is_thread_output_presented: True,
+      is_count_added: True,
+      is_app_owner_signed: True,
+      is_tx_not_expired: False,  // Expired
+    }
+
+  !complex_withdrawal_contract.withdraw(
+    mock_oracle_nft,
+    ContinueCounting,
+    Credential.Script(#""),
+    mock_continue_counting_tx(test_case),
+  )
+}
+```
+
+## Step 7: Run All Tests
+
+Execute the test suite:
+
+```bash
+aiken check
+```
+
+You see output showing all tests passing:
+
+```
+    Testing ...
+
+    ┍━ complex_withdrawal_contract ━━━━━━━━━━━━━━━━━━━━━━━
+    │ PASS test_publish
+    │ PASS test_else
+    │ PASS success_continue_counting
+    │ PASS fail_continue_counting_no_ref_input
+    │ PASS fail_continue_counting_no_thread_input
+    │ PASS fail_continue_counting_no_thread_output
+    │ PASS fail_continue_counting_incorrect_count
+    │ PASS fail_continue_counting_not_signed_by_owner
+    │ PASS fail_continue_counting_app_expired
+    ┕━━━━━━━━━━━━━━━ 9 tests | 9 passed | 0 failed
+```
+
+## Key Concepts Explained
+
+### Test Keyword Variants
+
+| Syntax | Meaning |
+|--------|---------|
+| `test name() { ... }` | Test passes if body evaluates to `True` |
+| `test name() fail { ... }` | Test passes if body fails/crashes |
+| `!validator_call(...)` | Negates result - passes if validator returns `False` |
+
+### Boolean Parameters in Mocks
+
+The first boolean in mock functions controls inclusion:
+
+```rs
+tx_in(True, ...)   // Include this input
+tx_in(False, ...)  // Exclude this input
+```
+
+This pattern enables single mock functions that cover multiple test scenarios.
+
+## Exercises
+
+1. **Test StopCounting**: Write tests for the `StopCounting` action following the same parameterized pattern.
+
+2. **Add minting check**: Extend `ContinueCounting` to fail if any assets are minted, and add a test for it.
+
+3. **Edge case testing**: What happens if there are two oracle NFTs in reference inputs? Write a test to verify the behavior.
+
+## Next Steps
+
+You have learned:
+
+- How to write Aiken tests using `test` and `fail`
+- How to build mock transactions with `mocktail`
+- How to create parameterized tests for comprehensive coverage
+- How to use `expect` and the `?` operator
+
+In the next lesson, you learn how to <Link href="/resources/cardano-course/05-avoid-redundant-validation">avoid redundant validation</Link> to optimize your contracts.
+
+## Related Links
+
+- <Link href="https://aiken-lang.org/language-tour/tests">Aiken Testing Documentation</Link>
+- <Link href="https://github.com/sidan-lab/vodka">Vodka Library (mocktail module)</Link>
+- <Link href="https://aiken-lang.github.io/stdlib/">Aiken Standard Library</Link>

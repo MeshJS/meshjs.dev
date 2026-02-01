@@ -1,64 +1,53 @@
 ---
-title: "React Blockchain Components for Cardano dApp Development"
-description: "Build Cardano dApps faster with Mesh SDK's production-ready React components, hooks, and wallet connectors."
+title: "React Components"
+description: "Production-ready React components for Cardano dApp development with Mesh SDK."
 ---
+
 import Link from "next/link";
 import { HowToSchema, FAQSchema } from "@/components/seo";
 
 <HowToSchema
-  name="Add React Blockchain Components with Mesh Cardano SDK"
-  description="Integrate production-ready Cardano components into your React blockchain application in minutes."
+  name="Add React Components with Mesh SDK"
+  description="Integrate production-ready Cardano components into your React application in minutes."
   totalTime="PT5M"
   steps={[
-    { name: "Install Mesh React package", text: "Run npm install @meshsdk/react to add Cardano React components to your project." },
-    { name: "Add MeshProvider wrapper", text: "Wrap your application root with MeshProvider to enable Mesh context." },
-    { name: "Import desired components", text: "Import components like CardanoWallet, useWallet, or useAssets from @meshsdk/react." },
-    { name: "Add components to your UI", text: "Place components in your layout and customize styling as needed." }
+    { name: "Install Mesh React", text: "Run npm install @meshsdk/react to add Cardano React components." },
+    { name: "Add MeshProvider", text: "Wrap your application with MeshProvider to enable Mesh context." },
+    { name: "Import components", text: "Import CardanoWallet, useWallet, or other components from @meshsdk/react." },
+    { name: "Add to your UI", text: "Place components in your layout and customize as needed." }
   ]}
 />
 
 <FAQSchema
   faqs={[
     {
-      question: "What React components does Mesh provide for Cardano?",
-      answer: "Mesh provides CardanoWallet for wallet connection, useWallet hook for state management, useAssets for token display, useLovelace for ADA balance, and useAddress for address handling. These components cover the most common Cardano dApp requirements."
+      question: "What React components does Mesh provide?",
+      answer: "Mesh provides CardanoWallet for wallet connection, useWallet hook for state management, useAssets for token display, useLovelace for ADA balance, and useAddress for address handling."
     },
     {
-      question: "Are Mesh React components customizable?",
-      answer: "Yes, Mesh components accept styling props and can be customized through CSS. For complete control, you can build custom components using Mesh's hooks and utilities while maintaining full functionality."
+      question: "Are Mesh components customizable?",
+      answer: "Yes. Mesh components accept styling props and can be customized through CSS. For complete control, build custom components using Mesh's hooks and utilities."
     },
     {
-      question: "Do Mesh React components work with Next.js?",
-      answer: "Mesh React components work with Next.js, Create React App, Vite, and other React frameworks. For Next.js, ensure MeshProvider is added to your client-side layout component."
+      question: "Do Mesh components work with Next.js?",
+      answer: "Yes. Mesh React components work with Next.js, Create React App, Vite, and other React frameworks. For Next.js, ensure MeshProvider is added to your client-side layout."
     },
     {
-      question: "What is MeshProvider and why is it needed?",
-      answer: "MeshProvider is a React context provider that manages wallet state across your application. It enables hooks like useWallet to access wallet data anywhere in your component tree without prop drilling."
-    },
-    {
-      question: "Can I use Mesh components with Svelte or Vue?",
-      answer: "Mesh provides dedicated packages for Svelte (@meshsdk/svelte). For Vue and other frameworks, use @meshsdk/core directly with your framework's state management. The core APIs work in any JavaScript environment."
+      question: "What is MeshProvider?",
+      answer: "MeshProvider is a React context provider that manages wallet state across your application. It enables hooks like useWallet to access wallet data anywhere without prop drilling."
     }
   ]}
 />
 
-**TL;DR:** Mesh SDK provides production-ready React blockchain components for Cardano dApp development. This TypeScript blockchain SDK includes CardanoWallet for wallet connection, hooks like useWallet and useAssets for state management, and full type definitions. Install with `npm install @meshsdk/react` and add wallet connectivity in minutes.
+Mesh provides production-ready React components for Cardano dApps. Add wallet connectivity in minutes with pre-built components or build custom UIs with hooks.
 
----
-
-Mesh React components are pre-built UI elements that solve the <Link href="/resources/challenges/wallet-integration">wallet integration challenges</Link> common in Cardano dApp development. This TypeScript blockchain SDK eliminates weeks of development by providing production-tested components for wallet connection, balance displays, and asset management. Instead of handling wallet variations, edge cases, and accessibility from scratch, you use components that work reliably across all major Cardano wallets. Whether you're building JavaScript Web3 applications or full-featured React blockchain interfaces, Mesh handles the complexity so you can focus on your dApp's unique features.
-
-## How Do I Add Cardano React Components?
-
-Add Cardano components to your React application in minutes:
-
-**Step 1: Install the React package**
+## Quick start
 
 ```bash
 npm install @meshsdk/react
 ```
 
-**Step 2: Add the provider**
+### Add MeshProvider
 
 ```tsx
 import { MeshProvider } from "@meshsdk/react";
@@ -72,7 +61,7 @@ function App() {
 }
 ```
 
-**Step 3: Use components and hooks**
+### Add wallet connection
 
 ```tsx
 import { CardanoWallet, useWallet, useLovelace } from "@meshsdk/react";
@@ -90,24 +79,30 @@ function Dashboard() {
 }
 ```
 
-## What React Components Does Mesh SDK Provide?
+---
 
-Mesh React provides a comprehensive component library for Cardano dApp development:
+## Available components
 
-- **CardanoWallet**: Complete wallet connection UI with multi-wallet support
-- **useWallet Hook**: Reactive wallet state and connection management
-- **useAssets Hook**: Access connected wallet's native tokens and NFTs
-- **useLovelace Hook**: Get wallet ADA balance with automatic updates
-- **useAddress Hook**: Access connected wallet addresses
-- **useNetwork Hook**: Detect connected network (mainnet/testnet)
-- **MeshProvider**: Context provider for wallet state management
-- **TypeScript Types**: Full type definitions for all components and hooks
+| Component | Purpose |
+|-----------|---------|
+| `CardanoWallet` | Complete wallet connection UI |
+| `MeshProvider` | Context provider for wallet state |
 
-## How Do I Use Each Component?
+## Available hooks
 
-### CardanoWallet
+| Hook | Purpose |
+|------|---------|
+| `useWallet` | Wallet state and connection |
+| `useLovelace` | ADA balance |
+| `useAssets` | Native tokens and NFTs |
+| `useAddress` | Wallet addresses |
+| `useNetwork` | Network detection |
 
-CardanoWallet is the primary wallet connection component for Cardano dApp development:
+---
+
+## CardanoWallet
+
+The primary wallet connection component:
 
 ```tsx
 import { CardanoWallet } from "@meshsdk/react";
@@ -123,28 +118,31 @@ import { CardanoWallet } from "@meshsdk/react";
 />
 ```
 
-CardanoWallet provides:
+Features:
+
 - Automatic wallet detection
-- Wallet selection dropdown
+- Selection dropdown
 - Connection state management
-- Connected address display
+- Address display
 - Disconnect functionality
 
-### useWallet Hook
+---
 
-Access wallet state anywhere in your app:
+## useWallet hook
+
+Access wallet state anywhere:
 
 ```tsx
 import { useWallet } from "@meshsdk/react";
 
 function WalletInfo() {
   const {
-    connected,      // boolean - true when wallet is connected
-    connecting,     // boolean - true during connection attempt
-    wallet,         // BrowserWallet instance for transactions
-    name,           // string - connected wallet name (e.g., "Eternl")
-    connect,        // function to connect by wallet ID
-    disconnect,     // function to disconnect current wallet
+    connected,      // boolean
+    connecting,     // boolean
+    wallet,         // BrowserWallet instance
+    name,           // connected wallet name
+    connect,        // function to connect
+    disconnect,     // function to disconnect
   } = useWallet();
 
   return (
@@ -159,7 +157,9 @@ function WalletInfo() {
 }
 ```
 
-### useLovelace Hook
+---
+
+## useLovelace hook
 
 Get the wallet's ADA balance:
 
@@ -176,7 +176,9 @@ function Balance() {
 }
 ```
 
-### useAssets Hook
+---
+
+## useAssets hook
 
 Access native tokens and NFTs:
 
@@ -186,7 +188,7 @@ import { useAssets } from "@meshsdk/react";
 function TokenList() {
   const assets = useAssets();
 
-  if (!assets) return <p>Loading assets...</p>;
+  if (!assets) return <p>Loading...</p>;
 
   return (
     <ul>
@@ -200,7 +202,9 @@ function TokenList() {
 }
 ```
 
-### useAddress Hook
+---
+
+## useAddress hook
 
 Access wallet addresses:
 
@@ -220,7 +224,9 @@ function AddressDisplay() {
 }
 ```
 
-### useNetwork Hook
+---
+
+## useNetwork hook
 
 Detect the connected network:
 
@@ -238,9 +244,11 @@ function NetworkBadge() {
 }
 ```
 
-## How Do I Build Custom React Blockchain Components?
+---
 
-Mesh hooks enable fully custom UIs for your JavaScript Web3 applications while retaining all functionality:
+## Custom wallet UI
+
+Build fully custom wallet interfaces:
 
 ```tsx
 import { BrowserWallet } from "@meshsdk/core";
@@ -259,7 +267,7 @@ function CustomWalletPanel() {
         <h3>Select Wallet</h3>
         {wallets.map(w => (
           <button key={w.id} onClick={() => connect(w.id)}>
-            <img src={w.icon} alt="" width={24} height={24} />
+            <img src={w.icon} alt="" width={24} />
             {w.name}
           </button>
         ))}
@@ -270,8 +278,7 @@ function CustomWalletPanel() {
   return (
     <div className="wallet-panel">
       <div className="balance">
-        <span>{(Number(lovelace) / 1_000_000).toFixed(2)}</span>
-        <span>ADA</span>
+        {(Number(lovelace) / 1_000_000).toFixed(2)} ADA
       </div>
       <div className="assets">
         {assets?.length} tokens
@@ -282,28 +289,14 @@ function CustomWalletPanel() {
 }
 ```
 
-## Why Choose Mesh React Components for Cardano Development?
+---
 
-Teams building Cardano dApps choose Mesh's React blockchain components for these reasons:
+## Framework setup
 
-| Benefit | What It Means |
-|---------|---------------|
-| **Save development time** | Wallet detection, connection flows, state management, error handling, and cross-wallet compatibility are already built |
-| **Production tested** | Major Cardano dApps use these components; edge cases and wallet quirks are already handled |
-| **Consistent UX** | Users recognize familiar wallet interaction patterns, reducing friction |
-| **TypeScript first** | Full type definitions enable compile-time safety and powerful IDE autocompletion |
-| **Customizable** | Start with ready-made components, then customize or replace as your design evolves |
-
-## What Frameworks Work with Mesh React Components?
-
-Mesh React components work with all major React frameworks. Here's how to set them up:
-
-### Next.js Setup
-
-For Next.js applications, add MeshProvider to your client-side layout:
+### Next.js
 
 ```tsx
-// app/layout.tsx or _app.tsx
+// app/layout.tsx
 "use client";
 
 import { MeshProvider } from "@meshsdk/react";
@@ -319,9 +312,7 @@ export default function RootLayout({ children }) {
 }
 ```
 
-### Vite/Create React App
-
-Standard React setup works without additional configuration:
+### Vite / Create React App
 
 ```tsx
 // main.tsx
@@ -335,31 +326,25 @@ ReactDOM.createRoot(document.getElementById("root")).render(
 );
 ```
 
-## How Do I Style Mesh Components?
+---
 
-Mesh components accept className props for styling, making them easy to integrate with any CSS framework:
+## Why use Mesh React components
 
-```tsx
-<CardanoWallet
-  className="custom-wallet-button"
-/>
-```
+| Benefit | Details |
+|---------|---------|
+| Save development time | Wallet detection, connection, error handling built-in |
+| Production tested | Used by major Cardano dApps |
+| Consistent UX | Users recognize familiar patterns |
+| TypeScript first | Full type definitions |
+| Customizable | Start with defaults, customize as needed |
 
-For complete control over your React blockchain UI, use hooks to build custom-styled components as shown in the "How Do I Build Custom React Blockchain Components?" section.
+---
 
-## Related Resources
+## Related resources
 
-- <Link href="/resources/solutions/wallet-integration">Wallet Integration</Link>: Deep dive into wallet connection patterns
-- <Link href="/resources/solutions/transaction-builder">Transaction Builder</Link>: Build transactions with connected wallets
-- <Link href="/react">React Documentation</Link>: Complete API reference for React components
-- <Link href="/resources/challenges/wallet-integration">Wallet Challenges</Link>: Understanding wallet integration complexity
-
-## How Do I Get Started?
-
-Add production-ready Cardano components to your React blockchain application:
-
-```bash
-npm install @meshsdk/react
-```
-
-Mesh React components let you focus on building great Cardano dApp experiences while the TypeScript blockchain SDK handles UI complexity. Start with the ready-made CardanoWallet or build fully custom JavaScript Web3 interfaces using Mesh hooks.
+| Resource | Link |
+|----------|------|
+| Wallet integration | [/resources/solutions/wallet-integration](/resources/solutions/wallet-integration) |
+| Transaction builder | [/resources/solutions/transaction-builder](/resources/solutions/transaction-builder) |
+| React documentation | [/react](/react) |
+| Wallet challenges | [/resources/challenges/wallet-integration](/resources/challenges/wallet-integration) |

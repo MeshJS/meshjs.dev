@@ -1,34 +1,35 @@
 ---
 title: "Swap"
-description: "Swap contract facilitates the exchange of assets between two parties"
+description: "Create peer-to-peer asset swaps with specified exchange terms"
 ---
-import Link from "fumadocs-core/link";
 
-Swap contract facilitates the exchange of assets between two parties. This contract is designed to be used in a peer-to-peer exchange scenario where two parties agree to exchange assets. The contract ensures that the assets are locked up until it is accepted by the other party. At any point before it is accepted, one can cancel the swap to retrieve the assets.
+import Link from "next/link";
 
-There are 2 actions (or endpoints) available to interact with this smart contract:
+The Swap contract enables peer-to-peer asset exchanges. You specify what you want to give and what you want to receive, then lock your assets in the contract. Anyone who provides the requested assets can complete the swap. You can cancel anytime before someone accepts.
 
-- initiate swap
-- accept asset
-- cancel swap
+## Use Cases
 
-### Install package [!toc]
+- Peer-to-peer token trading
+- OTC (over-the-counter) deals
+- NFT-for-token swaps
+- Multi-asset exchanges
+- Trustless trading without intermediaries
 
-First you can to install the `@meshsdk/contracts` package:
+## Quick Start
 
-```tsx
-npm install @meshsdk/contract
+### Install the Package
+
+```bash
+npm install @meshsdk/contract @meshsdk/core
 ```
 
-### Initialize the contract [!toc]
+### Initialize the Contract
 
-To initialize the payment splitter, we need to initialize a <Link href="https://meshjs.dev/providers">provider</Link>, `MeshTxBuilder` and `MeshSwapContract`.
-
-```tsx
+```typescript
 import { MeshSwapContract } from "@meshsdk/contract";
-import { MeshTxBuilder } from "@meshsdk/core";
+import { BlockfrostProvider, MeshTxBuilder } from "@meshsdk/core";
 
-const provider = new BlockfrostProvider('<Your-API-Key>');
+const provider = new BlockfrostProvider("<Your-API-Key>");
 
 const meshTxBuilder = new MeshTxBuilder({
   fetcher: provider,
@@ -43,102 +44,371 @@ const contract = new MeshSwapContract({
 });
 ```
 
-Both on-chain and off-chain codes are open-source and available on <Link href="https://github.com/MeshJS/mesh/tree/main/packages/mesh-contract/src/swap">Mesh Github Repository</Link>.
+## Contract Logic
 
+The Swap contract works as a simple order book entry:
 
-## Initiate Swap
+| State | Description |
+|-------|-------------|
+| **Open** | Assets locked, waiting for counterparty |
+| **Completed** | Counterparty accepted, assets swapped |
+| **Cancelled** | Initiator retrieved assets |
 
-User A can initiate a swap by providing assets to the swap contract.
+### Swap Flow
 
-`initiateSwap()` initiate a swap. The function accepts the following parameters:
+```
+Initiator                    Contract                    Acceptor
+    |                           |                           |
+    |--- initiateSwap --------->|                           |
+    |    (lock assets)          |                           |
+    |                           |                           |
+    |                           |<------- acceptSwap -------|
+    |                           |    (provide requested)    |
+    |                           |                           |
+    |<-- receive requested -----|---- send locked --------->|
+```
 
-- toProvide (Asset[]) - a list of assets user A is trading
-- toReceive (Asset[]) - a list of assets user A is expecting to receive from another user
+### Validation Rules
 
-Note that the parameters are arrays, so you can provide multiple assets to the swap, and these assets can be tokens and lovelace.
+1. **Initiate**: Lock specified assets in contract with requested assets in datum
+2. **Accept**: Counterparty must provide exactly the requested assets
+3. **Cancel**: Only the initiator can cancel and retrieve assets
 
-<Card>
-### Initiate Swap [!toc]
+## Available Actions
 
-Initiate a swap by defining the assets for the swap contract
+### Initiate Swap
 
-**Amount lovelace to give**
-`10000000`
+Create a new swap by specifying what you offer and what you want in return.
 
-**Asset to receive**
-`d9312da562da182b02322fd8acb536f37eb9d29fba7c49dc172555274d657368546f6b656e`
+#### Method Signature
 
-```tsx
-const assetToProvide: Asset = {
-  unit: "lovelace",
-  quantity: '10000000',
-};
+```typescript
+contract.initiateSwap(toProvide: Asset[], toReceive: Asset[]): Promise<string>
+```
 
-const assetToReceive: Asset = {
-  unit: 'd9312da562da182b02322fd8acb536f37eb9d29fba7c49dc172555274d657368546f6b656e',
-  quantity: "1",
-};
+#### Parameters
 
-const tx = await contract.initiateSwap([assetToProvide], [assetToReceive]);
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `toProvide` | `Asset[]` | Assets you are offering |
+| `toReceive` | `Asset[]` | Assets you want in exchange |
+
+#### Code Example
+
+```typescript
+import { MeshSwapContract } from "@meshsdk/contract";
+import { BlockfrostProvider, MeshTxBuilder, Asset } from "@meshsdk/core";
+
+// Initialize provider and contract
+const provider = new BlockfrostProvider("<Your-API-Key>");
+
+const meshTxBuilder = new MeshTxBuilder({
+  fetcher: provider,
+  submitter: provider,
+});
+
+const contract = new MeshSwapContract({
+  mesh: meshTxBuilder,
+  fetcher: provider,
+  wallet: wallet,
+  networkId: 0,
+});
+
+// Define what you're offering (10 ADA)
+const toProvide: Asset[] = [
+  {
+    unit: "lovelace",
+    quantity: "10000000",
+  },
+];
+
+// Define what you want (1 specific NFT)
+const toReceive: Asset[] = [
+  {
+    unit: "d9312da562da182b02322fd8acb536f37eb9d29fba7c49dc172555274d657368546f6b656e",
+    quantity: "1",
+  },
+];
+
+// Initiate the swap
+const tx = await contract.initiateSwap(toProvide, toReceive);
 const signedTx = await wallet.signTx(tx);
 const txHash = await wallet.submitTx(signedTx);
+
+console.log("Swap initiated. Transaction hash:", txHash);
+// Share this txHash with potential counterparties
 ```
-</Card>
 
+#### What Happens on Success
 
-## Accept Swap
+- Your offered assets transfer to the contract
+- Swap terms are stored in the datum
+- Anyone with the requested assets can accept
+- You can cancel anytime before acceptance
 
-User B can accept a swap by providing the swap transaction hash to the contract.
+### Accept Swap
 
-`acceptSwap()` accept a swap. The function accepts the following parameters:
+Accept an open swap by providing the requested assets.
 
-- swapUtxo (UTxO) - the utxo of the transaction in the script for the swap
+#### Method Signature
 
-The function accepts a swap transaction hash and returns a transaction hash if the swap is successfully accepted.
+```typescript
+contract.acceptSwap(swapUtxo: UTxO): Promise<string>
+```
 
-A <Link href="https://preprod.cardanoscan.io/transaction/e266fc6b0b2481988f9742a28b914dabf7da5403a3893d5ba4b05530d2519f3a">successful transaction</Link> will send the assets to the wallet that signed the transaction to accept the swap.
+#### Parameters
 
-<Card>
-  ### Accept Swap [!toc]
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `swapUtxo` | `UTxO` | The UTxO containing the swap offer |
 
-  Accept a swap by providing the assets to the swap contract
+#### Code Example
 
-  **Tx hash**
-  `Tx hash`
+```typescript
+import { MeshSwapContract } from "@meshsdk/contract";
+import { BlockfrostProvider, MeshTxBuilder } from "@meshsdk/core";
 
-  ```tsx
-  const utxo = await contract.getUtxoByTxHash('');
+// Initialize provider and contract (acceptor's wallet)
+const provider = new BlockfrostProvider("<Your-API-Key>");
 
-  const tx = await contract.acceptSwap(utxo);
-  const signedTx = await wallet.signTx(tx);
-  const txHash = await wallet.submitTx(signedTx);
-  ```
-</Card>
+const meshTxBuilder = new MeshTxBuilder({
+  fetcher: provider,
+  submitter: provider,
+});
 
+const contract = new MeshSwapContract({
+  mesh: meshTxBuilder,
+  fetcher: provider,
+  wallet: acceptorWallet,
+  networkId: 0,
+});
 
-## Cancel Swap
+// Get the swap UTxO from the initiation transaction
+const swapUtxo = await contract.getUtxoByTxHash("<initiate-transaction-hash>");
 
-Any any time before swap is accepted, user A can cancel the swap.
+// Accept the swap (must have the requested assets in wallet)
+const tx = await contract.acceptSwap(swapUtxo);
+const signedTx = await acceptorWallet.signTx(tx);
+const txHash = await acceptorWallet.submitTx(signedTx);
 
-`cancelSwap()` cancel a swap. The function accepts the following parameters:
+console.log("Swap accepted. Transaction hash:", txHash);
+```
 
-- swapUtxo (UTxO) - the utxo of the transaction in the script for the swap
+#### What Happens on Success
 
-The function accepts a swap transaction hash and returns a transaction hash if the swap is successfully canceled.
+- Acceptor receives the initiator's offered assets
+- Initiator receives the requested assets
+- Swap UTxO is consumed
+- View example: [Successful swap on Cardanoscan](https://preprod.cardanoscan.io/transaction/e266fc6b0b2481988f9742a28b914dabf7da5403a3893d5ba4b05530d2519f3a)
 
-<Card>
-  ### Cancel Swap [!toc]
+### Cancel Swap
 
-  Cancel a swap to get your funds back
+Cancel an open swap and retrieve your assets.
 
-  **Tx hash**
-  `Tx hash`
+#### Method Signature
 
-  ```tsx
-  const utxo = await contract.getUtxoByTxHash('');
+```typescript
+contract.cancelSwap(swapUtxo: UTxO): Promise<string>
+```
 
-  const tx = await contract.cancelSwap(utxo);
-  const signedTx = await wallet.signTx(tx);
-  const txHash = await wallet.submitTx(signedTx);
-  ```
-</Card>
+#### Parameters
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `swapUtxo` | `UTxO` | The UTxO containing your swap offer |
+
+#### Code Example
+
+```typescript
+import { MeshSwapContract } from "@meshsdk/contract";
+import { BlockfrostProvider, MeshTxBuilder } from "@meshsdk/core";
+
+// Initialize provider and contract (initiator's wallet)
+const provider = new BlockfrostProvider("<Your-API-Key>");
+
+const meshTxBuilder = new MeshTxBuilder({
+  fetcher: provider,
+  submitter: provider,
+});
+
+const contract = new MeshSwapContract({
+  mesh: meshTxBuilder,
+  fetcher: provider,
+  wallet: initiatorWallet,
+  networkId: 0,
+});
+
+// Get your swap UTxO
+const swapUtxo = await contract.getUtxoByTxHash("<initiate-transaction-hash>");
+
+// Cancel the swap
+const tx = await contract.cancelSwap(swapUtxo);
+const signedTx = await initiatorWallet.signTx(tx);
+const txHash = await initiatorWallet.submitTx(signedTx);
+
+console.log("Swap cancelled. Transaction hash:", txHash);
+```
+
+#### What Happens on Success
+
+- Your offered assets return to your wallet
+- Swap UTxO is consumed
+- No further action possible on this swap
+
+## Full Working Example
+
+```typescript
+import { MeshSwapContract } from "@meshsdk/contract";
+import { BlockfrostProvider, MeshTxBuilder, Asset } from "@meshsdk/core";
+import { BrowserWallet } from "@meshsdk/core";
+
+async function swapDemo() {
+  const provider = new BlockfrostProvider("<Your-API-Key>");
+
+  // Party A wants to trade 10 ADA for an NFT
+  const partyAWallet = await BrowserWallet.enable("eternl");
+
+  const contractA = new MeshSwapContract({
+    mesh: new MeshTxBuilder({ fetcher: provider, submitter: provider }),
+    fetcher: provider,
+    wallet: partyAWallet,
+    networkId: 0,
+  });
+
+  // Step 1: Party A initiates swap
+  const toProvide: Asset[] = [
+    { unit: "lovelace", quantity: "10000000" }, // 10 ADA
+  ];
+
+  const toReceive: Asset[] = [
+    {
+      unit: "d9312da562da182b02322fd8acb536f37eb9d29fba7c49dc172555274d657368546f6b656e",
+      quantity: "1",
+    },
+  ];
+
+  const initTx = await contractA.initiateSwap(toProvide, toReceive);
+  const signedInitTx = await partyAWallet.signTx(initTx);
+  const initTxHash = await partyAWallet.submitTx(signedInitTx);
+
+  console.log("Swap initiated:", initTxHash);
+
+  // Wait for confirmation
+  await new Promise((r) => setTimeout(r, 60000));
+
+  // Step 2: Party B accepts the swap
+  const partyBWallet = await BrowserWallet.enable("nami");
+
+  const contractB = new MeshSwapContract({
+    mesh: new MeshTxBuilder({ fetcher: provider, submitter: provider }),
+    fetcher: provider,
+    wallet: partyBWallet,
+    networkId: 0,
+  });
+
+  const swapUtxo = await contractB.getUtxoByTxHash(initTxHash);
+
+  const acceptTx = await contractB.acceptSwap(swapUtxo);
+  const signedAcceptTx = await partyBWallet.signTx(acceptTx);
+  const acceptTxHash = await partyBWallet.submitTx(signedAcceptTx);
+
+  console.log("Swap completed:", acceptTxHash);
+}
+
+swapDemo().catch(console.error);
+```
+
+## Multi-Asset Swaps
+
+You can swap multiple assets in a single transaction:
+
+```typescript
+// Offering: 5 ADA + 100 tokens
+const toProvide: Asset[] = [
+  {
+    unit: "lovelace",
+    quantity: "5000000",
+  },
+  {
+    unit: "abc123...fungibleToken",
+    quantity: "100",
+  },
+];
+
+// Wanting: 2 specific NFTs
+const toReceive: Asset[] = [
+  {
+    unit: "xyz789...nft1",
+    quantity: "1",
+  },
+  {
+    unit: "xyz789...nft2",
+    quantity: "1",
+  },
+];
+
+const tx = await contract.initiateSwap(toProvide, toReceive);
+```
+
+## Swap Discovery
+
+To find available swaps, query the contract address:
+
+```typescript
+async function findOpenSwaps(contract: MeshSwapContract) {
+  const scriptAddress = contract.getScriptAddress();
+  const utxos = await provider.fetchAddressUTxOs(scriptAddress);
+
+  return utxos.map((utxo) => ({
+    txHash: utxo.input.txHash,
+    offered: utxo.output.amount,
+    // Parse datum for requested assets
+  }));
+}
+```
+
+## Troubleshooting
+
+### Common Errors
+
+| Error | Cause | Solution |
+|-------|-------|----------|
+| `Script validation failed` | Missing requested assets | Ensure you have all requested assets |
+| `Missing required signer` | Wrong wallet for cancel | Only initiator can cancel |
+| `UTxO not found` | Swap already accepted or cancelled | Check if swap is still open |
+| `Insufficient funds` | Not enough assets to accept | Verify you have the exact requested amounts |
+
+### Debugging Tips
+
+1. **Check swap status**: Use `getUtxoByTxHash()` to verify the swap is still open
+2. **Verify asset units**: Asset units must match exactly (policy ID + asset name)
+3. **Check quantities**: You must provide the exact quantities requested
+4. **Inspect datum**: View the transaction on a block explorer to see requested assets
+
+### Asset Unit Format
+
+```typescript
+// Correct format: policyId + assetName (in hex)
+const unit = "d9312da562da182b02322fd8acb536f37eb9d29fba7c49dc172555274d657368546f6b656e";
+//           |----------- policy ID -----------||-------- asset name (hex) --------|
+
+// For lovelace, use the string "lovelace"
+const lovelace = "lovelace";
+```
+
+## Comparison: Swap vs Escrow
+
+| Feature | Swap | Escrow |
+|---------|------|--------|
+| Parties | 1 initiator, any acceptor | 2 specific parties |
+| Terms | Fixed at initiation | Agreed by both parties |
+| Completion | Single signature (acceptor) | Multi-signature |
+| Use Case | Public offers | Private agreements |
+
+## Related Links
+
+- [Source Code on GitHub](https://github.com/MeshJS/mesh/tree/main/packages/mesh-contract/src/swap)
+- [Successful Swap Example](https://preprod.cardanoscan.io/transaction/e266fc6b0b2481988f9742a28b914dabf7da5403a3893d5ba4b05530d2519f3a)
+- [Escrow Contract](/docs/smart-contracts/escrow) - For private two-party agreements
+- [MeshTxBuilder Documentation](/apis/transaction)
+- [Wallet Integration Guide](/wallets)

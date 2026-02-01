@@ -1,39 +1,89 @@
 ---
 title: "NFT Minting Machine"
-description: "Mint NFT that ensure the token name is incremented by a counter"
+description: "Mint NFTs with auto-incrementing indexes using an on-chain oracle"
 ---
-import Link from "fumadocs-core/link";
 
-This NFT minting script enables users to mint NFTs with an automatically incremented index, which increases by one for each newly minted NFT.
+import Link from "next/link";
 
-To facilitate this process, the first step is to set up a one-time minting policy by minting an oracle token. This oracle token is essential as it holds the current state and index of the NFTs, acting as a reference for the minting sequence.
+The NFT Minting Machine contract enables you to mint NFTs with automatically incrementing indexes. Each new NFT gets the next number in sequence, tracked by an on-chain oracle. This is ideal for collections where you want numbered editions like "Mesh Token #1", "Mesh Token #2", etc.
 
-With each new NFT minted, the token index within the oracle is incremented by one, ensuring a consistent and orderly progression in the numbering of the NFTs.
+## Use Cases
 
-There are 3 actions available to interact with this smart contract:
+- Numbered NFT collections
+- Sequential edition minting
+- Limited series with verifiable order
+- Collection drops with provable mint order
+- Membership cards with sequential IDs
 
-- **Setup Oracle:** Mint one-time minting policy to set up the oracle
-- **Mint Token:** Mint NFT that ensures the token name is incremented by a counter
-- **Get Oracle Data:** Fetch the current oracle data to get the current NFT index and other information
+## Quick Start
 
+### Install the Package
 
-### Install package [!toc]
-
-First you can to install the `@meshsdk/contracts` package:
-
-```tsx
-npm install @meshsdk/contract
+```bash
+npm install @meshsdk/contract @meshsdk/core
 ```
 
-Both on-chain and off-chain codes are open-source and available on <Link href="https://github.com/MeshJS/mesh/tree/main/packages/mesh-contract/src/plutus-nft">Mesh Github Repository</Link>.
+### Setup Overview
 
-## Setup Oracle
+The NFT Minting Machine requires a three-step setup:
 
-First, we need to set up a one-time minting policy by minting an oracle token. This oracle token is essential as it holds the current state and index of the NFTs, acting as a reference for the minting sequence.
+| Step | Action | Purpose |
+|------|--------|---------|
+| 1 | Setup Oracle | Create the one-time minting policy and oracle token |
+| 2 | Save paramUtxo | Store the oracle reference for future mints |
+| 3 | Mint NFTs | Use the oracle to mint sequentially numbered NFTs |
 
-We need to provide 2 parameters to setup the oracle, the price of the NFT in lovelace and the collection name. The collection name is used when initializing `MeshPlutusNFTContract` which is used to derive the script CBOR. The price of the NFT in lovelace is used in `setupOracle()` function which will be added into the oracle token.
+## Contract Logic
 
-```tsx
+The contract uses an oracle pattern to track minting state:
+
+| Component | Description |
+|-----------|-------------|
+| **Oracle Token** | A one-time minted NFT that holds the collection state |
+| **Oracle Datum** | Stores the current NFT index and collection info |
+| **Minting Policy** | Ensures each NFT is numbered correctly |
+
+### How It Works
+
+1. **Setup**: Mint an oracle token that stores `nftIndex = 0`
+2. **First Mint**: Oracle shows index 0, mint NFT #0, update oracle to index 1
+3. **Second Mint**: Oracle shows index 1, mint NFT #1, update oracle to index 2
+4. **And so on**: Each mint increments the oracle index
+
+## Available Actions
+
+### Setup Oracle
+
+Initialize the minting machine by creating the oracle token. This is a one-time setup.
+
+#### Method Signature
+
+```typescript
+contract.setupOracle(priceLovelace: number): Promise<{ tx: string; paramUtxo: { outputIndex: number; txHash: string } }>
+```
+
+#### Parameters
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `priceLovelace` | `number` | Price per NFT in lovelace |
+
+#### Code Example
+
+```typescript
+import { MeshPlutusNFTContract } from "@meshsdk/contract";
+import { BlockfrostProvider, MeshTxBuilder } from "@meshsdk/core";
+
+// Initialize provider
+const provider = new BlockfrostProvider("<Your-API-Key>");
+
+const meshTxBuilder = new MeshTxBuilder({
+  fetcher: provider,
+  submitter: provider,
+  verbose: true,
+});
+
+// Initialize contract with collection name
 const contract = new MeshPlutusNFTContract(
   {
     mesh: meshTxBuilder,
@@ -42,73 +92,58 @@ const contract = new MeshPlutusNFTContract(
     networkId: 0,
   },
   {
-    collectionName: 'collectionName', // your nft collection name
-  },
+    collectionName: "MeshCollection",
+  }
 );
 
-const { tx, paramUtxo } = await contract.setupOracle(15000000); // price in lovelace
-```
-
-The `setupOracle()` function will return a transaction CBOR and a `paramUtxo`. The `paramUtxo` will be used in the minting transaction of the NFT, so it is important to store it. Here is an example of the `paramUtxo`:
-
-```tsx
-{
-  "outputIndex": 0,
-  "txHash": "63dbd563ee9979574401599a42841e0d5b63a691af95df863cbf37d5cb44a558"
-}
-```
-
-The transaction CBOR can be signed and submitted using the following code:
-
-```tsx
+// Setup oracle with 10 ADA mint price
+const { tx, paramUtxo } = await contract.setupOracle(10000000);
 const signedTx = await wallet.signTx(tx);
 const txHash = await wallet.submitTx(signedTx);
+
+console.log("Oracle setup complete. Transaction hash:", txHash);
+console.log("IMPORTANT - Save this paramUtxo:", JSON.stringify(paramUtxo));
+// Example: {"outputIndex":0,"txHash":"63dbd563ee9979574401599a42841e0d5b63a691af95df863cbf37d5cb44a558"}
 ```
 
-<Card>
-  ### Setup Oracle [!toc]
+#### What Happens on Success
 
-  Mint one time minting policy to set up the oracle
+- Oracle token is minted
+- Collection state is initialized with index 0
+- You receive `paramUtxo` - **save this for all future mints**
 
-  **NFT Price in Lovelace**
-  `10000000`
+### Mint NFT
 
-  **Collection Name**
-  `mesh`
+Mint a new NFT with the next sequential index.
 
-  ```tsx
-  const meshTxBuilder = new MeshTxBuilder({
-    fetcher: provider,
-    submitter: provider,
-    verbose: true,
-  });
+#### Method Signature
 
-  const contract = new MeshPlutusNFTContract(
-    {
-      mesh: meshTxBuilder,
-      fetcher: provider,
-      wallet: wallet,
-      networkId: 0,
-    },
-    {
-      collectionName: 'mesh',
-    },
-  );
+```typescript
+contract.mintPlutusNFT(assetMetadata: object): Promise<string>
+```
 
-  const { tx, paramUtxo } = await contract.setupOracle(10000000);
-  const signedTx = await wallet.signTx(tx);
-  const txHash = await wallet.submitTx(signedTx);
-  ```
-</Card>
+#### Parameters
 
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `assetMetadata` | `object` | CIP-25 compliant NFT metadata |
 
-## Mint Token
+#### Code Example
 
-This NFT minting script enables users to mint NFTs with an automatically incremented index, which increases by one for each newly minted NFT.
+```typescript
+import { MeshPlutusNFTContract } from "@meshsdk/contract";
+import { BlockfrostProvider, MeshTxBuilder } from "@meshsdk/core";
 
-To facilitate this process, you must provide the `paramUtxo` that contains the output index and transaction hash of the NFT minting policy.
+// Initialize provider
+const provider = new BlockfrostProvider("<Your-API-Key>");
 
-```tsx
+const meshTxBuilder = new MeshTxBuilder({
+  fetcher: provider,
+  submitter: provider,
+  verbose: true,
+});
+
+// Initialize contract with collection name AND paramUtxo from setup
 const contract = new MeshPlutusNFTContract(
   {
     mesh: meshTxBuilder,
@@ -117,85 +152,69 @@ const contract = new MeshPlutusNFTContract(
     networkId: 0,
   },
   {
-    collectionName: 'collectionName',
-    paramUtxo: {"outputIndex":0,"txHash":"63dbd563ee9979574401599a42841e0d5b63a691af95df863cbf37d5cb44a558"},
-  },
+    collectionName: "MeshCollection",
+    paramUtxo: {
+      outputIndex: 0,
+      txHash: "63dbd563ee9979574401599a42841e0d5b63a691af95df863cbf37d5cb44a558",
+    },
+  }
 );
-```
 
-The `mintPlutusNFT()` function mints an NFT with asset metadata, which is a JSON object containing the NFT metadata. You can use the `getOracleData()` function to fetch the oracle data, which includes the current NFT index. This index will be helpful if you need to define the NFT name and its metadata. Here is an example of the how we can define the asset metadata:
-
-```tsx
+// Get current index from oracle
 const oracleData = await contract.getOracleData();
 
+// Define NFT metadata with current index
 const assetMetadata = {
-  ...demoAssetMetadata,
   name: `Mesh Token ${oracleData.nftIndex}`,
+  image: "ipfs://QmRzicpReutwCkM6aotuKjErFCUD213DpwPq6ByuzMJaua",
+  description: `Mesh NFT Collection - Edition #${oracleData.nftIndex}`,
+  attributes: [
+    { trait_type: "Edition", value: oracleData.nftIndex },
+    { trait_type: "Collection", value: "MeshCollection" },
+  ],
 };
-```
 
-The `mintPlutusNFT()` function will return a transaction object that can be signed and submitted using the following code:
-
-```tsx
+// Mint the NFT
 const tx = await contract.mintPlutusNFT(assetMetadata);
 const signedTx = await wallet.signTx(tx);
 const txHash = await wallet.submitTx(signedTx);
+
+console.log(`Minted NFT #${oracleData.nftIndex}. Transaction hash:`, txHash);
 ```
 
-<Card>
-  ### Mint Token [!toc]
+#### What Happens on Success
 
-  Mint an NFT with asset metadata
+- New NFT is minted with the current index
+- Oracle index increments by 1
+- NFT is sent to the minter's wallet
+- Minting price (if set) is collected
 
-  **Collection Name**
-  `mesh`
+### Get Oracle Data
 
-  **Param UTxO**
-  `{"outputIndex":0,"txHash":"63dbd563ee9979574401599a...37d5cb44a558"}`
+Fetch the current oracle state including the next NFT index.
 
-  ```tsx
-  const meshTxBuilder = new MeshTxBuilder({
-    fetcher: provider,
-    submitter: provider,
-    verbose: true,
-  });
+#### Method Signature
 
-  const contract = new MeshPlutusNFTContract(
-    {
-      mesh: meshTxBuilder,
-      fetcher: provider,
-      wallet: wallet,
-      networkId: 0,
-    },
-    {
-      collectionName: 'mesh',
-      paramUtxo: {"outputIndex":0,"txHash":"63dbd563ee9979574401599a42841e0d5b63a691af95df863cbf37d5cb44a558"},
-    },
-  );
+```typescript
+contract.getOracleData(): Promise<{ nftIndex: number; price: number }>
+```
 
-  // Get Oracle Data
-  const oracleData = await contract.getOracleData(); // see getOracleData()
+#### Code Example
 
-  // define your NFT metadata here
-  const assetMetadata = {
-    ...demoAssetMetadata,
-    name: `Mesh Token ${oracleData.nftIndex}`,
-  };
+```typescript
+import { MeshPlutusNFTContract } from "@meshsdk/contract";
+import { BlockfrostProvider, MeshTxBuilder } from "@meshsdk/core";
 
-  const tx = await contract.mintPlutusNFT(assetMetadata);
-  const signedTx = await wallet.signTx(tx);
-  const txHash = await wallet.submitTx(signedTx);
-  ```
-</Card>
+// Initialize provider
+const provider = new BlockfrostProvider("<Your-API-Key>");
 
+const meshTxBuilder = new MeshTxBuilder({
+  fetcher: provider,
+  submitter: provider,
+  verbose: true,
+});
 
-## Get Oracle Data
-
-Getting the oracle data is essential to fetch the current NFT index.
-
-To facilitate this process, you must provide the `paramUtxo` that contains the output index and transaction hash of the NFT minting policy.
-
-```tsx
+// Initialize contract with paramUtxo
 const contract = new MeshPlutusNFTContract(
   {
     mesh: meshTxBuilder,
@@ -204,50 +223,179 @@ const contract = new MeshPlutusNFTContract(
     networkId: 0,
   },
   {
-    collectionName: 'collectionName',
-    paramUtxo: {"outputIndex":0,"txHash":"63dbd563ee9979574401599a42841e0d5b63a691af95df863cbf37d5cb44a558"},
-  },
+    collectionName: "MeshCollection",
+    paramUtxo: {
+      outputIndex: 0,
+      txHash: "63dbd563ee9979574401599a42841e0d5b63a691af95df863cbf37d5cb44a558",
+    },
+  }
 );
-```
 
-The `getOracleData()` function will return the current oracle data.
-
-```tsx
+// Get oracle data
 const oracleData = await contract.getOracleData();
+
+console.log("Current NFT Index:", oracleData.nftIndex);
+console.log("Mint Price:", oracleData.price / 1000000, "ADA");
 ```
 
-<Card>
-  ### Get Oracle Data [!toc]
+#### Return Value
 
-  Fetch the current oracle data to get the current NFT index and other information
+```typescript
+{
+  nftIndex: 5,      // Next NFT will be #5
+  price: 10000000   // 10 ADA mint price
+}
+```
 
-  **Collection Name**
-  `mesh`
+## Full Working Example
 
-  **Param UTxO**
-  `{"outputIndex":0,"txHash":"63dbd563ee9979574401599a...37d5cb44a558"}`
+```typescript
+import { MeshPlutusNFTContract } from "@meshsdk/contract";
+import { BlockfrostProvider, MeshTxBuilder } from "@meshsdk/core";
+import { BrowserWallet } from "@meshsdk/core";
 
-  ```tsx
-  const meshTxBuilder = new MeshTxBuilder({
+async function nftMintingMachineDemo() {
+  // Connect wallet
+  const wallet = await BrowserWallet.enable("eternl");
+
+  // Initialize provider
+  const provider = new BlockfrostProvider("<Your-API-Key>");
+
+  // Step 1: Setup Oracle (ONE TIME ONLY)
+  const setupMeshTxBuilder = new MeshTxBuilder({
     fetcher: provider,
     submitter: provider,
     verbose: true,
   });
 
-  const contract = new MeshPlutusNFTContract(
+  const setupContract = new MeshPlutusNFTContract(
     {
-      mesh: meshTxBuilder,
+      mesh: setupMeshTxBuilder,
       fetcher: provider,
       wallet: wallet,
       networkId: 0,
     },
     {
-      collectionName: 'mesh',
-      paramUtxo: {"outputIndex":0,"txHash":"63dbd563ee9979574401599a42841e0d5b63a691af95df863cbf37d5cb44a558"},
-    },
+      collectionName: "MeshCollection",
+    }
   );
 
-  // Get Oracle Data
-  const oracleData = await contract.getOracleData();
-  ```
-</Card>
+  // Setup oracle with 10 ADA mint price
+  const { tx: setupTx, paramUtxo } = await setupContract.setupOracle(10000000);
+  const signedSetupTx = await wallet.signTx(setupTx);
+  const setupTxHash = await wallet.submitTx(signedSetupTx);
+
+  console.log("Oracle setup:", setupTxHash);
+  console.log("paramUtxo:", JSON.stringify(paramUtxo));
+
+  // Wait for confirmation
+  await new Promise((resolve) => setTimeout(resolve, 60000));
+
+  // Step 2: Mint NFTs (can be done multiple times)
+  const mintMeshTxBuilder = new MeshTxBuilder({
+    fetcher: provider,
+    submitter: provider,
+    verbose: true,
+  });
+
+  const mintContract = new MeshPlutusNFTContract(
+    {
+      mesh: mintMeshTxBuilder,
+      fetcher: provider,
+      wallet: wallet,
+      networkId: 0,
+    },
+    {
+      collectionName: "MeshCollection",
+      paramUtxo: paramUtxo, // Use paramUtxo from setup
+    }
+  );
+
+  // Get current index
+  const oracleData = await mintContract.getOracleData();
+
+  // Define metadata
+  const assetMetadata = {
+    name: `Mesh Token ${oracleData.nftIndex}`,
+    image: "ipfs://QmRzicpReutwCkM6aotuKjErFCUD213DpwPq6ByuzMJaua",
+    description: `Edition #${oracleData.nftIndex} of MeshCollection`,
+  };
+
+  // Mint
+  const mintTx = await mintContract.mintPlutusNFT(assetMetadata);
+  const signedMintTx = await wallet.signTx(mintTx);
+  const mintTxHash = await wallet.submitTx(signedMintTx);
+
+  console.log(`Minted NFT #${oracleData.nftIndex}:`, mintTxHash);
+}
+
+nftMintingMachineDemo().catch(console.error);
+```
+
+## Important: Storing paramUtxo
+
+The `paramUtxo` is critical for your minting machine. Store it securely:
+
+```typescript
+// After setupOracle, save this to your database or config
+const paramUtxo = {
+  outputIndex: 0,
+  txHash: "63dbd563ee9979574401599a42841e0d5b63a691af95df863cbf37d5cb44a558",
+};
+
+// For all future mints, initialize the contract with this paramUtxo
+const contract = new MeshPlutusNFTContract(
+  { /* ... */ },
+  {
+    collectionName: "MeshCollection",
+    paramUtxo: paramUtxo,  // Required for minting
+  }
+);
+```
+
+## Troubleshooting
+
+### Common Errors
+
+| Error | Cause | Solution |
+|-------|-------|----------|
+| `Oracle not found` | Missing or wrong paramUtxo | Verify paramUtxo matches your setup transaction |
+| `Script validation failed` | Oracle state mismatch | Ensure you're using the latest oracle state |
+| `Invalid collection name` | Name mismatch | Collection name must match oracle setup |
+| `Insufficient funds` | Not enough ADA for mint price + fees | Ensure wallet has enough ADA |
+
+### Debugging Tips
+
+1. **Save paramUtxo immediately**: Store it right after `setupOracle()` succeeds
+2. **Use consistent collection name**: Must be identical for setup and mint
+3. **Check oracle data first**: Call `getOracleData()` before minting to verify state
+4. **One mint at a time**: Wait for each mint to confirm before the next
+
+### Concurrent Minting
+
+The oracle pattern requires sequential updates. For high-volume minting:
+
+```typescript
+// Wait for confirmation between mints
+async function mintSequentially(count: number) {
+  for (let i = 0; i < count; i++) {
+    const oracleData = await contract.getOracleData();
+    const tx = await contract.mintPlutusNFT({
+      name: `Token ${oracleData.nftIndex}`,
+      // ...metadata
+    });
+    const signedTx = await wallet.signTx(tx);
+    await wallet.submitTx(signedTx);
+
+    // Wait for confirmation
+    await new Promise((r) => setTimeout(r, 30000));
+  }
+}
+```
+
+## Related Links
+
+- [Source Code on GitHub](https://github.com/MeshJS/mesh/tree/main/packages/mesh-contract/src/plutus-nft)
+- [CIP-25 NFT Metadata Standard](https://cips.cardano.org/cips/cip25/)
+- [MeshTxBuilder Documentation](/apis/transaction)
+- [Wallet Integration Guide](/wallets)

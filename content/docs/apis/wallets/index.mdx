@@ -1,9 +1,10 @@
 ---
 title: "Wallets"
-description: "Wallets APIs for interacting with the blockchain."
+description: "Connect to browser wallets and create server-side wallets for Cardano dApp development."
 icon: WalletIcon
 full: true
 ---
+
 import {linksWallets} from "@/data/links-wallets";
 import Link from "next/link";
 import {
@@ -11,6 +12,127 @@ import {
   CardDescription,
   CardTitle,
 } from "@/components/ui/card";
+
+## Overview
+
+Mesh provides two wallet types for different use cases:
+
+| Wallet Type | Use Case | Environment |
+|-------------|----------|-------------|
+| [Browser Wallet](/apis/wallets/browserwallet) | Connect to user's wallet extension | Frontend (browser) |
+| [Mesh Wallet](/apis/wallets/meshwallet) | Programmatic wallet control | Backend (Node.js) |
+
+## Quick Start
+
+### Browser Wallet (Frontend)
+
+Connect to CIP-30 compatible wallets like Eternl, Nami, and Lace:
+
+```tsx
+import { BrowserWallet } from "@meshsdk/core";
+
+// Get available wallets
+const wallets = await BrowserWallet.getAvailableWallets();
+
+// Connect to a wallet
+const wallet = await BrowserWallet.enable("eternl");
+
+// Get balance
+const lovelace = await wallet.getLovelace();
+console.log(`Balance: ${Number(lovelace) / 1_000_000} ADA`);
+
+// Get address
+const address = await wallet.getChangeAddress();
+```
+
+### Mesh Wallet (Backend)
+
+Create wallets programmatically for server-side applications:
+
+```tsx
+import { MeshWallet, BlockfrostProvider } from "@meshsdk/core";
+
+const provider = new BlockfrostProvider("<YOUR_API_KEY>");
+
+// Create from mnemonic
+const wallet = new MeshWallet({
+  networkId: 0, // 0 = testnet, 1 = mainnet
+  fetcher: provider,
+  submitter: provider,
+  key: {
+    type: "mnemonic",
+    words: ["your", "24", "word", "mnemonic", "phrase", "..."],
+  },
+});
+
+// Or create from private key
+const wallet = new MeshWallet({
+  networkId: 0,
+  fetcher: provider,
+  key: {
+    type: "root",
+    bech32: "xprv1...",
+  },
+});
+```
+
+## Choosing a Wallet Type
+
+**Use Browser Wallet when:**
+- Building frontend dApps
+- Users need to connect their own wallets
+- Transactions require user approval
+- Working with CIP-30 features
+
+**Use Mesh Wallet when:**
+- Running backend services
+- Automating transactions
+- Managing treasury wallets
+- Building bots or scripts
+
+## Common Operations
+
+Both wallet types share similar APIs for common operations:
+
+```tsx
+// Get UTXOs
+const utxos = await wallet.getUtxos();
+
+// Get change address
+const address = await wallet.getChangeAddress();
+
+// Sign transaction
+const signedTx = await wallet.signTx(unsignedTx);
+
+// Submit transaction
+const txHash = await wallet.submitTx(signedTx);
+
+// Get all assets
+const assets = await wallet.getAssets();
+```
+
+## React Integration
+
+For React applications, use `@meshsdk/react` for built-in components and hooks:
+
+```tsx
+import { CardanoWallet, useWallet } from "@meshsdk/react";
+
+function App() {
+  const { connected, wallet } = useWallet();
+
+  return (
+    <div>
+      <CardanoWallet />
+      {connected && <p>Balance: {wallet.getLovelace()}</p>}
+    </div>
+  );
+}
+```
+
+See [React Getting Started](/react/getting-started) for full integration details.
+
+## Available Wallet APIs
 
 <div className="grid md:grid-cols-2 gap-6 items-stretch">
   {linksWallets.map((card) => (
@@ -22,3 +144,9 @@ import {
     </Link>
   ))}
 </div>
+
+## Related
+
+- [React Integration](/react/getting-started) — Wallet components and hooks
+- [Transaction Builder](/apis/txbuilder/basics) — Build transactions to sign
+- [Prove Wallet Ownership](/guides/prove-wallet-ownership) — Authenticate users with signatures

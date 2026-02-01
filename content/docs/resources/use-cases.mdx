@@ -1,242 +1,291 @@
 ---
-title: "Use Cases & Showcases"
-description: "Discover real-world applications and projects built with Mesh - from DeFi platforms to NFT marketplaces and enterprise solutions on Cardano."
+title: "Use Cases"
+description: "Explore real-world applications built with Mesh SDK on Cardano."
 ---
 
 import { Card, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 
-Discover how developers and organizations are using Mesh to build innovative Cardano applications. From DeFi platforms to NFT marketplaces, Mesh powers a wide range of blockchain solutions.
+Discover how developers use Mesh to build production applications on Cardano. From DeFi to NFTs to enterprise solutions, Mesh powers a wide range of blockchain applications.
 
-## DeFi Applications
+## DeFi
 
-### Decentralized Exchanges (DEX)
+### Decentralized exchanges
 
-Mesh provides the perfect foundation for building decentralized exchanges on Cardano:
+Build trading platforms with Mesh:
 
-- **Automated Market Makers (AMM)**: Build liquidity pools and swap mechanisms with Mesh's transaction builder
-- **Order Book DEXs**: Manage complex order matching with smart contract integration
-- **Multi-Asset Swaps**: Handle native token exchanges with ease
+| Feature | Mesh capability |
+|---------|-----------------|
+| AMM liquidity pools | Transaction builder for swaps |
+| Order book matching | Smart contract integration |
+| Multi-asset swaps | Native token handling |
+| Wallet connectivity | CIP-30 wallet support |
 
-**Key Features Used:**
-- Transaction building APIs
-- Multi-asset handling
-- Smart contract integration
-- Wallet connections
+### Lending protocols
 
-### Lending Protocols
+Create lending and borrowing platforms:
 
-Create secure lending and borrowing platforms:
+- Collateral locking with smart contracts
+- Automated interest calculations
+- Liquidation mechanisms
+- Multi-party transaction management
 
-- **Collateral Management**: Lock and release assets with smart contracts
-- **Interest Calculations**: Automated interest accrual and distribution
-- **Liquidation Mechanisms**: Monitor and execute collateral liquidations
-
-**Real-World Example:**
-Lending protocols use Mesh to handle complex multi-party transactions, ensuring secure collateral locks and automated interest payments through Plutus smart contracts.
-
-### Staking Platforms
+### Staking platforms
 
 Build custom staking solutions:
 
-- **Stake Pool Delegation**: Simplified delegation interfaces
-- **Rewards Distribution**: Automated reward calculations and distributions
-- **Multi-Pool Support**: Manage delegations across multiple pools
+- Stake pool delegation interfaces
+- Reward distribution automation
+- Multi-pool management
+- Delegation tracking
 
-## NFT Marketplaces
+---
 
-### NFT Minting Platforms
+## NFTs
 
-Mesh simplifies NFT creation and distribution:
+### Minting platforms
 
-- **Single NFT Minting**: Easy one-off NFT creation
-- **Collection Launches**: Batch minting for entire collections
-- **Generative Art**: Create unique combinations programmatically
-- **Metadata Management**: CIP-25 and CIP-68 compliance
+Mesh simplifies NFT creation:
 
-**Implementation tip:** For minting NFTs in your own project, use the modern `MeshTxBuilder` APIs shown in the [Mint and Burn Assets guide](/apis/txbuilder/minting) rather than the legacy `Transaction` class.
+```typescript
+import { MeshTxBuilder } from '@meshsdk/core';
 
-### Secondary Marketplaces
+const tx = await txBuilder
+  .mint('1', policyId, assetName)
+  .mintingScript(mintingScript)
+  .txOut(recipientAddress, [
+    { unit: policyId + assetName, quantity: '1' },
+    { unit: 'lovelace', quantity: '2000000' }
+  ])
+  .changeAddress(changeAddress)
+  .selectUtxosFrom(utxos)
+  .complete();
+```
 
-Power NFT trading platforms with Mesh:
+| Use case | Mesh features |
+|----------|---------------|
+| Single NFT minting | Transaction builder |
+| Collection launches | Batch minting |
+| Generative art | Programmatic metadata |
+| Metadata standards | CIP-25, CIP-68 support |
 
-- **Listing Management**: List and delist NFTs for sale
-- **Bidding Systems**: Implement auction mechanisms
-- **Instant Purchases**: Enable direct NFT purchases
-- **Royalty Enforcement**: Automated creator royalty distributions
+### Marketplaces
 
-**Key Features:**
-- Smart contract escrow
-- Multi-signature support
-- Metadata resolution
-- Price oracles integration
+Power NFT trading:
 
-## Wallet Applications
+- Listing and delisting
+- Auction systems
+- Instant purchases
+- Royalty distribution
 
-### Browser Extension Wallets
+---
 
-Build feature-rich Cardano wallets:
+## Wallets
 
-- **Key Management**: Secure mnemonic and key storage
-- **Transaction Signing**: Sign and submit transactions
-- **dApp Connector**: CIP-30 compliance for dApp integration
-- **Multi-Account Support**: Manage multiple addresses
+### Browser extension wallets
 
-### Hardware Wallet Integration
+Build full-featured wallets:
 
-Integrate with hardware wallets for enhanced security:
+| Feature | Implementation |
+|---------|----------------|
+| Key management | `MeshWallet` class |
+| Transaction signing | CIP-30 APIs |
+| dApp connector | `BrowserWallet` |
+| Multi-account | Address derivation |
 
-- **Ledger Support**: Connect with Ledger devices
-- **Trezor Integration**: Support for Trezor hardware wallets
-- **Air-Gapped Signing**: Build offline transaction signing flows
+### Hardware wallet integration
 
-## Gaming & Metaverse
+Support secure signing:
 
-### Blockchain Games
+- Ledger device support
+- Trezor integration
+- Air-gapped signing flows
 
-Create engaging gaming experiences on Cardano:
+---
 
-- **In-Game Assets**: Represent items as NFTs
-- **Play-to-Earn**: Token rewards and economies
-- **Character NFTs**: Unique, tradeable characters
-- **Land Ownership**: Virtual real estate on-chain
+## Gaming
 
-**Use Case Example:**
-A trading card game uses Mesh to handle card minting, trading between players, and tournament rewards distribution, all with seamless wallet integration.
+### Blockchain games
 
-### Virtual Worlds
+Create gaming experiences:
+
+| Feature | Implementation |
+|---------|----------------|
+| In-game assets | NFT representation |
+| Play-to-earn | Token rewards |
+| Character NFTs | Tradeable assets |
+| Land ownership | On-chain real estate |
+
+### Virtual worlds
 
 Build metaverse platforms:
 
-- **Land Parcels**: NFT-based land ownership
-- **Avatar Systems**: Customizable NFT avatars
-- **Virtual Economies**: In-world token systems
-- **Social Features**: Decentralized identity and messaging
+- NFT-based land parcels
+- Customizable avatars
+- In-world economies
+- Decentralized identity
 
-## Enterprise Solutions
+---
 
-### Supply Chain Tracking
+## Enterprise
 
-Implement transparent supply chain management:
+### Supply chain
 
-- **Asset Tracking**: Record product journey on-chain
-- **Authenticity Verification**: Prove product origin
-- **Smart Contracts**: Automated fulfillment conditions
-- **Multi-Party Workflows**: Coordinate between stakeholders
+Track products on-chain:
 
-**Real-World Application:**
-Track luxury goods from manufacturer to customer, with each transfer recorded on Cardano using Mesh, ensuring authenticity and preventing counterfeits.
+```typescript
+// Record product transfer
+const tx = await txBuilder
+  .txOut(newOwnerAddress, [
+    { unit: productNftUnit, quantity: '1' },
+    { unit: 'lovelace', quantity: '2000000' }
+  ])
+  .metadataValue('674', {
+    transfer: {
+      from: currentOwner,
+      to: newOwner,
+      timestamp: Date.now(),
+      location: 'Warehouse A'
+    }
+  })
+  .changeAddress(changeAddress)
+  .selectUtxosFrom(utxos)
+  .complete();
+```
 
-### Identity Verification
+| Use case | Implementation |
+|----------|----------------|
+| Asset tracking | On-chain records |
+| Authenticity verification | NFT provenance |
+| Multi-party workflows | Smart contracts |
+| Audit trails | Transaction metadata |
 
-Build decentralized identity solutions:
+### Identity verification
 
-- **KYC/AML**: Store verified credentials on-chain
-- **Age Verification**: Prove age without revealing birthdate
-- **Professional Credentials**: Verifiable certifications
-- **Access Control**: Token-gated content and services
+Build decentralized identity:
 
-### Voting & Governance
+- KYC/AML credential storage
+- Age verification without birthdate disclosure
+- Professional certifications
+- Token-gated access control
 
-Create transparent governance systems:
+### Governance
 
-- **DAO Governance**: Token-weighted voting
-- **Proposal Systems**: Submit and vote on proposals
-- **Quadratic Voting**: Fair voting mechanisms
-- **Election Systems**: Verifiable public elections
+Create voting systems:
 
-## Developer Tools
+- DAO token-weighted voting
+- Proposal submission and voting
+- Quadratic voting mechanisms
+- Verifiable elections
 
-### Block Explorers
+---
 
-Build custom blockchain explorers:
+## Developer tools
 
-- **Transaction Search**: Query and display transaction history
-- **Address Monitoring**: Track address activity
-- **Smart Contract Viewers**: Inspect contract state
-- **Analytics Dashboards**: Blockchain statistics and metrics
+### Block explorers
 
-### API Services
+Build custom blockchain viewers:
 
-Create Cardano API platforms:
+- Transaction search and display
+- Address monitoring
+- Smart contract inspection
+- Analytics dashboards
 
-- **Data Providers**: Serve blockchain data to applications
-- **Webhook Services**: Real-time blockchain event notifications
-- **Query Interfaces**: GraphQL/REST APIs for Cardano data
-- **Historical Data**: Archive and serve historical blockchain data
+### API services
 
-## Education & Research
+Create Cardano data platforms:
 
-### Learning Platforms
+- Blockchain data providers
+- Webhook notifications
+- GraphQL/REST APIs
+- Historical data archives
 
-Build educational tools for Cardano:
+---
 
-- **Interactive Tutorials**: Hands-on Cardano development lessons
-- **Sandbox Environments**: Safe spaces to experiment
-- **Code Playgrounds**: Browser-based Cardano coding
-- **Certification Systems**: Issue blockchain certificates
+## Education
 
-### Research Tools
+### Learning platforms
+
+Build educational tools:
+
+| Feature | Implementation |
+|---------|----------------|
+| Interactive tutorials | Code playgrounds |
+| Sandbox environments | Testnet integration |
+| Browser-based coding | Mesh APIs |
+| Certification | NFT credentials |
+
+### Research tools
 
 Enable blockchain research:
 
-- **Data Analysis**: Extract and analyze blockchain data
-- **Simulation Tools**: Model economic scenarios
-- **Testing Frameworks**: Automated smart contract testing
-- **Network Monitoring**: Track network health and performance
+- Data extraction and analysis
+- Economic simulations
+- Smart contract testing
+- Network monitoring
 
-## Social & Community
+---
 
-### Social Platforms
+## Social platforms
 
-Build Web3 social networks:
+### Token-gated communities
 
-- **Token-Gated Communities**: Access based on NFT/token ownership
-- **Creator Platforms**: Content monetization with NFTs
-- **Tipping Systems**: Microtransactions for content creators
-- **Decentralized Social Graphs**: On-chain social connections
+Build Web3 social features:
 
-### Fundraising Platforms
+- Access based on token ownership
+- Creator monetization
+- Tipping systems
+- Decentralized social graphs
 
-Create transparent fundraising solutions:
+### Fundraising
 
-- **Crowdfunding**: Decentralized campaign management
-- **Charity Platforms**: Transparent donation tracking
-- **Investment DAOs**: Collective investment vehicles
-- **Grant Programs**: Automated grant distribution
+Create transparent fundraising:
 
-## Real-World Success Metrics
+- Crowdfunding campaigns
+- Charity donation tracking
+- Investment DAOs
+- Grant distribution
+
+---
+
+## Success metrics
 
 Projects built with Mesh have achieved:
 
-- 📈 **Millions in Transaction Volume**: DeFi platforms processing substantial daily volumes
-- 🎨 **Thousands of NFTs Minted**: Successful collections with sell-outs
-- 👥 **Large User Bases**: Wallets and dApps with tens of thousands of users
-- ⚡ **Fast Performance**: Applications maintaining sub-second response times
-- 🔒 **Zero Security Incidents**: Secure smart contract implementations
+| Metric | Achievement |
+|--------|-------------|
+| Transaction volume | Millions in daily volume |
+| NFT minting | Thousands of successful mints |
+| User bases | Tens of thousands of users |
+| Performance | Sub-second response times |
+| Security | Zero critical incidents |
 
-## Building Your Own?
+---
 
-Ready to create your own Cardano application with Mesh?
+## Build your own
 
-- **Start with [Guides](/guides)**: Step-by-step tutorials for common use cases
-- **Explore [API Documentation](/apis)**: Complete reference for all Mesh features
-- **Join [Community](https://discord.gg/dH48jH3BKa)**: Get help from other builders
-- **View [Examples](https://github.com/MeshJS/examples)**: Working code samples
+Ready to build on Cardano?
 
-## Submit Your Project
+| Resource | Purpose |
+|----------|---------|
+| [Guides](/guides) | Step-by-step tutorials |
+| [API Documentation](/apis) | Complete reference |
+| [Discord](https://discord.gg/dH48jH3BKa) | Community support |
+| [Examples](https://github.com/MeshJS/examples) | Working code |
 
-Built something awesome with Mesh? We'd love to feature it! Share your project:
+## Share your project
 
-- Discord: Join our showcase channel
-- Twitter: Tag [@meshsdk](https://twitter.com/meshsdk)
-- GitHub: Add to our [ecosystem list](https://github.com/MeshJS/mesh)
+Built something with Mesh? Share it:
+
+- **Discord** - Join the showcase channel
+- **Twitter** - Tag [@meshsdk](https://twitter.com/meshsdk)
+- **GitHub** - Add to the [ecosystem list](https://github.com/MeshJS/mesh)
 
 <script type="application/ld+json">
 {JSON.stringify({
   "@context": "https://schema.org",
   "@type": "ItemList",
   "name": "Mesh SDK Use Cases",
-  "description": "Real-world applications and use cases for Mesh TypeScript SDK on Cardano blockchain",
+  "description": "Real-world applications built with Mesh TypeScript SDK on Cardano",
   "itemListElement": [
     {
       "@type": "ListItem",
@@ -244,7 +293,7 @@ Built something awesome with Mesh? We'd love to feature it! Share your project:
       "item": {
         "@type": "SoftwareSourceCode",
         "name": "DeFi Applications",
-        "description": "Decentralized finance applications including DEXs, lending protocols, and staking platforms built with Mesh"
+        "description": "DEXs, lending protocols, and staking platforms"
       }
     },
     {
@@ -253,7 +302,7 @@ Built something awesome with Mesh? We'd love to feature it! Share your project:
       "item": {
         "@type": "SoftwareSourceCode",
         "name": "NFT Marketplaces",
-        "description": "NFT minting platforms and secondary marketplaces powered by Mesh"
+        "description": "Minting platforms and secondary marketplaces"
       }
     },
     {
@@ -262,7 +311,7 @@ Built something awesome with Mesh? We'd love to feature it! Share your project:
       "item": {
         "@type": "SoftwareSourceCode",
         "name": "Wallet Applications",
-        "description": "Browser extension wallets and hardware wallet integrations using Mesh"
+        "description": "Browser extensions and hardware wallet integrations"
       }
     },
     {
@@ -271,7 +320,7 @@ Built something awesome with Mesh? We'd love to feature it! Share your project:
       "item": {
         "@type": "SoftwareSourceCode",
         "name": "Gaming & Metaverse",
-        "description": "Blockchain games and virtual worlds built on Cardano with Mesh"
+        "description": "Blockchain games and virtual worlds"
       }
     },
     {
@@ -280,7 +329,7 @@ Built something awesome with Mesh? We'd love to feature it! Share your project:
       "item": {
         "@type": "SoftwareSourceCode",
         "name": "Enterprise Solutions",
-        "description": "Supply chain tracking, identity verification, and governance systems using Mesh"
+        "description": "Supply chain, identity, and governance systems"
       }
     }
   ]

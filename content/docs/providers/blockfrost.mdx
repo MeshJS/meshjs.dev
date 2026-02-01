@@ -1,366 +1,418 @@
 ---
 title: "Blockfrost Provider"
-description: "Featuring over 100 APIs tailored for easy access to Cardano blockchain"
+description: "Connect to Cardano blockchain data through Blockfrost's high-performance API infrastructure."
 ---
+
 import Link from "fumadocs-core/link";
 
-<Link href="https://blockfrost.io/">Blockfrost</Link> provides restful APIs which allows your app to access information stored on the blockchain.
+## Overview
 
-Get started:
+<Link href="https://blockfrost.io/">Blockfrost</Link> provides instant access to Cardano blockchain data through a reliable REST API. Use the Blockfrost provider to fetch UTXOs, submit transactions, query account information, and more—without running your own node.
+
+**When to use Blockfrost:**
+- Building production dApps that need reliable blockchain access
+- Rapid prototyping without infrastructure setup
+- Applications requiring high availability and low latency
+
+## Quick Start
 
 ```tsx
 import { BlockfrostProvider } from "@meshsdk/core";
 
-const provider = new BlockfrostProvider('<Your-API-Key>');
+// Initialize with your API key from https://blockfrost.io
+const provider = new BlockfrostProvider("<YOUR_API_KEY>");
+
+// Fetch UTXOs for an address
+const utxos = await provider.fetchAddressUTxOs(
+  "addr_test1qpvx0sacufuypa2k4sngk7q40zc5c4npl337uusdh64kv0uafhxhu32dys6pvn6wlw8dav6cmp4pmtv7cc3yel9uu0nq93swx9"
+);
 ```
 
-If you are using a privately hosted Blockfrost instance, you can set the URL in the parameter:
+Get your free API key at [blockfrost.io](https://blockfrost.io).
+
+## Configuration Options
+
+| Option | Type | Description |
+|--------|------|-------------|
+| `apiKey` | `string` | Your Blockfrost API key (required for hosted service) |
+| `url` | `string` | Custom Blockfrost URL for self-hosted instances |
+
+**Self-hosted Blockfrost:**
 
 ```tsx
-const provider = new BlockfrostProvider('<BLOCKFROST_URL>');
+const provider = new BlockfrostProvider("https://your-blockfrost-instance.com");
 ```
 
-### Get data from URL
+## API Reference
 
-You can fetch any data from the blockchain by providing the URL path.
+### fetchAccountInfo
+
+Retrieve staking information for a stake address, including rewards, delegation status, and pool ID.
 
 ```tsx
-await provider.get('/addresses/addr_test1qpvx0sacufuypa2k4sngk7q40zc5c4npl337uusdh64kv0uafhxhu32dys6pvn6wlw8dav6cmp4pmtv7cc3yel9uu0nq93swx9/transactions')
+const accountInfo = await provider.fetchAccountInfo(
+  "stake_test1uzw5mnt7g4xjgdqkfa80hrk7kdvds6sa4k0vvgjvlj7w8eskffj2n"
+);
 ```
 
+**Returns:**
 
-## Fetch Account Info
-
-Obtain information about a specific stake account.
-
-```tsx
-await provider.fetchAccountInfo('stake_test1uzw5mnt7g4xjgdqkfa80hrk7kdvds6sa4k0vvgjvlj7w8eskffj2n')
-```
-
-
-## Fetch Address Assets
-
-Fetch assets from an address.
-
-```tsx
-await provider.fetchAddressAssets('addr_test1qpvx0sacufuypa2k4sngk7q40zc5c4npl337uusdh64kv0uafhxhu32dys6pvn6wlw8dav6cmp4pmtv7cc3yel9uu0nq93swx9')
-```
-
-<Card>
-  ### Fetch Address UTxOs [!toc]
-
-  Fetch UTxOs from address
-
-  **Address**
-  ```bash
-  addr_test1qpvx0sacufuypa2k4sngk7q40zc5c4npl337uusdh64kv0uafhxhu32dys6pvn6wlw8dav6cmp4pmtv7cc3yel9uu0nq93swx9
-  ```
-
-  ```tsx
-  await provider.fetchAddressAssets(
-    'addr_test1qpvx0sacufuypa2k4sngk7q40zc5c4npl337uusdh64kv0uafhxhu32dys6pvn6wlw8dav6cmp4pmtv7cc3yel9uu0nq93swx9'
-  );
-  ```
-</Card>
-
-<br />
-
-<Card>
-  ### Fetch assets from address [!toc]
-
-  Fetch assets given an address
-
-  **Address**
-  ```bash
-  addr_test1qpvx0sacufuypa2k4sngk7q40zc5c4npl337uusdh64kv0uafhxhu32dys6pvn6wlw8dav6cmp4pmtv7cc3yel9uu0nq93swx9
-  ```
-
-  ```tsx
-  await provider.fetchAddressAssets(
-    'addr_test1qpvx0sacufuypa2k4sngk7q40zc5c4npl337uusdh64kv0uafhxhu32dys6pvn6wlw8dav6cmp4pmtv7cc3yel9uu0nq93swx9'
-  );
-  ```
-</Card>
-
-
-## Fetch Address UTxOs
-
-Fetch UTxOs controlled by an address.
-
-```tsx
-await provider.fetchAddressUTxOs('addr_test1qpvx0sacufuypa2k4sngk7q40zc5c4npl337uusdh64kv0uafhxhu32dys6pvn6wlw8dav6cmp4pmtv7cc3yel9uu0nq93swx9')
-```
-
-Optionally, you can filter UTXOs containing a particular `asset` by providing asset, where it is the concatenation of policy ID and asset.
-
-```tsx
-await fetchAddressUTxOs(address: string, asset?: string)
-```
-
-<Card>
-  ### Fetch Address UTxOs [!toc]
-
-  Fetch UTxOs from address
-
-  **Address**
-  ```bash
-  addr_test1qpvx0sacufuypa2k4sngk7q40zc5c4npl337uusdh64kv0uafhxhu32dys6pvn6wlw8dav6cmp4pmtv7cc3yel9uu0nq93swx9
-  ```
-
-  ```tsx
-  await provider.fetchAddressUTxOs(
-    'addr_test1qpvx0sacufuypa2k4sngk7q40zc5c4npl337uusdh64kv0uafhxhu32dys6pvn6wlw8dav6cmp4pmtv7cc3yel9uu0nq93swx9'
-  );
-  ```
-</Card>
-
-<br />
-
-<Card>
-  ### Fetch UTxOs with Asset [!toc]
-
-  Fetch UTxOs from address with asset
-
-  **Address**
-  ```bash
-  addr_test1qpvx0sacufuypa2k4sngk7q40zc5c4npl337uusdh64kv0uafhxhu32dys6pvn6wlw8dav6cmp4pmtv7cc3yel9uu0nq93swx9
-  ```
-
-  **Asset**:
-  `d9312da562da182b02322fd8acb536f37eb9d29fba7c49dc172555274d657368546f6b656e`
-
-  ```tsx
-  await provider.fetchAddressUTxOs(
-    'addr_test1qpvx0sacufuypa2k4sngk7q40zc5c4npl337uusdh64kv0uafhxhu32dys6pvn6wlw8dav6cmp4pmtv7cc3yel9uu0nq93swx9'
-  );
-  ```
-</Card>
-
-
-## Fetch Asset Addresses
-
-Fetch a list of a addresses containing a specific `asset` where it is the concatenation of policy ID and asset.
-
-```tsx
-await provider.fetchAssetAddresses('d9312da562da182b02322fd8acb536f37eb9d29fba7c49dc172555274d657368546f6b656e')
-```
-
-<Card>
-  ### Fetch Asset Addresses [!toc]
-
-  Fetch list of addresses containing a specific asset
-
-  **Asset Unit**:
-  `d9312da562da182b02322fd8acb536f37eb9d29fba7c49dc172555274d657368546f6b656e`
-
-  ```tsx
-  await provider.fetchAssetAddresses(
-    'd9312da562da182b02322fd8acb536f37eb9d29fba7c49dc172555274d657368546f6b656e'
-  );
-  ```
-</Card>
-
-
-## Fetch Asset Metadata
-
-Fetch the asset metadata by providing asset's `unit`, which is the concatenation of policy ID and asset name in hex.
-
-
-```tsx
-// Asset Unit: `d9312da562da182b02322fd8acb536f37eb9d29fba7c49dc172555274d657368546f6b656e`
-
-await provider.fetchAssetMetadata('d9312da562da182b02322fd8acb536f37eb9d29fba7c49dc172555274d657368546f6b656e')
-```
-
-
-## Fetch Block Info
-
-Fetch block infomation. You can get the hash from `fetchTxInfo()`.
-
-```tsx
-// Block hash: `79f60880b097ec7dabb81f75f0b52fedf5e922d4f779a11c0c432dcf22c56089`
-
-await provider.fetchBlockInfo('79f60880b097ec7dabb81f75f0b52fedf5e922d4f779a11c0c432dcf22c56089')
-```
-
-
-## Fetch Collection Assets
-
-Fetch a list of assets belonging to a collection by providing its Policy ID.
-
-```tsx
-await provider.fetchCollectionAssets('d9312da562da182b02322fd8acb536f37eb9d29fba7c49dc17255527')
-```
-
-The API will return a list of `assets` and a cursor `next`. If the cursor is not null, you can use it to fetch the next page of results.
-
-Here is an example of the response.
 ```tsx
 {
-  "assets": [
-    {
-      "unit": "d9312da562da182b02322fd8acb536f37eb9d29fba7c49dc17255527",
-      "quantity": "1"
-    },
-  ],
-  "next": 2
+  active: true,
+  poolId: "pool1...",
+  balance: "1000000",
+  rewards: "50000",
+  withdrawals: "0"
 }
 ```
 
-The `fetchCollectionAssets` function also accepts an optional `cursor` parameter to fetch the next page of results. The default value is `1`.
+---
+
+### fetchAddressAssets
+
+Retrieve all native assets held at an address.
 
 ```tsx
-await fetchCollectionAssets(
-  policyId: string,
-  cursor = 1
-)
+const assets = await provider.fetchAddressAssets(
+  "addr_test1qpvx0sacufuypa2k4sngk7q40zc5c4npl337uusdh64kv0uafhxhu32dys6pvn6wlw8dav6cmp4pmtv7cc3yel9uu0nq93swx9"
+);
 ```
 
-
-## Fetch Handle Address
-
-ADA Handle allows users to use a human-readable "Handle" to associate an address.
-
-Each Handle is a unique NFT, minted and issued on the Cardano blockchain. These NFTs act as unique identifiers for the UTXO that they reside in.
-
-We can resolve the handle's address with `fetchHandleAddress`.
+**Returns:**
 
 ```tsx
-// Handle: `meshsdk`
-
-await provider.fetchHandleAddress('meshsdk')
+[
+  { unit: "lovelace", quantity: "5000000" },
+  { unit: "d9312da562da182b02322fd8acb536f37eb9d29fba7c49dc172555274d657368546f6b656e", quantity: "1" }
+]
 ```
 
+---
 
-## Fetch Handle
+### fetchAddressUTxOs
 
-ADA Handle allows users to use a human-readable "Handle" to associate an address.
-
-Each Handle is a unique NFT, minted and issued on the Cardano blockchain. These NFTs act as unique identifiers for the UTXO that they reside in.
-
-ADA Handle also released a CIP68 handle and this function will fetch the metadata of the handle.
+Retrieve all UTXOs controlled by an address. Optionally filter by a specific asset.
 
 ```tsx
-// Handle: `meshsdk`
+// All UTXOs
+const utxos = await provider.fetchAddressUTxOs(
+  "addr_test1qpvx0sacufuypa2k4sngk7q40zc5c4npl337uusdh64kv0uafhxhu32dys6pvn6wlw8dav6cmp4pmtv7cc3yel9uu0nq93swx9"
+);
 
-await provider.fetchHandle('meshsdk')
+// UTXOs containing a specific asset
+const filteredUtxos = await provider.fetchAddressUTxOs(
+  "addr_test1qpvx0sacufuypa2k4sngk7q40zc5c4npl337uusdh64kv0uafhxhu32dys6pvn6wlw8dav6cmp4pmtv7cc3yel9uu0nq93swx9",
+  "d9312da562da182b02322fd8acb536f37eb9d29fba7c49dc172555274d657368546f6b656e"
+);
 ```
 
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `address` | `string` | Yes | Bech32 address to query |
+| `asset` | `string` | No | Asset unit (policy ID + asset name hex) to filter by |
 
-## Fetch Protocol Parameters
+---
 
-Fetch the latest protocol parameters.
+### fetchAssetAddresses
+
+Find all addresses holding a specific asset.
 
 ```tsx
-await provider.fetchProtocolParameters()
+const addresses = await provider.fetchAssetAddresses(
+  "d9312da562da182b02322fd8acb536f37eb9d29fba7c49dc172555274d657368546f6b656e"
+);
 ```
 
-Optionally, you can provide an epoch number to fetch the protocol parameters of that epoch.
+---
 
+### fetchAssetMetadata
 
-## Fetch Transaction Info
-
-Fetch transaction infomation. Only confirmed transaction can be retrieved.
+Retrieve on-chain metadata for a specific asset.
 
 ```tsx
-// Transaction hash: `f4ec9833a3bf95403d395f699bc564938f3419537e7fb5084425d3838a4b6159`
-
-await provider.fetchTxInfo('f4ec9833a3bf95403d395f699bc564938f3419537e7fb5084425d3838a4b6159')
+const metadata = await provider.fetchAssetMetadata(
+  "d9312da562da182b02322fd8acb536f37eb9d29fba7c49dc172555274d657368546f6b656e"
+);
 ```
 
+---
 
-## Fetch UTxOs
+### fetchBlockInfo
 
-Get UTxOs for a given hash.
+Retrieve information about a specific block by its hash.
 
 ```tsx
-await provider.fetchUTxOs('dfd2a2616e6154a092807b1ceebb9ddcadc0f22cf5c8e0e6b0757815083ccb70')
+const blockInfo = await provider.fetchBlockInfo(
+  "79f60880b097ec7dabb81f75f0b52fedf5e922d4f779a11c0c432dcf22c56089"
+);
 ```
 
-Optionally, you can specify the index of the index output.
+---
+
+### fetchCollectionAssets
+
+Retrieve all assets minted under a policy ID with pagination support.
 
 ```tsx
-await provider.fetchUTxOs('hash_here', 0)
+// First page
+const { assets, next } = await provider.fetchCollectionAssets(
+  "d9312da562da182b02322fd8acb536f37eb9d29fba7c49dc17255527"
+);
+
+// Next page (if next is not null)
+const page2 = await provider.fetchCollectionAssets(
+  "d9312da562da182b02322fd8acb536f37eb9d29fba7c49dc17255527",
+  next
+);
 ```
 
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `policyId` | `string` | Yes | Policy ID of the collection |
+| `cursor` | `number` | No | Pagination cursor (default: 1) |
 
-## Fetch Proposal Info
+---
 
-Get information for a given governance proposal, identified by the txHash and proposal index
+### fetchHandleAddress
+
+Resolve an ADA Handle to its associated address.
 
 ```tsx
-await provider.fetchGovernanceProposal('372d688faa77e146798b581b322c0f2981a9023764736ade5d12e0e4e796af8c', 0)
+const address = await provider.fetchHandleAddress("meshsdk");
+// Returns: "addr_test1qz..."
 ```
 
+---
 
-## Evaluate Transaction
+### fetchHandle
 
-`evaluateTx()` accepts an unsigned transaction (`unsignedTx`) and it evaluates the resources required to execute the transaction. Note that, this is only valid for transaction interacting with redeemer (smart contract). By knowing the budget required, you can use this to adjust the redeemer's budget so you don't spend more than you need to execute transactions for this smart contract.
+Retrieve full metadata for a CIP-68 ADA Handle.
 
 ```tsx
-const unsignedTx = await txBuilder.complete();
-const evaluateTx = await provider.evaluateTx(unsignedTx);
+const handleData = await provider.fetchHandle("meshsdk");
 ```
 
-Example responses from unlocking assets from the always succeed smart contract.
+---
+
+### fetchProtocolParameters
+
+Retrieve current protocol parameters. Optionally specify an epoch.
+
+```tsx
+// Current epoch
+const params = await provider.fetchProtocolParameters();
+
+// Specific epoch
+const historicalParams = await provider.fetchProtocolParameters(400);
+```
+
+---
+
+### fetchTxInfo
+
+Retrieve details of a confirmed transaction.
+
+```tsx
+const txInfo = await provider.fetchTxInfo(
+  "f4ec9833a3bf95403d395f699bc564938f3419537e7fb5084425d3838a4b6159"
+);
+```
+
+---
+
+### fetchUTxOs
+
+Retrieve UTXOs for a transaction hash, optionally filtering by output index.
+
+```tsx
+// All outputs
+const utxos = await provider.fetchUTxOs(
+  "dfd2a2616e6154a092807b1ceebb9ddcadc0f22cf5c8e0e6b0757815083ccb70"
+);
+
+// Specific output
+const singleUtxo = await provider.fetchUTxOs(
+  "dfd2a2616e6154a092807b1ceebb9ddcadc0f22cf5c8e0e6b0757815083ccb70",
+  0
+);
+```
+
+---
+
+### fetchGovernanceProposal
+
+Retrieve information about a governance proposal.
+
+```tsx
+const proposal = await provider.fetchGovernanceProposal(
+  "372d688faa77e146798b581b322c0f2981a9023764736ade5d12e0e4e796af8c",
+  0
+);
+```
+
+---
+
+### evaluateTx
+
+Evaluate execution units for a transaction containing Plutus scripts. Use this to optimize redeemer budgets.
+
+```tsx
+import { MeshTxBuilder, BlockfrostProvider } from "@meshsdk/core";
+
+const provider = new BlockfrostProvider("<YOUR_API_KEY>");
+const txBuilder = new MeshTxBuilder({ fetcher: provider });
+
+// Build your transaction
+const unsignedTx = await txBuilder
+  .spendingPlutusScriptV2()
+  // ... your transaction details
+  .complete();
+
+// Evaluate execution units
+const evaluation = await provider.evaluateTx(unsignedTx);
+```
+
+**Returns:**
 
 ```tsx
 [
   {
-    "index": 0,
-    "tag": "SPEND",
-    "budget": {
-      "mem": 1700,
-      "steps": 368100
+    index: 0,
+    tag: "SPEND",
+    budget: {
+      mem: 1700,
+      steps: 368100
     }
   }
 ]
 ```
 
-With the `mem` and `steps`, you can refine the budget for the redeemer. For example:
+Use these values to set precise budgets in your redeemer:
 
 ```tsx
 const redeemer = {
-  data: { alternative: 0, fields: [...] },
+  data: { alternative: 0, fields: [] },
   budget: {
     mem: 1700,
-    steps: 368100,
-  },
+    steps: 368100
+  }
 };
 ```
 
+---
 
-## Submit Transaction
+### submitTx
 
-Submit a serialized transaction to the network.
+Submit a signed transaction to the network.
 
 ```tsx
-await provider.submitTx(signedTx);
+const txHash = await provider.submitTx(signedTx);
 ```
 
+---
 
-## On Transaction Confirmed
+### onTxConfirmed
 
-Allow you to listen to a transaction confirmation. Upon confirmation, the callback will be called.
+Subscribe to transaction confirmation events.
 
 ```tsx
+import { MeshTxBuilder, BlockfrostProvider } from "@meshsdk/core";
+
+const provider = new BlockfrostProvider("<YOUR_API_KEY>");
+
+// After submitting a transaction
+const txHash = await wallet.submitTx(signedTx);
+
+// Listen for confirmation
+provider.onTxConfirmed(txHash, () => {
+  console.log("Transaction confirmed!");
+  // Update UI, trigger next action, etc.
+});
+```
+
+---
+
+### get
+
+Make custom requests to any Blockfrost endpoint.
+
+```tsx
+const transactions = await provider.get(
+  "/addresses/addr_test1qpvx0sacufuypa2k4sngk7q40zc5c4npl337uusdh64kv0uafhxhu32dys6pvn6wlw8dav6cmp4pmtv7cc3yel9uu0nq93swx9/transactions"
+);
+```
+
+## Complete Example
+
+```tsx
+import { BlockfrostProvider, MeshTxBuilder, MeshWallet } from "@meshsdk/core";
+
+// Initialize provider
+const provider = new BlockfrostProvider("<YOUR_API_KEY>");
+
+// Create wallet instance
+const wallet = new MeshWallet({
+  networkId: 0, // 0 = testnet, 1 = mainnet
+  fetcher: provider,
+  submitter: provider,
+  key: {
+    type: "mnemonic",
+    words: ["your", "mnemonic", "phrase", "..."],
+  },
+});
+
+// Build transaction
+const txBuilder = new MeshTxBuilder({
+  fetcher: provider,
+  verbose: true,
+});
+
 const utxos = await wallet.getUtxos();
 const changeAddress = await wallet.getChangeAddress();
 
-const txBuilder = new MeshTxBuilder({
-  fetcher: provider,
-});
-
 const unsignedTx = await txBuilder
-  .txOut('addr_test1vpvx0sacufuypa2k4sngk7q40zc5c4npl337uusdh64kv0c7e4cxr', [{ unit: 'lovelace', quantity: '5000000' }])
+  .txOut("addr_test1qz...", [{ unit: "lovelace", quantity: "5000000" }])
   .changeAddress(changeAddress)
   .selectUtxosFrom(utxos)
   .complete();
 
+// Sign and submit
 const signedTx = await wallet.signTx(unsignedTx);
 const txHash = await wallet.submitTx(signedTx);
 
+// Wait for confirmation
 provider.onTxConfirmed(txHash, () => {
-  // Transaction confirmed
+  console.log(`Transaction ${txHash} confirmed!`);
 });
 ```
+
+## Troubleshooting
+
+### "Project not found" or 403 error
+Your API key is invalid or doesn't have access to the requested network. Verify:
+- The key is correct and active at [blockfrost.io/dashboard](https://blockfrost.io/dashboard)
+- You're using a key for the correct network (mainnet vs testnet)
+
+### "Rate limit exceeded" (429 error)
+You've exceeded the request limit for your plan. Solutions:
+- Implement request caching
+- Upgrade your Blockfrost plan
+- Add request throttling to your application
+
+### "Transaction submit error"
+Common causes:
+- Insufficient funds (check UTXOs cover amount + fees)
+- Invalid transaction structure (missing inputs, outputs, or signatures)
+- UTXOs already spent (refresh UTXOs before building)
+
+### Slow response times
+- Use `fetchAddressUTxOs` with asset filter when you only need specific assets
+- Cache frequently-accessed data like protocol parameters
+- Consider self-hosting Blockfrost for high-volume applications
+
+## Related
+
+- <Link href="/providers">All Providers</Link> — Compare Blockfrost with other providers
+- <Link href="/apis/txbuilder/basics">Transaction Builder</Link> — Build transactions using Blockfrost
+- <Link href="/guides/standalone">Standalone Setup</Link> — Use Blockfrost in Node.js applications

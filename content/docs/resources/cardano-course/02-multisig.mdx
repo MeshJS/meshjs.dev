@@ -1,62 +1,93 @@
 ---
-title: "Multi-signature Transactions"
-description: "Learn to build multi-signature transactions on Cardano."
+title: "Lesson 2: Multi-signature Transactions"
+description: "Build multi-signature transactions on Cardano to mint tokens with collaborative signing."
 ---
 import Link from "fumadocs-core/link";
 
-A multi-signature (multi-sig) transaction requires more than one user to sign a transaction before it is broadcast on the blockchain. Think of it like a joint savings account where both parties must approve spending. Multi-sig transactions can include two or more required signers, which can be wallets or scripts.
+## Learning Objectives
 
-In this lesson, you'll learn how to:
-- Build multi-signature transactions to mint a token.
-- Set up a NextJS app with a simple web interface to interact with the Cardano blockchain.
+By the end of this lesson, you will:
 
-## System setup
+- Understand how multi-signature transactions work on Cardano
+- Set up a Next.js application with Mesh React components
+- Create a native minting script with multiple signing conditions
+- Build and execute a multi-sig token minting transaction
+- Connect a CIP-30 browser wallet using the CardanoWallet component
 
-### Download CIP30 Wallet Extension
+## Prerequisites
 
-To interact with the blockchain, you'll need a wallet extension that supports the CIP30 standard. Choose and download one <Link href="https://developers.cardano.org/showcase/?tags=wallet">here</Link>.
+Before you begin, make sure you have:
 
-After downloading the wallet, restore it using the seed phrase you created in the previous lesson.
+- Completed <Link href="/resources/cardano-course/01-wallet-send-lovelace">Lesson 1: Hello World</Link>
+- A CIP-30 compatible wallet extension installed (<Link href="https://developers.cardano.org/showcase/?tags=wallet">choose one here</Link>)
+- Your wallet restored with the mnemonic from Lesson 1
+- A Blockfrost API key for preprod
+- Node.js 18+ installed on your machine
 
-### Set Up NextJS and Mesh
+## Key Concepts
 
-Open your terminal and run the following command to create a new NextJS application:
+### What is a Multi-signature Transaction?
+
+A multi-signature (multi-sig) transaction requires more than one party to sign before you can submit it to the blockchain. Think of it like a joint bank account where both account holders must approve withdrawals.
+
+Multi-sig transactions can require:
+
+- Two or more wallet signatures
+- Script conditions (time locks, etc.)
+- A combination of both
+
+### Use Cases
+
+| Use Case | Description |
+|----------|-------------|
+| **Shared treasuries** | Organizations require multiple approvals for spending |
+| **Escrow services** | Release funds only when both parties agree |
+| **Token policies** | Control minting through multiple administrators |
+
+### Native Script Types
+
+| Script Type | Description |
+|-------------|-------------|
+| `all` | All nested conditions must be satisfied |
+| `any` | At least one condition must be satisfied |
+| `atLeast` | A minimum number of conditions must be satisfied |
+| `sig` | Requires a signature from a specific key hash |
+| `before` | Valid only before a specific slot |
+| `after` | Valid only after a specific slot |
+
+## Step 1: Create a Next.js Project
+
+Create a new Next.js application with TypeScript and Tailwind CSS.
 
 ```bash
 npx create-next-app@latest --typescript mesh-multisig
 ```
 
-Follow the prompts:
+When prompted, select these options:
 
-```bash
-Need to install the following packages:
-Ok to proceed? (y)
-
-✔ Would you like to use ESLint? … Yes
-✔ Would you like to use Tailwind CSS? … Yes
-✔ Would you like your code inside a `src/` directory? … Yes
-✔ Would you like to use App Router? … No
-✔ Would you like to use Turbopack for next dev? … No
-✔ Would you like to customize the import alias (@/* by default)? … No
+```
+Would you like to use ESLint? Yes
+Would you like to use Tailwind CSS? Yes
+Would you like your code inside a `src/` directory? Yes
+Would you like to use App Router? No
+Would you like to use Turbopack for next dev? No
+Would you like to customize the import alias? No
 ```
 
-Navigate to the newly created folder:
+Navigate to the project and install Mesh packages:
 
 ```bash
 cd mesh-multisig
-```
-
-Install the latest version of Mesh:
-
-```bash
 npm install @meshsdk/core @meshsdk/react
 ```
 
-### Add MeshProvider
+## Step 2: Configure MeshProvider
 
-To use Mesh React, wrap your application with the `MeshProvider` component. Open the `src/app/layout.tsx` file and add:
+Wrap your application with `MeshProvider` to enable React hooks for wallet interaction.
 
-```ts
+Replace the contents of `src/pages/_app.tsx`:
+
+```tsx
 import "@/styles/globals.css";
 import type { AppProps } from "next/app";
 import "@meshsdk/react/styles.css";
@@ -71,18 +102,25 @@ export default function App({ Component, pageProps }: AppProps) {
 }
 ```
 
-### Add CardanoWallet Component
+## Step 3: Add Wallet Connection
 
-Add a wallet React component to connect to the wallet and interact with the blockchain. Open the `src/pages/index.tsx` file, delete the existing code, and replace it with:
+Add the `CardanoWallet` component to connect browser wallets.
 
-```ts
+Replace the contents of `src/pages/index.tsx`:
+
+```tsx
 import { CardanoWallet, useWallet } from "@meshsdk/react";
 
 export default function Home() {
   const { wallet, connected } = useWallet();
+
   return (
-    <div>
+    <div className="min-h-screen flex flex-col items-center justify-center p-8">
+      <h1 className="text-2xl font-bold mb-8">Multi-sig Token Minting</h1>
       <CardanoWallet isDark={true} />
+      {connected && (
+        <p className="mt-4 text-green-600">Wallet connected!</p>
+      )}
     </div>
   );
 }
@@ -94,20 +132,28 @@ Start the development server:
 npm run dev
 ```
 
-Visit <Link href="http://localhost:3000">http://localhost:3000</Link> to view your application. Press **CTRL+C** to stop the server.
+Visit `http://localhost:3000` and test connecting your wallet.
 
-You should see a "Connect Wallet" component. Try connecting to your wallet.
+## Step 4: Define the Minting Script
 
-## Minting Script
+Add the minting configuration to your `index.tsx` file, before the `Home` component:
 
-In this section, you'll create a minting script to mint a token using a multi-signature transaction.
+```tsx
+import { CardanoWallet, useWallet } from "@meshsdk/react";
+import {
+  BlockfrostProvider,
+  MeshTxBuilder,
+  MeshWallet,
+  ForgeScript,
+  NativeScript,
+  deserializeAddress,
+  resolveScriptHash,
+  stringToHex,
+} from "@meshsdk/core";
+import type { UTxO } from "@meshsdk/core";
 
-### Define the Minting Script
-
-Set up constants for the minting script:
-
-```ts
-const provider = new BlockfrostProvider("YOUR_KEY_HERE");
+// Configuration - Replace with your Blockfrost API key
+const provider = new BlockfrostProvider("YOUR_BLOCKFROST_API_KEY");
 
 const demoAssetMetadata = {
   name: "Mesh Token",
@@ -116,121 +162,37 @@ const demoAssetMetadata = {
   description: "This NFT was minted by Mesh (https://meshjs.dev/).",
 };
 
-const mintingWallet = ["your", "mnemonic", "...", "here"];
+// Replace with your minting wallet mnemonic
+const mintingWallet = ["your", "mnemonic", "phrases", "here"];
 ```
 
-- Replace `YOUR_KEY_HERE` with your Blockfrost API key.
-- Define asset metadata in `demoAssetMetadata`.
-- Use a mnemonic for the minting wallet.
+### Understand Native Scripts
 
-### Create Minting Application Wallet
+A native script defines who can mint tokens and under what conditions:
 
-Create a function to build the minting transaction:
-
-```ts
-async function buildMintTx(inputs: UTxO[], changeAddress: string) {
-  const wallet = new MeshWallet({
-    networkId: 0,
-    key: {
-      type: "mnemonic",
-      words: mintingWallet,
-    },
-  });
-
-  const { pubKeyHash: keyHash } = deserializeAddress(
-    await wallet.getChangeAddress()
-  );
-}
-```
-
-- `inputs`: UTxOs from your wallet to pay minting fees.
-- Initialize the wallet with the mnemonic.
-- Derive the `pubKeyHash` for the minting script.
-
-### Create Native Script
-
-Define the native script:
-
-```ts
+```tsx
 const nativeScript: NativeScript = {
-  type: "all",
+  type: "all",      // All conditions must be met
   scripts: [
     {
       type: "before",
-      slot: "99999999",
+      slot: "99999999",  // Must mint before this slot
     },
     {
       type: "sig",
-      keyHash: keyHash,
+      keyHash: keyHash,  // Must be signed by this key
     },
   ],
 };
-const forgingScript = ForgeScript.fromNativeScript(nativeScript);
 ```
 
-- `nativeScript`: Parameters for the script.
-- `ForgeScript.fromNativeScript`: Create the forging script.
+## Step 5: Build the Minting Transaction
 
-### Define Asset Metadata
+Create a function that builds the multi-sig minting transaction:
 
-Set up asset metadata:
-
-```ts
-const policyId = resolveScriptHash(forgingScript);
-const tokenName = "MeshToken";
-const tokenNameHex = stringToHex(tokenName);
-const metadata = { [policyId]: { [tokenName]: { ...demoAssetMetadata } } };
-```
-
-- `policyId`: Derived from the forging script.
-- `tokenName`: Name of the token.
-- `metadata`: Asset metadata.
-
-### Create Transaction
-
-Build the minting transaction:
-
-```ts
-const txBuilder = new MeshTxBuilder({
-  fetcher: provider,
-  verbose: true,
-});
-
-const unsignedTx = await txBuilder
-  .mint("1", policyId, tokenNameHex)
-  .mintingScript(forgingScript)
-  .metadataValue(721, metadata)
-  .changeAddress(changeAddress)
-  .invalidHereafter(99999999)
-  .requiredSignerHash(keyHash)
-  .selectUtxosFrom(inputs)
-  .complete();
-```
-
-- `mint`: Add token details.
-- `mintingScript`: Attach the minting script.
-- `metadataValue`: Add asset metadata.
-- `changeAddress`: Specify the change address.
-- `invalidHereafter`: Set transaction expiry.
-- `selectUtxosFrom`: Use UTxOs for fees.
-- `requiredSignerHash` to declare that the minter wallet pub key hash is required.
-- `complete`: Finalize the transaction.
-
-### Sign the Transaction
-
-Sign the transaction with the minting wallet:
-
-```ts
-const signedTx = await wallet.signTx(unsignedTx, true);
-```
-
-### Source code
-
-Here is the complete code for building the minting transaction:
-
-```ts
+```tsx
 async function buildMintTx(inputs: UTxO[], changeAddress: string) {
-  // minting wallet
+  // Initialize the minting wallet
   const wallet = new MeshWallet({
     networkId: 0,
     key: {
@@ -239,11 +201,12 @@ async function buildMintTx(inputs: UTxO[], changeAddress: string) {
     },
   });
 
+  // Get the minting wallet's public key hash
   const { pubKeyHash: keyHash } = deserializeAddress(
     await wallet.getChangeAddress()
   );
 
-  // create minting script
+  // Create the native script with time lock and signature requirement
   const nativeScript: NativeScript = {
     type: "all",
     scripts: [
@@ -259,13 +222,195 @@ async function buildMintTx(inputs: UTxO[], changeAddress: string) {
   };
   const forgingScript = ForgeScript.fromNativeScript(nativeScript);
 
-  // create metadata
+  // Derive policy ID and set up metadata
   const policyId = resolveScriptHash(forgingScript);
   const tokenName = "MeshToken";
   const tokenNameHex = stringToHex(tokenName);
   const metadata = { [policyId]: { [tokenName]: { ...demoAssetMetadata } } };
 
-  // create transaction
+  // Build the transaction
+  const txBuilder = new MeshTxBuilder({
+    fetcher: provider,
+    verbose: true,
+  });
+
+  const unsignedTx = await txBuilder
+    .mint("1", policyId, tokenNameHex)
+    .mintingScript(forgingScript)
+    .metadataValue(721, metadata)
+    .changeAddress(changeAddress)
+    .invalidHereafter(99999999)
+    .requiredSignerHash(keyHash)
+    .selectUtxosFrom(inputs)
+    .complete();
+
+  // Sign with the minting wallet (first signature)
+  const signedTx = await wallet.signTx(unsignedTx, true);
+  return signedTx;
+}
+```
+
+### Transaction Builder Methods
+
+| Method | Description |
+|--------|-------------|
+| `mint(quantity, policyId, tokenName)` | Specifies the token to mint |
+| `mintingScript(script)` | Attaches the minting policy script |
+| `metadataValue(label, metadata)` | Adds CIP-25 NFT metadata (label 721) |
+| `invalidHereafter(slot)` | Sets transaction expiry slot |
+| `requiredSignerHash(keyHash)` | Declares a required signer |
+| `selectUtxosFrom(utxos)` | Provides UTXOs for fees |
+
+## Step 6: Execute the Transaction
+
+Add the minting function that coordinates both signatures:
+
+```tsx
+async function mint() {
+  if (!connected) {
+    alert("Please connect your wallet first");
+    return;
+  }
+
+  try {
+    // Get UTXOs and change address from the connected browser wallet
+    const inputs = await wallet.getUtxos();
+    const changeAddress = await wallet.getChangeAddress();
+
+    // Build transaction and get first signature from minting wallet
+    const partiallySignedTx = await buildMintTx(inputs, changeAddress);
+
+    // Add second signature from the connected browser wallet
+    const fullySignedTx = await wallet.signTx(partiallySignedTx, true);
+
+    // Submit the transaction
+    const txHash = await wallet.submitTx(fullySignedTx);
+    console.log("Transaction hash:", txHash);
+    alert(`Success! Transaction hash: ${txHash}`);
+  } catch (error) {
+    console.error("Minting failed:", error);
+    alert("Minting failed. Check console for details.");
+  }
+}
+```
+
+### How Multi-sig Works
+
+1. **First signature**: The minting wallet signs the transaction (satisfies the `sig` condition in the native script)
+2. **Second signature**: The browser wallet signs (provides the fee payment authorization)
+3. **Submission**: Submit the fully signed transaction to the network
+
+The `signTx(tx, true)` parameter `true` indicates partial signing, allowing you to add additional signatures.
+
+## Step 7: Add the Mint Button
+
+Update your component to include the mint functionality:
+
+```tsx
+export default function Home() {
+  const { wallet, connected } = useWallet();
+
+  async function mint() {
+    if (!connected) {
+      alert("Please connect your wallet first");
+      return;
+    }
+
+    try {
+      const inputs = await wallet.getUtxos();
+      const changeAddress = await wallet.getChangeAddress();
+      const partiallySignedTx = await buildMintTx(inputs, changeAddress);
+      const fullySignedTx = await wallet.signTx(partiallySignedTx, true);
+      const txHash = await wallet.submitTx(fullySignedTx);
+      console.log("Transaction hash:", txHash);
+      alert(`Success! Transaction hash: ${txHash}`);
+    } catch (error) {
+      console.error("Minting failed:", error);
+      alert("Minting failed. Check console for details.");
+    }
+  }
+
+  return (
+    <div className="min-h-screen flex flex-col items-center justify-center p-8">
+      <h1 className="text-2xl font-bold mb-8">Multi-sig Token Minting</h1>
+      <CardanoWallet isDark={true} />
+      {connected && (
+        <div className="mt-8">
+          <button
+            onClick={mint}
+            className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+          >
+            Mint Token
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+```
+
+## Complete Working Example
+
+Here is the complete `src/pages/index.tsx` file:
+
+```tsx
+import { CardanoWallet, useWallet } from "@meshsdk/react";
+import {
+  BlockfrostProvider,
+  MeshTxBuilder,
+  MeshWallet,
+  ForgeScript,
+  NativeScript,
+  deserializeAddress,
+  resolveScriptHash,
+  stringToHex,
+} from "@meshsdk/core";
+import type { UTxO } from "@meshsdk/core";
+
+const provider = new BlockfrostProvider("YOUR_BLOCKFROST_API_KEY");
+
+const demoAssetMetadata = {
+  name: "Mesh Token",
+  image: "ipfs://QmRzicpReutwCkM6aotuKjErFCUD213DpwPq6ByuzMJaua",
+  mediaType: "image/jpg",
+  description: "This NFT was minted by Mesh (https://meshjs.dev/).",
+};
+
+const mintingWallet = ["your", "mnemonic", "phrases", "here"];
+
+async function buildMintTx(inputs: UTxO[], changeAddress: string) {
+  const wallet = new MeshWallet({
+    networkId: 0,
+    key: {
+      type: "mnemonic",
+      words: mintingWallet,
+    },
+  });
+
+  const { pubKeyHash: keyHash } = deserializeAddress(
+    await wallet.getChangeAddress()
+  );
+
+  const nativeScript: NativeScript = {
+    type: "all",
+    scripts: [
+      {
+        type: "before",
+        slot: "99999999",
+      },
+      {
+        type: "sig",
+        keyHash: keyHash,
+      },
+    ],
+  };
+  const forgingScript = ForgeScript.fromNativeScript(nativeScript);
+
+  const policyId = resolveScriptHash(forgingScript);
+  const tokenName = "MeshToken";
+  const tokenNameHex = stringToHex(tokenName);
+  const metadata = { [policyId]: { [tokenName]: { ...demoAssetMetadata } } };
+
   const txBuilder = new MeshTxBuilder({
     fetcher: provider,
     verbose: true,
@@ -284,35 +429,104 @@ async function buildMintTx(inputs: UTxO[], changeAddress: string) {
   const signedTx = await wallet.signTx(unsignedTx, true);
   return signedTx;
 }
-```
 
-## Execute the transaction
+export default function Home() {
+  const { wallet, connected } = useWallet();
 
-Now that we have the minting transaction, we can execute it.
+  async function mint() {
+    if (!connected) {
+      alert("Please connect your wallet first");
+      return;
+    }
 
-```ts
-async function mint() {
-  if (connected) {
-    const inputs = await wallet.getUtxos();
-    const changeAddress = await wallet.getChangeAddress();
-
-    const tx = await buildMintTx(inputs, changeAddress);
-    const signedTx = await wallet.signTx(tx, true);
-
-    const txHash = await wallet.submitTx(signedTx);
-    console.log("Transaction hash:", txHash);
+    try {
+      const inputs = await wallet.getUtxos();
+      const changeAddress = await wallet.getChangeAddress();
+      const partiallySignedTx = await buildMintTx(inputs, changeAddress);
+      const fullySignedTx = await wallet.signTx(partiallySignedTx, true);
+      const txHash = await wallet.submitTx(fullySignedTx);
+      console.log("Transaction hash:", txHash);
+      alert(`Success! Transaction hash: ${txHash}`);
+    } catch (error) {
+      console.error("Minting failed:", error);
+      alert("Minting failed. Check console for details.");
+    }
   }
+
+  return (
+    <div className="min-h-screen flex flex-col items-center justify-center p-8">
+      <h1 className="text-2xl font-bold mb-8">Multi-sig Token Minting</h1>
+      <CardanoWallet isDark={true} />
+      {connected && (
+        <div className="mt-8">
+          <button
+            onClick={mint}
+            className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+          >
+            Mint Token
+          </button>
+        </div>
+      )}
+    </div>
+  );
 }
 ```
 
-- Check wallet connection.
-- Get UTxOs and change address.
-- Build, sign, and submit the transaction.
+## Key Concepts Explained
 
-## Source code
+### ForgeScript
 
-The source code for this lesson is available on <Link href="https://github.com/cardanobuilders/cardanobuilders.github.io/tree/main/codes/course-hello-cardano/02-multisig">GitHub</Link>.
+`ForgeScript` converts a native script into a format usable by the transaction builder:
 
-## Challenge
+```tsx
+const forgingScript = ForgeScript.fromNativeScript(nativeScript);
+```
 
-Create a multi-signature wallet requiring 2 out of 3 signers to approve a transaction. Build and sign a transaction with two signers, submit it, and verify success.
+### Policy ID
+
+The policy ID is a hash of the minting script. All tokens minted under this policy share the same policy ID:
+
+```tsx
+const policyId = resolveScriptHash(forgingScript);
+```
+
+### CIP-25 Metadata
+
+Label 721 follows the CIP-25 standard for NFT metadata:
+
+```tsx
+const metadata = {
+  [policyId]: {
+    [tokenName]: {
+      name: "Token Name",
+      image: "ipfs://...",
+      // ... other properties
+    }
+  }
+};
+```
+
+## Exercises
+
+1. **2-of-3 Multi-sig**: Create a native script that requires 2 out of 3 possible signers to approve minting. Use the `atLeast` script type.
+
+2. **Time-locked minting**: Modify the script to only allow minting between two specific dates using both `before` and `after` conditions.
+
+3. **Display minted token**: After successful minting, query the wallet's assets and display the newly minted token in the UI.
+
+## Next Steps
+
+You have successfully:
+
+- Built a Next.js app with Mesh wallet integration
+- Created a multi-signature minting policy
+- Minted a token requiring two signatures
+
+In the next lesson, you learn the fundamentals of <Link href="/resources/cardano-course/03-aiken-contracts">Aiken smart contracts</Link> for more complex on-chain logic.
+
+## Related Links
+
+- <Link href="/apis/react/wallet-hooks">Mesh React Wallet Hooks</Link>
+- <Link href="/apis/txbuilder">MeshTxBuilder API Reference</Link>
+- <Link href="https://cips.cardano.org/cips/cip25/">CIP-25: NFT Metadata Standard</Link>
+- <Link href="https://github.com/cardanobuilders/cardanobuilders.github.io/tree/main/codes/course-hello-cardano/02-multisig">Source Code on GitHub</Link>

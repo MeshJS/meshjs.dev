@@ -1,7 +1,8 @@
 ---
-title: "How to Build Multi-Signature Minting Transactions on Cardano"
-description: "Implement multi-sig NFT minting with the Mesh TypeScript blockchain SDK for Cardano dApp development. Coordinate signatures between browser and server wallets."
+title: "Build Multi-Signature Minting Transactions"
+description: "Implement multi-sig NFT minting with Mesh SDK. Coordinate signatures between browser and server wallets."
 ---
+
 import Link from "fumadocs-core/link";
 import { HowToSchema } from "@/components/seo";
 
@@ -10,159 +11,433 @@ import { HowToSchema } from "@/components/seo";
   description="Implement multi-sig NFT minting where a user pays for minting but the application controls the minting policy."
   totalTime="PT45M"
   steps={[
-    { name: "Connect user wallet", text: "Connect the user's browser wallet and get their address and UTxOs using BrowserWallet or CardanoWallet component." },
-    { name: "Build transaction on server", text: "Initialize provider and application wallet, define forging script and NFT metadata, build minting transaction using user's UTxOs." },
-    { name: "User signs transaction", text: "Return unsigned transaction to client, user signs with partial signing enabled." },
-    { name: "Application signs and submits", text: "Backend adds its signature and submits the fully signed transaction to the blockchain." }
+    { name: "Connect user wallet", text: "Get user address and UTxOs from browser wallet." },
+    { name: "Build transaction on server", text: "Create minting transaction using user UTxOs as inputs." },
+    { name: "User signs transaction", text: "Return unsigned tx to client for partial signing." },
+    { name: "Server signs and submits", text: "Add application signature and submit to blockchain." }
   ]}
 />
 
-Multi-signature (multi-sig) transactions require multiple parties to sign before the transaction can be submitted to the Cardano blockchain. This is essential for NFT minting services where a user pays for minting but the application controls the minting policy in JavaScript Web3 projects.
+## Overview
 
-**The multi-sig minting flow:**
-1. **Client wallet** — User's browser wallet provides payment UTxOs
-2. **Application wallet** — Server-side wallet holds the forging script and signs the mint
+Multi-signature (multi-sig) transactions require multiple parties to sign before submission. This is essential for NFT minting services where users pay for minting but your application controls the minting policy.
 
-This guide shows you how to build a complete multi-sig minting system using the Mesh Cardano SDK for dApp development. View the <Link href="https://github.com/MeshJS/mesh/blob/main/apps/playground/src/pages/guides/multisig-minting/demo.tsx">complete source code on GitHub</Link>.
+### What you will build
 
-## Step 1: How Do You Connect the User's Wallet?
+- A client-side component that connects user wallets
+- A server-side API that builds minting transactions
+- A complete multi-sig signing flow
 
-Connect the user's browser wallet and get their address and UTxOs:
+### The multi-sig minting flow
 
-```tsx
-import { BrowserWallet } from '@meshsdk/core';
-const wallet = await BrowserWallet.enable(walletName);
-```
+1. **User wallet** provides payment UTxOs
+2. **Server** builds the transaction using user inputs
+3. **User** partially signs the transaction
+4. **Server** adds its signature and submits
 
-Or use the React blockchain `CardanoWallet` component:
+### Prerequisites
 
-```tsx
+- A Next.js application with Mesh SDK (see <Link href="/guides/nextjs">Next.js guide</Link>)
+- A server-side wallet (mnemonic or CLI keys)
+- A Blockfrost API key
+
+### Time to complete
+
+45 minutes
+
+## Quick Start
+
+View the complete implementation:
+
+- <Link href="https://github.com/MeshJS/mesh/blob/main/apps/playground/src/pages/guides/multisig-minting/demo.tsx">Full source code on GitHub</Link>
+
+## Step-by-Step Guide
+
+### Step 1: Connect the user wallet
+
+Create a client component to connect the user's browser wallet:
+
+```typescript
+// components/MintButton.tsx
+"use client";
+
+import { useState } from "react";
 import { CardanoWallet, useWallet } from "@meshsdk/react";
+import { experimentalSelectUtxos } from "@meshsdk/core";
+import type { UTxO, Unit, Quantity } from "@meshsdk/core";
 
-export default function Page() {
+const MINTING_FEE = "5000000"; // 5 ADA
+
+export function MintButton() {
   const { wallet, connected } = useWallet();
+  const [loading, setLoading] = useState(false);
+  const [txHash, setTxHash] = useState("");
 
-  return <CardanoWallet />
+  async function handleMint() {
+    if (!connected) return;
+    setLoading(true);
+
+    try {
+      // Get user wallet info
+      const recipientAddress = await wallet.getChangeAddress();
+      const utxos = await wallet.getUtxos();
+
+      // Select UTxOs for the minting fee
+      const assetMap = new Map<Unit, Quantity>();
+      assetMap.set("lovelace", MINTING_FEE);
+      const selectedUtxos = experimentalSelectUtxos(assetMap, utxos, "5000000");
+
+      // Send to server to build transaction
+      const response = await fetch("/api/mint", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          recipientAddress,
+          utxos: selectedUtxos,
+        }),
+      });
+
+      const { unsignedTx } = await response.json();
+
+      // User signs with partial signing enabled
+      const signedTx = await wallet.signTx(unsignedTx, true);
+
+      // Send back to server for final signature and submission
+      const submitResponse = await fetch("/api/mint/submit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ signedTx }),
+      });
+
+      const { txHash } = await submitResponse.json();
+      setTxHash(txHash);
+    } catch (error) {
+      console.error("Minting failed:", error);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div>
+      <CardanoWallet />
+
+      {connected && (
+        <button
+          onClick={handleMint}
+          disabled={loading}
+          className="mt-4 px-4 py-2 bg-blue-500 text-white rounded"
+        >
+          {loading ? "Minting..." : "Mint NFT (5 ADA)"}
+        </button>
+      )}
+
+      {txHash && (
+        <p className="mt-4">
+          Success! <a href={`https://preprod.cardanoscan.io/transaction/${txHash}`}>View TX</a>
+        </p>
+      )}
+    </div>
+  );
 }
 ```
 
-Get the client's address and UTXOs:
+**What to expect:** A button that initiates the multi-sig minting flow.
 
-```tsx
-const recipientAddress = await wallet.getChangeAddress();
-const utxos = await wallet.getUtxos();
+### Step 2: Create the server-side build endpoint
+
+Create an API route that builds the minting transaction:
+
+```typescript
+// app/api/mint/route.ts (Next.js App Router)
+// or pages/api/mint.ts (Next.js Pages Router)
+
+import { NextResponse } from "next/server";
+import {
+  MeshWallet,
+  MeshTxBuilder,
+  BlockfrostProvider,
+  ForgeScript,
+  resolveScriptHash,
+  stringToHex,
+} from "@meshsdk/core";
+import type { UTxO, AssetMetadata } from "@meshsdk/core";
+
+// Server wallet configuration (never expose in client)
+const MNEMONIC = process.env.MINTING_WALLET_MNEMONIC!;
+const BLOCKFROST_KEY = process.env.BLOCKFROST_KEY!;
+const BANK_ADDRESS = process.env.BANK_WALLET_ADDRESS!;
+const MINTING_FEE = "5000000";
+
+export async function POST(request: Request) {
+  const { recipientAddress, utxos } = await request.json() as {
+    recipientAddress: string;
+    utxos: UTxO[];
+  };
+
+  // Initialize provider and application wallet
+  const provider = new BlockfrostProvider(BLOCKFROST_KEY);
+
+  const appWallet = new MeshWallet({
+    networkId: 0,
+    fetcher: provider,
+    submitter: provider,
+    key: {
+      type: "mnemonic",
+      words: MNEMONIC.split(" "),
+    },
+  });
+
+  // Create forging script from application wallet
+  const appAddress = appWallet.getChangeAddress();
+  const forgingScript = ForgeScript.withOneSignature(appAddress);
+  const policyId = resolveScriptHash(forgingScript);
+
+  // Define the NFT
+  const assetName = "MeshNFT";
+  const tokenNameHex = stringToHex(assetName);
+  const assetUnit = policyId + tokenNameHex;
+
+  const assetMetadata: AssetMetadata = {
+    name: "Mesh NFT",
+    image: "ipfs://QmRzicpReutwCkM6aotuKjErFCUD213DpwPq6ByuzMJaua",
+    mediaType: "image/jpg",
+    description: "Minted via multi-sig transaction",
+  };
+
+  // Build the transaction
+  const txBuilder = new MeshTxBuilder({ fetcher: provider });
+
+  // Add user UTxOs as inputs
+  for (const utxo of utxos) {
+    txBuilder.txIn(
+      utxo.input.txHash,
+      utxo.input.outputIndex,
+      utxo.output.amount,
+      utxo.output.address
+    );
+  }
+
+  const unsignedTx = await txBuilder
+    // Mint the NFT
+    .mint("1", policyId, tokenNameHex)
+    .mintingScript(forgingScript)
+    // Send NFT to user
+    .txOut(recipientAddress, [{ unit: assetUnit, quantity: "1" }])
+    // Send minting fee to bank
+    .txOut(BANK_ADDRESS, [{ unit: "lovelace", quantity: MINTING_FEE }])
+    // Add metadata
+    .metadataValue(721, { [policyId]: { [assetName]: assetMetadata } })
+    // Change goes back to user
+    .changeAddress(recipientAddress)
+    .complete();
+
+  return NextResponse.json({ unsignedTx, policyId });
+}
 ```
 
-Select only the UTxOs needed for the minting fee:
+**What to expect:** An API that builds minting transactions using user UTxOs.
 
-```tsx
-const assetMap = new Map<Unit, Quantity>();
-assetMap.set("lovelace", mintingFee);
-const selectedUtxos = experimentalSelectUtxos(assetMap, utxos, "5000000");
+### Step 3: Create the submit endpoint
+
+Create an API route to add the server signature and submit:
+
+```typescript
+// app/api/mint/submit/route.ts
+
+import { NextResponse } from "next/server";
+import { MeshWallet, BlockfrostProvider } from "@meshsdk/core";
+
+const MNEMONIC = process.env.MINTING_WALLET_MNEMONIC!;
+const BLOCKFROST_KEY = process.env.BLOCKFROST_KEY!;
+
+export async function POST(request: Request) {
+  const { signedTx } = await request.json() as { signedTx: string };
+
+  const provider = new BlockfrostProvider(BLOCKFROST_KEY);
+
+  const appWallet = new MeshWallet({
+    networkId: 0,
+    fetcher: provider,
+    submitter: provider,
+    key: {
+      type: "mnemonic",
+      words: MNEMONIC.split(" "),
+    },
+  });
+
+  // Add application signature (partial signing)
+  const fullySignedTx = await appWallet.signTx(signedTx, true);
+
+  // Submit the transaction
+  const txHash = await appWallet.submitTx(fullySignedTx);
+
+  return NextResponse.json({ txHash });
+}
 ```
 
-Send `selectedUtxos` and `recipientAddress` to your backend API.
+**What to expect:** An API that completes signing and submits the transaction.
 
-## Step 2: How Do You Build the Transaction on the Server?
+### Step 4: Configure environment variables
 
-On your backend (Next.js API routes, Express, etc.), initialize the provider and application wallet:
+Create `.env.local`:
 
-```tsx
-const provider = new BlockfrostProvider(
-  '<blockfrost key here>'
-);
-
-const meshWallet = new MeshWallet({
-  networkId: 0,
-  fetcher: provider,
-  submitter: provider,
-  key: {
-    type: 'mnemonic',
-    words: yourMnemonic,
-  },
-});
+```bash
+BLOCKFROST_KEY=your_blockfrost_preprod_key
+MINTING_WALLET_MNEMONIC=your twenty four word mnemonic phrase for the minting wallet
+BANK_WALLET_ADDRESS=addr_test1your_bank_address_for_collecting_fees
 ```
 
-Define the forging script:
+**What to expect:** Server-side credentials stored securely.
 
-```tsx
-const meshWalletAddress = meshWallet.getChangeAddress();
-const forgingScript = ForgeScript.withOneSignature(meshWalletAddress);
+## Complete Example
+
+Here is the complete flow in a single file for reference:
+
+**Client Component:**
+
+```typescript
+"use client";
+
+import { useState } from "react";
+import { CardanoWallet, useWallet } from "@meshsdk/react";
+import { experimentalSelectUtxos } from "@meshsdk/core";
+
+export function MultiSigMint() {
+  const { wallet, connected } = useWallet();
+  const [status, setStatus] = useState<"idle" | "building" | "signing" | "submitting" | "done">("idle");
+  const [txHash, setTxHash] = useState("");
+
+  async function mint() {
+    try {
+      // Step 1: Get user wallet info
+      setStatus("building");
+      const address = await wallet.getChangeAddress();
+      const utxos = await wallet.getUtxos();
+
+      const assetMap = new Map();
+      assetMap.set("lovelace", "5000000");
+      const selected = experimentalSelectUtxos(assetMap, utxos, "5000000");
+
+      // Step 2: Build transaction on server
+      const buildRes = await fetch("/api/mint", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ recipientAddress: address, utxos: selected }),
+      });
+      const { unsignedTx } = await buildRes.json();
+
+      // Step 3: User signs
+      setStatus("signing");
+      const userSignedTx = await wallet.signTx(unsignedTx, true);
+
+      // Step 4: Server signs and submits
+      setStatus("submitting");
+      const submitRes = await fetch("/api/mint/submit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ signedTx: userSignedTx }),
+      });
+      const { txHash } = await submitRes.json();
+
+      setTxHash(txHash);
+      setStatus("done");
+    } catch (error) {
+      console.error(error);
+      setStatus("idle");
+    }
+  }
+
+  return (
+    <div className="space-y-4">
+      <CardanoWallet />
+
+      {connected && (
+        <button
+          onClick={mint}
+          disabled={status !== "idle" && status !== "done"}
+          className="px-4 py-2 bg-blue-500 text-white rounded disabled:opacity-50"
+        >
+          {status === "idle" && "Mint NFT (5 ADA)"}
+          {status === "building" && "Building transaction..."}
+          {status === "signing" && "Please sign in wallet..."}
+          {status === "submitting" && "Submitting..."}
+          {status === "done" && "Mint Another"}
+        </button>
+      )}
+
+      {txHash && (
+        <p>
+          Transaction:{" "}
+          <a
+            href={`https://preprod.cardanoscan.io/transaction/${txHash}`}
+            target="_blank"
+            className="text-blue-500 underline"
+          >
+            {txHash.slice(0, 16)}...
+          </a>
+        </p>
+      )}
+    </div>
+  );
+}
 ```
 
-Define the NFT metadata (CIP-25 format):
+## Next Steps
 
-```tsx
-const assetName = 'MeshToken';
+- <Link href="/guides/smart-contract-transactions">Smart contract transactions</Link> - NFT marketplace patterns
+- <Link href="/apis/txbuilder/minting">Minting API reference</Link> - Advanced minting options
+- <Link href="/guides/production-deployment">Production deployment</Link> - Security best practices
 
-const assetMetadata: AssetMetadata = {
-  name: 'Mesh Token',
-  image: 'ipfs://QmRzicpReutwCkM6aotuKjErFCUD213DpwPq6ByuzMJaua',
-  mediaType: 'image/jpg',
-  description: 'This NFT was minted by Mesh (https://meshjs.dev/).',
-};
+## Troubleshooting
+
+### User UTxOs already spent
+
+**Cause:** The user's UTxOs were spent between selection and submission.
+
+**Solution:** Implement retry logic or show an error asking the user to try again.
+
+### Signature verification failed
+
+**Cause:** The transaction was modified after the user signed.
+
+**Solution:** Never modify the transaction after the user signs. Build the complete transaction before returning it to the client.
+
+### Insufficient funds
+
+**Cause:** Selected UTxOs do not cover the minting fee plus transaction fee.
+
+**Solution:** Increase the UTxO selection amount to include buffer for fees:
+
+```typescript
+const selectedUtxos = experimentalSelectUtxos(assetMap, utxos, "7000000");
 ```
 
-Build the minting transaction using the user's UTxOs as inputs:
+### CORS errors
 
-```tsx
-import { MeshTxBuilder, resolveScriptHash, stringToHex } from '@meshsdk/core';
+**Cause:** API routes are not accessible from the client.
 
-const policyId = resolveScriptHash(forgingScript);
-const tokenNameHex = stringToHex(assetName);
-const metadata = { [policyId]: { [assetName]: assetMetadata } };
+**Solution:** Ensure your Next.js API routes are correctly configured. In App Router, use `route.ts` files.
 
-const txBuilder = new MeshTxBuilder({
-  fetcher: provider,
-});
+### Mnemonic not found
 
-// Add user's UTXOs as inputs
-userUtxos.forEach(utxo => {
-  txBuilder.txIn(utxo.input.txHash, utxo.input.outputIndex, utxo.output.amount, utxo.output.address);
-});
+**Cause:** Environment variables are not loaded.
 
-const unsignedTx = await txBuilder
-  .mint("1", policyId, tokenNameHex)
-  .mintingScript(forgingScript)
-  .txOut(recipientAddress, [{ unit: policyId + tokenNameHex, quantity: "1" }])
-  .txOut(bankWalletAddress, [{ unit: "lovelace", quantity: mintingFee }])
-  .metadataValue(721, metadata)
-  .changeAddress(recipientAddress)
-  .complete();
-```
+**Solution:** For Next.js, ensure:
+- Variables are in `.env.local` (not `.env`)
+- Server-only variables do not have `NEXT_PUBLIC_` prefix
+- Restart the dev server after adding variables
 
-Return the unsigned transaction to the client.
+## Security Considerations
 
-## Step 3: How Does the User Sign?
-
-The user signs with partial signing enabled (`true`) since another signature is required:
-
-```tsx
-const signedTx = await wallet.signTx(unsignedTx, true);
-```
-
-Send the partially signed transaction back to the server.
-
-## Step 4: How Does the Application Sign and Submit?
-
-The backend adds its signature and submits:
-
-```tsx
-const meshWalletSignedTx = await meshWallet.signTx(signedTx, true);
-const txHash = await meshWallet.submitTx(meshWalletSignedTx);
-```
-
-The transaction is now fully signed and submitted to the Cardano blockchain.
-
-## What Security Considerations Apply?
-
-- **Never expose mnemonic phrases** in client-side code
+- **Never expose mnemonics** in client-side code
 - **Validate user UTxOs** before building transactions
-- **Set reasonable minting fees** to cover transaction costs
-- **Implement rate limiting** to prevent abuse
+- **Set reasonable minting fees** to cover costs and prevent abuse
+- **Implement rate limiting** on API endpoints
+- **Log minting events** for auditing
 
-## What Should You Explore Next?
+## Related Links
 
-- View the <Link href="https://github.com/MeshJS/mesh/blob/main/apps/playground/src/pages/guides/multisig-minting/demo.tsx">complete example code</Link>
-- Learn about <Link href="/guides/smart-contract-transactions">smart contract transactions</Link>
-- Explore <Link href="/apis/txbuilder/minting">minting transaction options</Link>
+- <Link href="https://github.com/MeshJS/mesh/blob/main/apps/playground/src/pages/guides/multisig-minting/demo.tsx">Complete example code</Link>
+- <Link href="/apis/txbuilder">Transaction Builder API</Link>
+- <Link href="/guides/production-deployment">Production Deployment</Link>

@@ -1,18 +1,37 @@
 ---
-title: "Hello World"
-description: "Install Mesh SDK and learn how to send assets using the Mesh wallet."
+title: "Lesson 1: Hello World"
+description: "Install Mesh SDK, create a wallet, and send your first Cardano transaction."
 ---
 import Link from "fumadocs-core/link";
 
-Welcome to the first lesson of the Cardano Application Development Course! In this session, you'll set up the <Link href="https://meshjs.dev/">Mesh SDK</Link> and learn how to create a wallet using `MeshWallet` and send assets using `MeshTxBuilder`.
+## Learning Objectives
 
-## System setup
+By the end of this lesson, you will be able to:
 
-Before we begin, let's prepare our system for development. We will be using Node.js v24+ in this course. We recommend <Link href="https://github.com/nvm-sh/nvm">nvm to manage your node versions</Link>.
+- Set up a Node.js project with the Mesh SDK
+- Generate a new wallet with mnemonic phrases
+- Retrieve your wallet address
+- Send lovelace (ADA) to another address
+- Understand UTXOs and transaction building basics
 
-### Create a package.json file
+## Prerequisites
 
-First, create a new `package.json` file in the root of your project with the following content:
+Before starting this lesson, ensure you have:
+
+- **Node.js v20+** installed (<Link href="https://github.com/nvm-sh/nvm">nvm recommended for version management</Link>)
+- A code editor (VS Code recommended)
+- Basic familiarity with TypeScript/JavaScript
+
+## Step 1: Create Your Project
+
+Create a new directory and initialize your project with a `package.json` file.
+
+```bash
+mkdir mesh-hello-world
+cd mesh-hello-world
+```
+
+Create a `package.json` file with ES module support:
 
 ```json
 {
@@ -22,38 +41,39 @@ First, create a new `package.json` file in the root of your project with the fol
 }
 ```
 
-### Install the necessary packages
+## Step 2: Install the Mesh SDK
 
-Open your terminal and run these commands to install the MeshSDK:
+Install the Mesh SDK core package:
 
 ```bash
-npm install
 npm install @meshsdk/core
 ```
 
-Here's how your `package.json` file should look after installing the package:
+Your `package.json` now looks like this:
 
 ```json
 {
   "type": "module",
   "dependencies": {
-    "@meshsdk/core": "^1.9.0",
+    "@meshsdk/core": "^1.9.0"
   },
   "scripts": {}
 }
 ```
 
-- `@meshsdk/core`: Core functionality for network interactions, wallets, and transactions.
+## Step 3: Generate a Wallet
 
-## Create a wallet
+The `MeshWallet` class provides methods to create wallets, generate mnemonic phrases, and retrieve addresses.
 
-We will use <Link href="/apis/wallets/meshwallet">`MeshWallet`</Link>. This class provides methods to create a new wallet, generate mnemonic phrases, and get the wallet address.
+### Key Concepts
 
-### Generate mnemonic phrases
+- **Mnemonic phrase**: A set of 24 words that can recover your wallet. Keep this secure.
+- **Network ID**: Use `0` for preprod testnet, `1` for mainnet.
+- **Change address**: The address where remaining funds return after a transaction.
 
-To create a new wallet, we need to generate a mnemonic phrase. A mnemonic phrase is a set of words that can be used to recover your wallet. It is important to keep your mnemonic phrase safe and secure, as it can be used to access your funds.
+### Create the Mnemonic Script
 
-To create a new wallet mnemonic, do the following:
+Create a new file called `mnemonic.ts`:
 
 ```ts
 import { MeshWallet } from "@meshsdk/core";
@@ -61,16 +81,8 @@ import { MeshWallet } from "@meshsdk/core";
 // Generate new mnemonic phrases for your wallet
 const mnemonic = MeshWallet.brew();
 console.log("Your mnemonic phrases are:", mnemonic);
-```
 
-- Use the `brew` method to generate a new mnemonic phrase.
-
-### Initialize the wallet and get the wallet address
-
-Now that we have generated a mnemonic phrase, we can initialize the wallet with it. The `MeshWallet` class provides a method to create a new wallet using the mnemonic phrase.
-
-```ts
-// Initialize the wallet with a mnemonic key
+// Initialize the wallet with the mnemonic key
 const wallet = new MeshWallet({
   networkId: 0, // preprod testnet
   key: {
@@ -84,42 +96,15 @@ const address = await wallet.getChangeAddress();
 console.log("Your wallet address is:", address);
 ```
 
-- `networkId`: Specify the network, 0 for preprod testnet.
-- `key`: Specify the key type and mnemonic phrases.
-- `getChangeAddress`: Method to get the wallet address.
+### Run the Script
 
-### Run the code
-
-Here is the source code. Create a new file `mnemonic.ts` and copy the code into it:
-
-```ts
-import { MeshWallet } from "@meshsdk/core";
-
-// Generate new mnemonic phrases for your wallet
-const mnemonic = MeshWallet.brew();
-console.log("Your mnemonic phrases are:", mnemonic);
-
-// Initialize the wallet with a mnemonic key
-const wallet = new MeshWallet({
-  networkId: 0, // preprod testnet
-  key: {
-    type: "mnemonic",
-    words: mnemonic as string[],
-  },
-});
-
-// Get the wallet address
-const address = await wallet.getChangeAddress();
-console.log("Your wallet address is:", address);
-```
-
-Update the `package.json` file to add a script to run the code:
+Add a script to your `package.json`:
 
 ```json
 {
   "type": "module",
   "dependencies": {
-    "@meshsdk/core": "^1.9.0",
+    "@meshsdk/core": "^1.9.0"
   },
   "scripts": {
     "mnemonic": "node mnemonic.ts"
@@ -132,12 +117,10 @@ Run the script:
 ```bash
 npm run mnemonic
 ```
-This will generate a new mnemonic phrase and wallet address for you. The output will look something like this:
+
+You see output similar to:
 
 ```bash
-> mnemonic
-> node mnemonic.ts
-
 Your mnemonic phrases are: [
   'access',  'spawn',   'taxi',
   'prefer',  'fortune', 'sword',
@@ -151,90 +134,56 @@ Your mnemonic phrases are: [
 Your wallet address is: addr_test1qptwuv6dl863u3k93mjrg0hgs0ahl08lfhsudxrwshcsx59cjxatme29s6cl7drjceknunry049shu9eudnsjvwqq9qsuem66d
 ```
 
-## Send lovelace
+**Important**: Save your mnemonic phrase securely. You need it for the next steps.
 
-Now that we have a wallet and some lovelace, let's learn how to send lovelace using the Mesh SDK. We will use the `MeshTxBuilder` class to create a transaction and send it to the network.
+## Step 4: Fund Your Wallet
 
-### Get lovelace from faucet
+Before sending transactions, you need test ADA (lovelace) in your wallet.
 
-To get some lovelace for testing, you can use the <Link href="https://docs.cardano.org/cardano-testnets/tools/faucet">Cardano Preprod Testnet Faucet</Link>. Paste your wallet address and click on the "Request funds" button. You should receive some lovelace in your wallet shortly.
+1. Go to the <Link href="https://docs.cardano.org/cardano-testnets/tools/faucet">Cardano Preprod Testnet Faucet</Link>
+2. Paste your wallet address from the previous step
+3. Click "Request funds"
+4. Wait a few minutes for the funds to arrive
 
-### Get Blockfrost API key
+## Step 5: Get a Blockfrost API Key
 
-In order to create transactions, we need to use APIs to get UTXOs from the network. For this, we will use Blockfrost to get UTXOs and submit transactions. Sign up for a free account and get your API key <Link href="https://blockfrost.io/">here</Link>.
+Mesh uses Blockfrost to interact with the Cardano blockchain for fetching UTXOs and submitting transactions.
 
-You should get the preprod API key, which starts with `preprod`. You can find the API key in the "Projects" section of your Blockfrost account.
+1. Sign up at <Link href="https://blockfrost.io/">Blockfrost</Link>
+2. Create a new project for the **Preprod** network
+3. Copy your API key (starts with `preprod`)
 
-### Get wallet information
+## Step 6: Send Lovelace
 
-Now, let's get the wallet information using the `MeshWallet` class.
+Now you can send lovelace to another address using `MeshTxBuilder`.
 
-```ts
-// Get wallet data needed for the transaction
-const utxos = await wallet.getUtxos();
-const changeAddress = await wallet.getChangeAddress();
-```
+### Key Concepts
 
-- `getUtxos`: Method to get the UTXOs from the wallet.
-- `getChangeAddress`: Method to get the change address.
+- **UTXO (Unspent Transaction Output)**: Cardano uses a UTXO model where each transaction consumes existing outputs and creates new ones.
+- **Lovelace**: The smallest unit of ADA. 1 ADA = 1,000,000 lovelace.
+- **Change address**: Where leftover funds go after covering the transaction amount and fees.
 
-### Create a transaction to send lovelace
+### Create the Send Script
 
-Now, we will create a transaction to send lovelace using the <Link href="/apis/txbuilder">`MeshTxBuilder`</Link> class.
-
-```ts
-// Create the transaction
-const txBuilder = new MeshTxBuilder({
-  fetcher: provider,
-  verbose: true, // optional, prints the transaction body
-});
-
-const unsignedTx = await txBuilder
-  .txOut(
-    "addr_test1qpvx0sacufuypa2k4sngk7q40zc5c4npl337uusdh64kv0uafhxhu32dys6pvn6wlw8dav6cmp4pmtv7cc3yel9uu0nq93swx9",
-    [{ unit: "lovelace", quantity: "1500000" }]
-  )
-  .changeAddress(changeAddress)
-  .selectUtxosFrom(utxos)
-  .complete();
-```
-
-- `txOut`: Add the recipient address and amount.
-- `changeAddress`: Set the change address.
-- `selectUtxosFrom`: Provide wallet UTXOs into the transaction as inputs.
-- `complete`: Create the transaction.
-
-### Sign and submit the transaction
-
-Now that we have created the transaction, we need to sign it and submit it to the network.
-
-```ts
-const signedTx = await wallet.signTx(unsignedTx);
-const txHash = await wallet.submitTx(signedTx);
-console.log("Transaction hash:", txHash);
-```
-
-- `signTx`: Method to sign the transaction, which will return the signed transaction.
-- `submitTx`: Method to submit the transaction to the network.
-
-### Run the code
-
-Here is the source code. Create a new file `send-lovelace.ts` and copy the code into it:
+Create a new file called `send-lovelace.ts`:
 
 ```ts
 import { BlockfrostProvider, MeshTxBuilder, MeshWallet } from "@meshsdk/core";
 
-// Set up the blockchain provider with your key
-const provider = new BlockfrostProvider("YOUR_KEY_HERE");
+// Set up the blockchain provider with your API key
+const provider = new BlockfrostProvider("YOUR_BLOCKFROST_API_KEY");
 
-// Initialize the wallet with a mnemonic key
+// Initialize the wallet with your mnemonic
 const wallet = new MeshWallet({
   networkId: 0,
   fetcher: provider,
   submitter: provider,
   key: {
     type: "mnemonic",
-    words: ["your", "mnemonic", "...", "here"],
+    words: [
+      "your", "mnemonic", "phrases", "here",
+      // ... all 24 words
+    ],
   },
 });
 
@@ -245,7 +194,7 @@ const changeAddress = await wallet.getChangeAddress();
 // Create the transaction
 const txBuilder = new MeshTxBuilder({
   fetcher: provider,
-  verbose: true, // optional, prints the transaction body
+  verbose: true, // Prints the transaction body for debugging
 });
 
 const unsignedTx = await txBuilder
@@ -257,18 +206,32 @@ const unsignedTx = await txBuilder
   .selectUtxosFrom(utxos)
   .complete();
 
+// Sign and submit the transaction
 const signedTx = await wallet.signTx(unsignedTx);
 const txHash = await wallet.submitTx(signedTx);
+
 console.log("Transaction hash:", txHash);
 ```
 
-Update the `package.json` file to add a script to run the code:
+### Configuration
+
+Replace these values in the script:
+
+| Placeholder | Description |
+|-------------|-------------|
+| `YOUR_BLOCKFROST_API_KEY` | Your Blockfrost preprod API key |
+| `your`, `mnemonic`, ... | Your 24-word mnemonic phrase |
+| Recipient address | The address to send lovelace to |
+
+### Run the Transaction
+
+Add the script to your `package.json`:
 
 ```json
 {
   "type": "module",
   "dependencies": {
-    "@meshsdk/core": "^1.9.0",
+    "@meshsdk/core": "^1.9.0"
   },
   "scripts": {
     "mnemonic": "node mnemonic.ts",
@@ -277,31 +240,149 @@ Update the `package.json` file to add a script to run the code:
 }
 ```
 
-Run the script:
+Run it:
 
 ```bash
 npm run send-lovelace
 ```
 
-This will create a transaction to send lovelace to the recipient address and submit it to the network. The output will look something like this:
+You see output showing the transaction body before and after coin selection, followed by the transaction hash:
 
 ```bash
-> send-lovelace
-> node send-lovelace.ts
-
-txBodyJson - before coin selection {"inputs":[],"outputs":[{"address":"addr_test1qpvx0sacufuypa2k4sngk7q40zc5c4npl337uusdh64kv0uafhxhu32dys6pvn6wlw8dav6cmp4pmtv7cc3yel9uu0nq93swx9","amount":[{"unit":"lovelace","quantity":"1500000"}]}],"fee":"0","collaterals":[],"requiredSignatures":[],"referenceInputs":[],"mints":[],"changeAddress":"addr_test1qp2k7wnshzngpqw0xmy33hvexw4aeg60yr79x3yeeqt3s2uvldqg2n2p8y4kyjm8sqfyg0tpq9042atz0fr8c3grjmysdp6yv3","metadata":{},"validityRange":{},"certificates":[],"withdrawals":[],"votes":[],"signingKey":[],"chainedTxs":[],"inputsForEvaluation":{},"network":"mainnet","expectedNumberKeyWitnesses":0,"expectedByronAddressWitnesses":[]}
-txBodyJson - after coin selection {"inputs":[{"type":"PubKey","txIn":{"txHash":"99d859b305ab8021e497fad0dc55373e50fffd3e7026142fa3cf5accfe0d3aab","txIndex":1,"amount":[{"unit":"lovelace","quantity":"9823719"}],"address":"addr_test1qp2k7wnshzngpqw0xmy33hvexw4aeg60yr79x3yeeqt3s2uvldqg2n2p8y4kyjm8sqfyg0tpq9042atz0fr8c3grjmysdp6yv3"}}],"outputs":[{"address":"addr_test1qpvx0sacufuypa2k4sngk7q40zc5c4npl337uusdh64kv0uafhxhu32dys6pvn6wlw8dav6cmp4pmtv7cc3yel9uu0nq93swx9","amount":[{"unit":"lovelace","quantity":"1500000"}]},{"address":"addr_test1qp2k7wnshzngpqw0xmy33hvexw4aeg60yr79x3yeeqt3s2uvldqg2n2p8y4kyjm8sqfyg0tpq9042atz0fr8c3grjmysdp6yv3","amount":[{"unit":"lovelace","quantity":"8153730"}]}],"fee":"169989","collaterals":[],"requiredSignatures":[],"referenceInputs":[],"mints":[],"changeAddress":"addr_test1qp2k7wnshzngpqw0xmy33hvexw4aeg60yr79x3yeeqt3s2uvldqg2n2p8y4kyjm8sqfyg0tpq9042atz0fr8c3grjmysdp6yv3","metadata":{},"validityRange":{},"certificates":[],"withdrawals":[],"votes":[],"signingKey":[],"chainedTxs":[],"inputsForEvaluation":{"99d859b305ab8021e497fad0dc55373e50fffd3e7026142fa3cf5accfe0d3aab1":{"input":{"outputIndex":1,"txHash":"99d859b305ab8021e497fad0dc55373e50fffd3e7026142fa3cf5accfe0d3aab"},"output":{"address":"addr_test1qp2k7wnshzngpqw0xmy33hvexw4aeg60yr79x3yeeqt3s2uvldqg2n2p8y4kyjm8sqfyg0tpq9042atz0fr8c3grjmysdp6yv3","amount":[{"unit":"lovelace","quantity":"9823719"}]}}},"network":"mainnet","expectedNumberKeyWitnesses":0,"expectedByronAddressWitnesses":[]}
 Transaction hash: 62a825c607e4ca5766325c2fccd7ee98313ff81b7e8a4af67eac421b0f0866ff
 ```
 
-You should see the transaction hash in the output.
+## Complete Working Example
 
-Note, in the `MeshTxBuilder` class, we have set `verbose: true`, which will print the transaction body before and after coin selection. This is useful for debugging and understanding how the transaction is built.
+Here is the full project structure:
 
-## Source code
+```
+mesh-hello-world/
+  package.json
+  mnemonic.ts
+  send-lovelace.ts
+```
 
-The source code for this lesson is available on <Link href="https://github.com/cardanobuilders/cardanobuilders.github.io/tree/main/codes/course-hello-cardano/01-wallet-send-lovelace">GitHub</Link>.
+### package.json
 
-## Challenge
+```json
+{
+  "type": "module",
+  "dependencies": {
+    "@meshsdk/core": "^1.9.0"
+  },
+  "scripts": {
+    "mnemonic": "node mnemonic.ts",
+    "send-lovelace": "node send-lovelace.ts"
+  }
+}
+```
 
-Create a transaction that sends multiple assets to multiple addresses. Explore the Mesh SDK docs for more!
+### mnemonic.ts
+
+```ts
+import { MeshWallet } from "@meshsdk/core";
+
+const mnemonic = MeshWallet.brew();
+console.log("Your mnemonic phrases are:", mnemonic);
+
+const wallet = new MeshWallet({
+  networkId: 0,
+  key: {
+    type: "mnemonic",
+    words: mnemonic as string[],
+  },
+});
+
+const address = await wallet.getChangeAddress();
+console.log("Your wallet address is:", address);
+```
+
+### send-lovelace.ts
+
+```ts
+import { BlockfrostProvider, MeshTxBuilder, MeshWallet } from "@meshsdk/core";
+
+const provider = new BlockfrostProvider("YOUR_BLOCKFROST_API_KEY");
+
+const wallet = new MeshWallet({
+  networkId: 0,
+  fetcher: provider,
+  submitter: provider,
+  key: {
+    type: "mnemonic",
+    words: ["your", "24", "word", "mnemonic", "phrase", "here"],
+  },
+});
+
+const utxos = await wallet.getUtxos();
+const changeAddress = await wallet.getChangeAddress();
+
+const txBuilder = new MeshTxBuilder({
+  fetcher: provider,
+  verbose: true,
+});
+
+const unsignedTx = await txBuilder
+  .txOut(
+    "addr_test1qpvx0sacufuypa2k4sngk7q40zc5c4npl337uusdh64kv0uafhxhu32dys6pvn6wlw8dav6cmp4pmtv7cc3yel9uu0nq93swx9",
+    [{ unit: "lovelace", quantity: "1500000" }]
+  )
+  .changeAddress(changeAddress)
+  .selectUtxosFrom(utxos)
+  .complete();
+
+const signedTx = await wallet.signTx(unsignedTx);
+const txHash = await wallet.submitTx(signedTx);
+
+console.log("Transaction hash:", txHash);
+```
+
+## Key Concepts Explained
+
+### MeshWallet
+
+The `MeshWallet` class manages your wallet:
+
+| Method | Description |
+|--------|-------------|
+| `MeshWallet.brew()` | Generates a new 24-word mnemonic |
+| `getChangeAddress()` | Returns the wallet's receiving address |
+| `getUtxos()` | Fetches all UTXOs owned by the wallet |
+| `signTx(tx)` | Signs a transaction with the wallet's private key |
+| `submitTx(tx)` | Submits a signed transaction to the network |
+
+### MeshTxBuilder
+
+The `MeshTxBuilder` class constructs transactions:
+
+| Method | Description |
+|--------|-------------|
+| `txOut(address, assets)` | Adds an output to send assets to an address |
+| `changeAddress(address)` | Sets where remaining funds go |
+| `selectUtxosFrom(utxos)` | Provides UTXOs for coin selection |
+| `complete()` | Finalizes and balances the transaction |
+
+## Exercises
+
+1. **Send to multiple addresses**: Modify `send-lovelace.ts` to send lovelace to two different addresses in a single transaction. Use multiple `txOut()` calls.
+
+2. **Check your balance**: Before and after sending, use `wallet.getUtxos()` to calculate your total balance.
+
+3. **Explore the transaction**: Copy your transaction hash and view it on <Link href="https://preprod.cardanoscan.io/">CardanoScan Preprod</Link>.
+
+## Next Steps
+
+You have successfully:
+
+- Created a Cardano wallet
+- Funded it with test ADA
+- Sent your first transaction
+
+In the next lesson, you learn how to build <Link href="/resources/cardano-course/02-multisig">multi-signature transactions</Link> that require approval from multiple parties.
+
+## Related Links
+
+- <Link href="/apis/wallets/meshwallet">MeshWallet API Reference</Link>
+- <Link href="/apis/txbuilder">MeshTxBuilder API Reference</Link>
+- <Link href="https://github.com/cardanobuilders/cardanobuilders.github.io/tree/main/codes/course-hello-cardano/01-wallet-send-lovelace">Source Code on GitHub</Link>

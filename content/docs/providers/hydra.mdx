@@ -1,147 +1,628 @@
 ---
 title: "Hydra Provider (beta)"
-description: "Layer 2 scaling solution for Cardano that increases transaction throughput and ensures cost efficiency while maintaining security."
+description: "Build high-throughput applications on Cardano's Layer 2 scaling solution"
 ---
 
 import Link from "fumadocs-core/link";
 
-The <Link href="https://hydra.family/head-protocol/">Hydra Head protocol</Link> is a layer 2 scaling solution for Cardano rooted in peer-reviewed research that increases transaction throughput and ensures cost efficiency while maintaining rigorous security.
+## Overview
 
-Get started:
+The <Link href="https://hydra.family/head-protocol/">Hydra Head protocol</Link> is a Layer 2 scaling solution for Cardano rooted in peer-reviewed research. It increases transaction throughput and ensures cost efficiency while maintaining rigorous security.
+
+**Key features:**
+- High transaction throughput with near-instant finality
+- Low transaction costs within a Hydra Head
+- Full Cardano smart contract compatibility
+- Peer-reviewed cryptographic security
+
+**Use Hydra when you need:**
+- Real-time transaction settlement
+- High-frequency trading or gaming applications
+- Micropayments without Layer 1 fees
+- Private transaction channels between parties
+
+## Quick Start
+
+Install the MeshJS Hydra package:
+
+```bash
+npm install @meshsdk/hydra
+```
+
+Initialize the provider:
 
 ```tsx
 import { HydraProvider } from "@meshsdk/hydra";
 
-// Hydra Head URL and PORT: e.g. http://123.45.67.890:4001
-
 const provider = new HydraProvider({
-  httpUrl: <hydra-api-url>
+  httpUrl: "http://123.45.67.890:4001",
 });
 ```
 
-## connect
-
-Establishes a connection to a Hydra Head. This is typically managed through the HydraProvider..
+Connect to a Hydra Head and send transactions:
 
 ```tsx
+// Connect to the Hydra Head
 await provider.connect();
+
+// Listen for messages
+provider.onMessage((message) => {
+  console.log("Hydra message:", message);
+});
+
+// Submit a transaction
+const txHash = await provider.submitTx(signedTx);
 ```
 
-## hydra-head messages
+## Configuration Options
 
-Listens to messages from hydra-head
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `httpUrl` | `string` | Yes | The Hydra node HTTP API URL |
+
+### Hydra Node Setup
+
+Before using the HydraProvider, you need a running Hydra node connected to a Hydra Head. See the <Link href="https://hydra.family/head-protocol/docs/getting-started">Hydra Getting Started Guide</Link> for node setup instructions.
+
+## API Reference
+
+### connect
+
+Establish a WebSocket connection to the Hydra Head.
 
 ```tsx
-provider.onMessage((message) =>
-  console.log("messages received from hydra", message)
-);
+await provider.connect(): Promise<void>
 ```
 
-can be used together with connect to Receive Messages after connect
+**Example:**
 
 ```tsx
+import { HydraProvider } from "@meshsdk/hydra";
+
+const provider = new HydraProvider({
+  httpUrl: "http://123.45.67.890:4001",
+});
+
 await provider.connect();
-provider.onMessage((message) =>
-  console.log("messages received from hydra", message)
-);
+console.log("Connected to Hydra Head");
 ```
 
-## disconnect
+---
 
-Closes the active connection to a Hydra Head. This is typically managed through the HydraProvider.
+### disconnect
 
-Parameter (Optional)
-
-- timeout: Specifies the timeout duration in milliseconds. The default timeout is 5 minutes (300,000 ms).
+Close the connection to the Hydra Head.
 
 ```tsx
+await provider.disconnect(timeout?: number): Promise<void>
+```
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `timeout` | `number` | No | Timeout in milliseconds (default: 300000 / 5 minutes) |
+
+**Example:**
+
+```tsx
+import { HydraProvider } from "@meshsdk/hydra";
+
+const provider = new HydraProvider({
+  httpUrl: "http://123.45.67.890:4001",
+});
+
+await provider.connect();
+
+// ... do work ...
+
 // Disconnect with default timeout (5 minutes)
 await provider.disconnect();
 
-// Disconnect with custom timeout (e.g., 10 minutes)
+// Or disconnect with custom timeout (10 minutes)
 await provider.disconnect(10 * 60 * 1000);
 ```
 
-## Hydra commands APIs
+---
 
-### Initialize
+### onMessage
 
-Initializes a new Head. This command is a no-op when a Head is already open and the server will
-output an `CommandFailed` message should this happen.
+Listen for messages from the Hydra Head. Use this to receive state updates, transaction confirmations, and other events.
 
 ```tsx
+provider.onMessage(callback: (message: HydraMessage) => void): void
+```
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `callback` | `(message: HydraMessage) => void` | Yes | Function called when a message is received |
+
+**Example:**
+
+```tsx
+import { HydraProvider } from "@meshsdk/hydra";
+
+const provider = new HydraProvider({
+  httpUrl: "http://123.45.67.890:4001",
+});
+
+await provider.connect();
+
+provider.onMessage((message) => {
+  console.log("Message received:", message);
+
+  if (message.tag === "Greetings") {
+    console.log("Snapshot UTxOs:", message.snapshotUtxo);
+  }
+
+  if (message.tag === "TxValid") {
+    console.log("Transaction confirmed:", message.transaction);
+  }
+});
+```
+
+See <Link href="https://hydra.family/head-protocol/api-reference">Hydra API Reference</Link> for all event types.
+
+---
+
+## Hydra Head Commands
+
+### init
+
+Initialize a new Hydra Head. This is a no-op if a Head is already open.
+
+```tsx
+await provider.init(): Promise<void>
+```
+
+**Example:**
+
+```tsx
+import { HydraProvider } from "@meshsdk/hydra";
+
+const provider = new HydraProvider({
+  httpUrl: "http://123.45.67.890:4001",
+});
+
+await provider.connect();
 await provider.init();
+
+console.log("Hydra Head initialized");
 ```
 
-### Abort
+---
 
-Aborts a head before it is opened. This can only be done before all participants have committed.
-Once opened, the head can't be aborted anymore but it can be closed using: `Close`.
+### abort
+
+Abort a Head before it is opened. This can only be done before all participants have committed. Once opened, use `close` instead.
 
 ```tsx
+await provider.abort(): Promise<void>
+```
+
+**Example:**
+
+```tsx
+import { HydraProvider } from "@meshsdk/hydra";
+
+const provider = new HydraProvider({
+  httpUrl: "http://123.45.67.890:4001",
+});
+
+await provider.connect();
 await provider.abort();
+
+console.log("Hydra Head aborted");
 ```
 
-### Commit
+---
 
-Commit a particular UTxO to the head. This will make the UTxO available on the layer 2.
-This is used together with the [`HydraInstance`](../hydra/instance) (see the Hydra Instance page for details).
+### newTx
+
+Submit a transaction to the Hydra Head. The transaction is broadcast only if well-formed and valid.
 
 ```tsx
-await instance.commitFunds(txHash, outputIndex);
+await provider.newTx(tx: HydraTransaction): Promise<string>
 ```
 
-### New Transaction
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `tx.cborHex` | `string` | Yes | The transaction CBOR in hex format |
+| `tx.type` | `string` | Yes | Transaction type (e.g., "Tx ConwayEra") |
+| `tx.description` | `string` | No | Optional description |
 
-Submit a transaction through the head. Note that the transaction is only broadcast if well-formed and valid.
-The `newTx` method accepts the following arguments:
+**Returns:** The transaction hash.
 
-**parameters**
-
-- cborHex: This is the transaction in hex format usually the unsigned transaction.
-- type: Any transaction is tried to decode as a 'ConwayEra' transaction, which mostly is backward compatible to previous eras.
-- description(optional): transaction description
-
-**returns**
-
-- txId(transaction Hash)
+**Example:**
 
 ```tsx
-async provider.newTx({
-    cborHex: "<unsignedTx>",
-    description: "commit tx",
-    type: "Tx ConwayEra",
-  })
+import { HydraProvider, MeshTxBuilder, MeshWallet } from "@meshsdk/hydra";
 
+const provider = new HydraProvider({
+  httpUrl: "http://123.45.67.890:4001",
+});
+
+await provider.connect();
+
+// Build a transaction
+const wallet = new MeshWallet({
+  networkId: 0,
+  fetcher: provider,
+  submitter: provider,
+  key: {
+    type: "cli",
+    payment: "58201aae63d93899640e91b51c5e8bd542262df3ecf3246c3854f39c40f4eb83557d",
+  },
+});
+
+const utxos = await wallet.getUtxos("enterprise");
+const changeAddress = await wallet.getChangeAddress();
+
+const txBuilder = new MeshTxBuilder({
+  fetcher: provider,
+  params: await provider.fetchProtocolParameters(),
+});
+
+const unsignedTx = await txBuilder
+  .txOut("addr_test1vpd5axpq4qsh8sxvzny49cp22gc5tqx0djf6wmjv5cx7q5qyrzuw8", [
+    { unit: "lovelace", quantity: "3000000" },
+  ])
+  .changeAddress(changeAddress)
+  .selectUtxosFrom(utxos)
+  .complete();
+
+// Submit via newTx
+const txHash = await provider.newTx({
+  cborHex: unsignedTx,
+  type: "Tx ConwayEra",
+  description: "Payment transaction",
+});
+
+console.log("Transaction submitted:", txHash);
 ```
 
-Here is an example of how to create a transaction using the Hydra provider, Mesh wallet and Mesh transaction builder:
+---
+
+### decommit
+
+Request to decommit a UTxO from the Head. Upon reaching consensus, the corresponding outputs become available on Layer 1.
 
 ```tsx
-async function makeTx() {
-  const walletA = {
-    addr: "addr_test1vpsthwvxgfkkm2lm8ggy0c5345u6vrfctmug6tdyx4rf4mqn2xcyw",
-    key: "58201aae63d93899640e91b51c5e8bd542262df3ecf3246c3854f39c40f4eb83557d",
-  };
+await provider.decommit(tx: HydraTransaction): Promise<void>
+```
 
-  const wallet = new MeshWallet({
-    networkId: 0,
-    key: {
-      type: "cli",
-      payment: walletA.key,
-    },
-    fetcher: provider,
-    submitter: provider,
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `tx.cborHex` | `string` | Yes | The decommit transaction CBOR in hex format |
+| `tx.type` | `string` | Yes | Transaction type (e.g., "Tx ConwayEra") |
+| `tx.description` | `string` | No | Optional description |
+
+**Example:**
+
+```tsx
+import { HydraProvider } from "@meshsdk/hydra";
+
+const provider = new HydraProvider({
+  httpUrl: "http://123.45.67.890:4001",
+});
+
+await provider.connect();
+
+await provider.decommit({
+  cborHex: "<decommit_tx_cbor>",
+  type: "Tx ConwayEra",
+  description: "Decommit funds to L1",
+});
+```
+
+---
+
+### close
+
+Close the Head with the latest known snapshot. This moves the Head from Open to Close state and begins the contestation period. No more transactions can be submitted after closing.
+
+```tsx
+await provider.close(): Promise<void>
+```
+
+**Example:**
+
+```tsx
+import { HydraProvider } from "@meshsdk/hydra";
+
+const provider = new HydraProvider({
+  httpUrl: "http://123.45.67.890:4001",
+});
+
+await provider.connect();
+await provider.close();
+
+console.log("Hydra Head closed - contestation period started");
+```
+
+---
+
+### contest
+
+Challenge the latest snapshot announced during head closure. Participants can only contest once.
+
+```tsx
+await provider.contest(): Promise<void>
+```
+
+**Example:**
+
+```tsx
+import { HydraProvider } from "@meshsdk/hydra";
+
+const provider = new HydraProvider({
+  httpUrl: "http://123.45.67.890:4001",
+});
+
+await provider.connect();
+await provider.contest();
+
+console.log("Snapshot contested");
+```
+
+---
+
+### fanout
+
+Finalize Head UTxOs to Layer 1 after the contestation period has passed.
+
+```tsx
+await provider.fanout(): Promise<void>
+```
+
+**Example:**
+
+```tsx
+import { HydraProvider } from "@meshsdk/hydra";
+
+const provider = new HydraProvider({
+  httpUrl: "http://123.45.67.890:4001",
+});
+
+await provider.connect();
+await provider.fanout();
+
+console.log("Funds returned to Layer 1");
+```
+
+---
+
+## Query Methods
+
+### fetchAddressUTxOs
+
+Fetch UTxOs controlled by an address within the Hydra Head.
+
+```tsx
+await provider.fetchAddressUTxOs(address: string, asset?: string): Promise<UTxO[]>
+```
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `address` | `string` | Yes | The wallet address |
+| `asset` | `string` | No | Filter by asset unit |
+
+**Returns:** Array of `UTxO` objects.
+
+**Example:**
+
+```tsx
+import { HydraProvider } from "@meshsdk/hydra";
+
+const provider = new HydraProvider({
+  httpUrl: "http://123.45.67.890:4001",
+});
+
+await provider.connect();
+
+const utxos = await provider.fetchAddressUTxOs(
+  "addr_test1vpsthwvxgfkkm2lm8ggy0c5345u6vrfctmug6tdyx4rf4mqn2xcyw"
+);
+
+console.log(`Found ${utxos.length} UTxOs`);
+```
+
+---
+
+### fetchUTxOs
+
+Fetch UTxOs by transaction hash within the Hydra Head.
+
+```tsx
+await provider.fetchUTxOs(hash: string, index?: number): Promise<UTxO[]>
+```
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `hash` | `string` | Yes | The transaction hash |
+| `index` | `number` | No | Specific output index |
+
+**Returns:** Array of `UTxO` objects.
+
+**Example:**
+
+```tsx
+import { HydraProvider } from "@meshsdk/hydra";
+
+const provider = new HydraProvider({
+  httpUrl: "http://123.45.67.890:4001",
+});
+
+await provider.connect();
+
+const utxos = await provider.fetchUTxOs("txHash");
+```
+
+---
+
+### fetchAssetAddresses
+
+Fetch addresses and quantities for a given asset within the Hydra Head.
+
+```tsx
+await provider.fetchAssetAddresses(asset: string): Promise<AssetAddress[]>
+```
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `asset` | `string` | Yes | The asset unit (policy ID + asset name hex) |
+
+**Returns:** Array of addresses and quantities.
+
+**Example:**
+
+```tsx
+import { HydraProvider } from "@meshsdk/hydra";
+
+const provider = new HydraProvider({
+  httpUrl: "http://123.45.67.890:4001",
+});
+
+await provider.connect();
+
+const holders = await provider.fetchAssetAddresses(
+  "d9312da562da182b02322fd8acb536f37eb9d29fba7c49dc172555274d657368546f6b656e"
+);
+```
+
+---
+
+### fetchCollectionAssets
+
+Fetch assets for a given policy ID within the Hydra Head.
+
+```tsx
+await provider.fetchCollectionAssets(policyId: string): Promise<Asset[]>
+```
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `policyId` | `string` | Yes | The policy ID |
+
+**Returns:** Array of assets.
+
+**Example:**
+
+```tsx
+import { HydraProvider } from "@meshsdk/hydra";
+
+const provider = new HydraProvider({
+  httpUrl: "http://123.45.67.890:4001",
+});
+
+await provider.connect();
+
+const assets = await provider.fetchCollectionAssets(
+  "d9312da562da182b02322fd8acb536f37eb9d29fba7c49dc17255527"
+);
+```
+
+---
+
+### fetchProtocolParameters
+
+Fetch protocol parameters for the Hydra Head.
+
+```tsx
+await provider.fetchProtocolParameters(epoch?: number): Promise<Protocol>
+```
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `epoch` | `number` | No | Not used in Hydra context |
+
+**Returns:** `Protocol` object with Hydra Head parameters.
+
+**Example:**
+
+```tsx
+import { HydraProvider } from "@meshsdk/hydra";
+
+const provider = new HydraProvider({
+  httpUrl: "http://123.45.67.890:4001",
+});
+
+await provider.connect();
+
+const params = await provider.fetchProtocolParameters();
+console.log("Protocol parameters:", params);
+```
+
+---
+
+### submitTx
+
+Submit a signed transaction to the Hydra Head.
+
+```tsx
+await provider.submitTx(tx: string): Promise<string>
+```
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `tx` | `string` | Yes | The signed transaction CBOR hex |
+
+**Returns:** The transaction hash.
+
+**Example:**
+
+```tsx
+import { HydraProvider } from "@meshsdk/hydra";
+
+const provider = new HydraProvider({
+  httpUrl: "http://123.45.67.890:4001",
+});
+
+await provider.connect();
+
+const txHash = await provider.submitTx(signedTx);
+console.log("Transaction submitted:", txHash);
+```
+
+## Complete Example
+
+```tsx
+import { HydraProvider, MeshTxBuilder, MeshWallet } from "@meshsdk/hydra";
+
+async function hydraPayment() {
+  // Initialize provider
+  const provider = new HydraProvider({
+    httpUrl: "http://123.45.67.890:4001",
   });
 
-  const pp = await provider.fetchProtocolParameters();
-  const utxos = await wallet.getUtxos("enterprise");
-  const changeAddress = walletA.addr;
+  // Connect to Hydra Head
+  await provider.connect();
 
+  // Listen for messages
+  provider.onMessage((message) => {
+    if (message.tag === "TxValid") {
+      console.log("Transaction confirmed in Hydra Head!");
+    }
+  });
+
+  // Initialize wallet
+  const wallet = new MeshWallet({
+    networkId: 0,
+    fetcher: provider,
+    submitter: provider,
+    key: {
+      type: "cli",
+      payment: "58201aae63d93899640e91b51c5e8bd542262df3ecf3246c3854f39c40f4eb83557d",
+    },
+  });
+
+  // Get protocol parameters and UTxOs
+  const params = await provider.fetchProtocolParameters();
+  const utxos = await wallet.getUtxos("enterprise");
+  const changeAddress = await wallet.getChangeAddress();
+
+  // Build transaction
   const txBuilder = new MeshTxBuilder({
     fetcher: provider,
-    params: pp,
-    verbose: true,
+    params: params,
   });
 
   const unsignedTx = await txBuilder
@@ -152,115 +633,73 @@ async function makeTx() {
     .selectUtxosFrom(utxos)
     .complete();
 
+  // Sign and submit
   const signedTx = await wallet.signTx(unsignedTx);
-  const txHash = await wallet.submitTx(signedTx);
-  console.log("txHash", txHash);
+  const txHash = await provider.submitTx(signedTx);
+
+  console.log("Transaction submitted:", txHash);
+
+  // When done, close the head
+  // await provider.close();
+  // ... wait for contestation period ...
+  // await provider.fanout();
+
+  // Disconnect
+  await provider.disconnect();
 }
 ```
 
-### Decommit
+## Troubleshooting
 
-Request to decommit a UTxO from a Head by providing a decommit tx. Upon reaching consensus, this will eventually result in corresponding transaction outputs becoming available on the layer 1.
+### Connection Failed
 
-The decommit method accepts the following arguments:
+**Problem:** Cannot connect to Hydra node.
 
-```tsx
-async decommit({
-  cborHex: "<unsignedTx>",
-  description: "commit tx",
-  type: "Tx ConwayEra"
-})
-```
+**Solution:**
+1. Verify the Hydra node is running
+2. Check the `httpUrl` is correct (including port)
+3. Ensure network connectivity to the Hydra node
 
-### Close
+### Head Not Open
 
-Terminate a head with the latest known snapshot. This effectively moves the head from the Open state to the Close state where the contestation phase begin. As a result of closing a head, no more transactions can be submitted via NewTx.
+**Problem:** Commands fail with "Head not open" error.
 
-```tsx
-await provider.close();
-```
+**Solution:**
+1. Initialize the Head with `await provider.init()`
+2. Wait for all participants to commit
+3. Check Head state via `onMessage` events
 
-### Contest
+### Transaction Rejected
 
-Challenge the latest snapshot announced as a result of a head closure from another participant.
-Note that this necessarily contest with the latest snapshot known of your local Hydra node. Participants can only contest once.
+**Problem:** Transactions are rejected by the Hydra Head.
 
-```tsx
-await provider.contest();
-```
+**Solution:**
+1. Verify the transaction is well-formed
+2. Check that inputs exist in the Hydra Head snapshot
+3. Ensure the transaction uses correct protocol parameters from the Head
 
-### Fanout
+### Contestation Period
 
-Finalize a head UTxOs to L1 after the contestation period passed.
+**Problem:** Cannot fanout after closing.
 
-```tsx
-await provider.fanout();
-```
+**Solution:**
+1. Wait for the contestation period to end
+2. The contestation period is configurable when creating the Head
+3. Monitor `onMessage` for contestation-related events
 
-## Hydra Query APIs
+### State Synchronization
 
-### Fetch UTxOs
+**Problem:** UTxO queries return stale data.
 
-Get UTxOs for a given hash.
-Optionally, you can specify the index of the index output.
+**Solution:**
+1. Listen to `onMessage` for `SnapshotConfirmed` events
+2. The `snapshotUtxo` in `Greetings` message contains current state
+3. Ensure you're querying after the latest snapshot is confirmed
 
-```tsx
-await provider.fetchUTxOs("txHash");
-```
+## Related Links
 
-### Fetch Address UTxOs
-
-Fetch UTxOs controlled by an address.
-
-Optionally, you can filter UTXOs containing a particular asset by providing `asset`, where it is the concatenation of policy ID and assetname.
-
-```tsx
-await provider.fetchAddressUTxOs(address: string, asset?: string)
-```
-
-### Fetch Asset Addresses
-
-Fetches the addresses and quantities for a given Cardano asset.
-
-```tsx
-await provider.fetchAssetAddresses(asset: string):
-```
-
-### Fetch collection Assest
-
-Fetches the list of assets for a given policy ID.
-
-```tsx
-await provider.fetchCollectionAssets(policyId: string)
-```
-
-### Fetch Protocol Parameters
-
-Fetch the latest protocol parameters.
-
-```tsx
-await provider.fetchProtocolParameters();
-```
-
-Optionally, you can provide an epoch number to fetch the protocol parameters of that epoch.`
-
-### Listens for new messages from Hydra node
-
-Listens for new messages from Hydra node. The callback function will be called with the message as the only argument. Check <Link href="https://hydra.family/head-protocol/api-reference">all events emitted</Link> by the Hydra node.
-
-```tsx
-provider.onMessage((message) => {
-  if (message.tag === "Greetings") {
-    console.log("message.snapshotUtxo", message.snapshotUtxo);
-  }
-});
-```
-
-### Submit Transaction
-
-Submit a serialized transaction to the network.
-
-```tsx
-const txHash = await provider.submitTx(signedTx);
-console.log("txHash", txHash);
-```
+- <Link href="https://hydra.family/head-protocol/">Hydra Head Protocol</Link>
+- <Link href="https://hydra.family/head-protocol/docs/getting-started">Hydra Getting Started</Link>
+- <Link href="https://hydra.family/head-protocol/api-reference">Hydra API Reference</Link>
+- [MeshJS Transaction Builder](/transaction/basics)
+- [MeshJS Wallets](/wallets)
