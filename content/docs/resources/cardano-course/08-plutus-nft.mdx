@@ -1,28 +1,77 @@
 ---
-title: "Plutus NFT Contract"
-description: "Plutus NFT smart contract enforces non-fungibility and uniqueness of the NFT under the same policy."
+title: "Lesson 8: Plutus NFT Contract"
+description: "Create an NFT minting contract with auto-incrementing indices using multiple validators."
 ---
 import Link from "fumadocs-core/link";
 
-After the simple vesting contract, let's level up to a more complex contract with multiple validators interacting with each other. This lesson will guide you step-by-step through the process of creating a Plutus NFT contract, ensuring clarity and simplicity.
+## Learning Objectives
 
-## Overview
+By the end of this lesson, you will be able to:
 
-This lesson focuses on creating a smart contract for minting NFTs with an automatically incremented index. The contract ensures non-fungibility and uniqueness of the NFTs under the same policy. To achieve this, we will:
+- Design a multi-validator NFT minting system
+- Implement one-time minting policies for oracle tokens
+- Use state thread tokens to maintain on-chain state
+- Build transactions that interact with multiple scripts
+- Prevent common vulnerabilities like unbounded value attacks
 
-1. Set up a one-time minting policy to create an oracle token.
-2. Use the oracle token to maintain the state and index of NFTs.
-3. Increment the token index with each new NFT minted.
+## Prerequisites
 
-## Step 1: Oracle NFT
+Before starting this lesson, ensure you have:
 
-The oracle NFT acts as the single source of truth for the system. It uses a state thread token to ensure consistency. We will implement a one-time minting policy for the oracle NFT.
+- Completed <Link href="/resources/cardano-course/07-vesting">Lesson 7: Vesting Contract</Link>
+- Understanding of minting and spending validators
+- Familiarity with datum and state management
 
-### Code Explanation
+## Key Concepts
 
-The following code defines the minting policy for the oracle NFT:
+### What is a Plutus NFT?
+
+A Plutus NFT uses smart contracts to enforce:
+
+- **Non-fungibility**: Each token has a unique name
+- **Controlled minting**: Only authorized parties can mint
+- **Sequential naming**: Tokens have incrementing indices like "Collection (0)", "Collection (1)", etc.
+
+### Architecture Overview
+
+The system uses three validators working together:
+
+| Validator | Purpose |
+|-----------|---------|
+| **Oracle NFT** | One-time minting policy for the state thread token |
+| **Oracle Validator** | Holds and updates the current NFT index |
+| **Plutus NFT** | Mints new NFTs with the correct name |
+
+```
+                    ┌─────────────────┐
+                    │   Oracle NFT    │
+                    │  (one-time)     │
+                    └────────┬────────┘
+                             │ creates
+                             ▼
+                    ┌─────────────────┐
+                    │ Oracle Validator │◄──── stores count
+                    │   (holds state)  │
+                    └────────┬────────┘
+                             │ reads count
+                             ▼
+                    ┌─────────────────┐
+                    │   Plutus NFT    │──── mints "Collection (N)"
+                    │  (minting)      │
+                    └─────────────────┘
+```
+
+## Step 1: Create the Oracle NFT Policy
+
+The oracle NFT is a one-time minting policy that creates the state thread token.
 
 ```rs
+// validators/oracle_nft.ak
+
+use cardano/assets.{PolicyId}
+use cardano/transaction.{Input, OutputReference, Transaction}
+use vodka/extra/value.{check_policy_only_burn}
+
 pub type MintPolarity {
   RMint
   RBurn
@@ -33,16 +82,11 @@ validator oracle_nft(utxo_ref: OutputReference) {
     when redeemer is {
       RMint -> {
         let Transaction { inputs, .. } = tx
-        let hash_equal =
-          fn(input: Input) {
-            let hash = input.output_reference
-            utxo_ref == hash
-          }
-        let target_input_exist = list.find(inputs, hash_equal)
-        when target_input_exist is {
-          Some(_) -> True
-          None -> False
+        // Check if the specified UTXO is consumed
+        let hash_equal = fn(input: Input) {
+          input.output_reference == utxo_ref
         }
+        list.any(inputs, hash_equal)
       }
       RBurn -> check_policy_only_burn(tx.mint, policy_id)
     }
@@ -54,112 +98,52 @@ validator oracle_nft(utxo_ref: OutputReference) {
 }
 ```
 
-**Key Points:**
-- `RMint` ensures the token is minted only once.
-- `RBurn` allows the token to be burned but prevents reminting.
+### How One-Time Minting Works
 
-## Step 2: Oracle Validator
+1. The `utxo_ref` parameter points to a specific UTXO
+2. Minting requires consuming that exact UTXO
+3. Once spent, the UTXO can never exist again
+4. Therefore, minting can only happen once
 
-The oracle validator holds the current state of the NFT index. It defines the datum and redeemer types for state changes.
+The `RBurn` redeemer allows burning the oracle NFT later if needed.
 
-### Datum Definition
+## Step 2: Create the Oracle Validator
+
+The oracle validator holds the state thread token and current NFT count.
+
+### Define the Datum
 
 ```rs
+// lib/plutus_nft/types.ak
+
+use cardano/address.{Address}
+
 pub type OracleDatum {
-  count: Int,
-  lovelace_price: Int,
-  fee_address: Address,
+  count: Int,              // Current NFT index
+  lovelace_price: Int,     // Price per NFT in lovelace
+  fee_address: Address,    // Where fees go
 }
-```
 
-### Redeemer Types
-
-```rs
 pub type OracleRedeemer {
   MintPlutusNFT
   StopOracle
 }
 ```
 
-### Validator Logic
-
-The validator ensures the state changes are valid:
+### Implement the Validator
 
 ```rs
-validator oracle {
-  spend(
-    datum_opt: Option<OracleDatum>,
-    redeemer: OracleRedeemer,
-    input: OutputReference,
-    tx: Transaction,
-  ) {
-    let Transaction { mint, inputs, outputs, extra_signatories, .. } = tx
-    expect Some(OracleDatum { count, lovelace_price, fee_address }) = datum_opt
-    expect Some(own_input) = find_input(inputs, input)
-    expect [(oracle_nft_policy, _, _)] =
-      list.filter(flatten(own_input.output.value), fn(x) { x.1st != "" })
+// validators/oracle.ak
 
-    todo
-  }
-
-  else(_) {
-    fail
-  }
+use cardano/assets.{PolicyId, flatten, from_lovelace}
+use cardano/transaction.{InlineDatum, OutputReference, Transaction, find_input}
+use plutus_nft/types.{MintPlutusNFT, OracleDatum, OracleRedeemer, StopOracle}
+use vodka/extra/list.{
+  inputs_at_with_policy, key_signed, outputs_at_with_policy,
 }
-```
+use vodka/extra/value.{get_all_value_to, only_minted_token, value_geq}
+use vodka/extra/address.{address_payment_key}
 
-In this setup, we identified the own input with `find_input` function, which is a utility function that finds the input with the given output reference. We also expect the oracle NFT policy to be present in the own input's value.
-
-We know that for state change, we will have exactly one input from current address, and one output to the same address. We can then perform below pattern matching:
-
-```rs
-    let own_address = own_input.output.address
-    when
-      (
-        redeemer,
-        inputs_at_with_policy(inputs, own_address, oracle_nft_policy),
-        outputs_at_with_policy(outputs, own_address, oracle_nft_policy),
-      )
-    is {
-      (MintPlutusNFT, [_], [only_output]) -> {
-        todo
-      }
-      _ -> False
-    }
-
-```
-
-Add in core checks for `MintPlutusNFT`:
-
-```rs
-        let is_output_value_clean = list.length(flatten(only_output.value)) == 2
-        let is_count_updated =
-          only_output.datum == InlineDatum(
-            OracleDatum { count: count + 1, lovelace_price, fee_address },
-          )
-        let is_fee_paid =
-          get_all_value_to(outputs, fee_address)
-            |> value_geq(from_lovelace(lovelace_price))
-        is_output_value_clean? && is_count_updated? && is_fee_paid?
-```
-
-Notice there is a `is_output_value_clean` check here, which ensures the changed state UTxO only contains the state thread token and ADA, i.e. no other assets are present in the output value. This is to prevent a common vulnerability of `Unbounded Value`, where people can attach infinitely amount of assets to the output to make it unspendable by overflowing the transaction size.
-
-Complete with `StopOracle` logics:
-
-```rs
-      (StopOracle, [_], _) -> {
-        let is_oracle_nft_burnt =
-          only_minted_token(mint, oracle_nft_policy, "", -1)
-        let owner_key = address_payment_key(fee_address)
-        let is_owner_signed = key_signed(extra_signatories, owner_key)
-        is_oracle_nft_burnt? && is_owner_signed?
-      }
-```
-
-A complete oracle validator looks like this:
-
-```rs
 validator oracle {
   spend(
     datum_opt: Option<OracleDatum>,
@@ -168,11 +152,16 @@ validator oracle {
     tx: Transaction,
   ) {
     let Transaction { mint, inputs, outputs, extra_signatories, .. } = tx
+
     expect Some(OracleDatum { count, lovelace_price, fee_address }) = datum_opt
     expect Some(own_input) = find_input(inputs, input)
+
+    // Extract the oracle NFT policy from the input value
     expect [(oracle_nft_policy, _, _)] =
       list.filter(flatten(own_input.output.value), fn(x) { x.1st != "" })
+
     let own_address = own_input.output.address
+
     when
       (
         redeemer,
@@ -181,23 +170,32 @@ validator oracle {
       )
     is {
       (MintPlutusNFT, [_], [only_output]) -> {
+        // Ensure output value only contains oracle NFT and ADA (no spam)
         let is_output_value_clean = list.length(flatten(only_output.value)) == 2
+
+        // Verify count is incremented
         let is_count_updated =
           only_output.datum == InlineDatum(
             OracleDatum { count: count + 1, lovelace_price, fee_address },
           )
+
+        // Verify fee is paid
         let is_fee_paid =
           get_all_value_to(outputs, fee_address)
             |> value_geq(from_lovelace(lovelace_price))
+
         is_output_value_clean? && is_count_updated? && is_fee_paid?
       }
+
       (StopOracle, [_], _) -> {
+        // Owner burns the oracle NFT to stop the collection
         let is_oracle_nft_burnt =
           only_minted_token(mint, oracle_nft_policy, "", -1)
         let owner_key = address_payment_key(fee_address)
         let is_owner_signed = key_signed(extra_signatories, owner_key)
         is_oracle_nft_burnt? && is_owner_signed?
       }
+
       _ -> False
     }
   }
@@ -208,35 +206,50 @@ validator oracle {
 }
 ```
 
-**Key Points:**
-- `MintPlutusNFT` increments the NFT index and ensures fees are paid.
-- `StopOracle` burns the oracle NFT and requires owner authorization.
+### Preventing Unbounded Value Attack
 
-## Step 3: Plutus NFT Minting Validator
-
-The Plutus NFT minting validator ensures the NFT is unique and non-fungible.
-
-### Code Explanation
+The `is_output_value_clean` check prevents a vulnerability:
 
 ```rs
-pub type MintPolarity {
-  RMint
-  RBurn
-}
+let is_output_value_clean = list.length(flatten(only_output.value)) == 2
+```
+
+Without this check, attackers could attach many tokens to the oracle UTXO, eventually making it unspendable due to transaction size limits. By requiring exactly 2 assets (ADA + oracle NFT), we prevent this attack.
+
+## Step 3: Create the Plutus NFT Minting Policy
+
+The NFT minting policy reads the current count from the oracle and mints a correctly named token.
+
+```rs
+// validators/plutus_nft.ak
+
+use aiken/bytearray.{concat}
+use cardano/assets.{PolicyId}
+use cardano/transaction.{InlineDatum, Transaction}
+use plutus_nft/types.{MintPolarity, OracleDatum, RBurn, RMint}
+use vodka/extra/list.{inputs_with_policy}
+use vodka/extra/value.{check_policy_only_burn, only_minted_token}
+use vodka/extra/int.{convert_int_to_bytes}
 
 validator plutus_nft(collection_name: ByteArray, oracle_nft: PolicyId) {
   mint(redeemer: MintPolarity, policy_id: PolicyId, tx: Transaction) {
     when redeemer is {
       RMint -> {
         let Transaction { inputs, mint, .. } = tx
+
+        // Find the oracle input with the oracle NFT
         expect [auth_input] = inputs_with_policy(inputs, oracle_nft)
         expect InlineDatum(input_datum) = auth_input.output.datum
         expect OracleDatum { count, .. }: OracleDatum = input_datum
+
+        // Build the expected token name: "CollectionName (N)"
         let asset_name =
           collection_name
             |> concat(" (")
             |> concat(convert_int_to_bytes(count))
             |> concat(")")
+
+        // Verify exactly one token with the correct name is minted
         only_minted_token(mint, policy_id, asset_name, 1)
       }
 
@@ -250,231 +263,325 @@ validator plutus_nft(collection_name: ByteArray, oracle_nft: PolicyId) {
 }
 ```
 
-**Key Points:**
-- Ensures the NFT name includes the incremented index.
-- Validates the minting and burning process.
+### Token Naming
 
-The code example above is presented in <Link href="https://github.com/MeshJS/mesh/tree/main/packages/mesh-contract/src/plutus-nft/aiken-workspace">Mesh repository</Link>, you can find the equivalent tests there.
+The NFT name follows a predictable pattern:
 
-### Compile and build script
-
-1. Compile the script using:
-
-```sh
-aiken build
+```
+"MyCollection (0)"
+"MyCollection (1)"
+"MyCollection (2)"
+...
 ```
 
-This command will generate a CIP-0057 Plutus blueprint, which you can find in <Link href="https://github.com/cardanobuilders/cardanobuilders.github.io/blob/main/codes/course-hello-cardano/03-vesting/src/aiken-workspace/plutus.json">`plutus.json`</Link>.
+This is constructed by:
+1. Taking the `collection_name` parameter
+2. Appending " ("
+3. Appending the count as a string
+4. Appending ")"
 
-## Setup Oracle
+## Step 4: Set Up the Oracle
 
-To set up the oracle, we need to mint the oracle NFT first and lock it in the oracle validator. This is a one-time operation, and we can do it with the following code:
-
-We prepare the wallet and tx-builder similar to previous lessons, and get some static information:
-
+Before minting NFTs, initialize the oracle with its state thread token.
 
 ```ts
-const compiledCode = <the compile code from blueprint>;
+import {
+  BlockfrostProvider,
+  MeshTxBuilder,
+  applyParamsToScript,
+  resolveScriptHash,
+  serializePlutusScript,
+  mOutputReference,
+  mConStr0,
+  mPubKeyAddress,
+  deserializeAddress,
+} from "@meshsdk/core";
+import { MeshCardanoHeadlessWallet, AddressType } from "@meshsdk/wallet";
+import blueprint from "./plutus.json";
 
-const utxos = await wallet?.getUtxos();
-const collateral = (await wallet.getCollateral())[0]!;
-const walletAddress = await wallet.getChangeAddress()
+const provider = new BlockfrostProvider("YOUR_BLOCKFROST_API_KEY");
 
-const paramUtxo = utxos[0]!;
-const param: Data = mOutputReference(
+// Initialize wallet
+const wallet = await MeshCardanoHeadlessWallet.fromMnemonic({
+  networkId: 0,
+  walletAddressType: AddressType.Base,
+  fetcher: provider,
+  submitter: provider,
+  mnemonic: ["your", "mnemonic"],
+});
+
+const utxos = await wallet.getUtxosMesh();
+const collateral = (await wallet.getCollateral())[0];
+const walletAddress = await wallet.getChangeAddressBech32();
+
+// Select a UTXO to parameterize the one-time minting policy
+const paramUtxo = utxos[0];
+const param = mOutputReference(
   paramUtxo.input.txHash,
-  paramUtxo.input.outputIndex,
+  paramUtxo.input.outputIndex
 );
-const paramScript = applyParamsToScript(compiledCode, [param]);
-const policyId = resolveScriptHash(paramScript, "V3");
-const tokenName = "";
-const { pubKeyHash, stakeCredentialHash } =
-  deserializeAddress(walletAddress);
-```
 
-Then we can perform the setup:
+// Get oracle NFT compiled code and apply parameter
+const oracleNftValidator = blueprint.validators.find(
+  (v) => v.title === "oracle_nft.oracle_nft.mint"
+);
+const oracleNftScript = applyParamsToScript(oracleNftValidator.compiledCode, [param]);
+const oracleNftPolicyId = resolveScriptHash(oracleNftScript, "V3");
 
+// Get oracle validator address
+const oracleValidator = blueprint.validators.find(
+  (v) => v.title === "oracle.oracle.spend"
+);
+const oracleScript = serializePlutusScript(
+  { code: oracleValidator.compiledCode, version: "V3" },
+  undefined,
+  "preprod"
+);
 
-```ts
-const txHex = await txBuilder
+// Build initial oracle datum
+const { pubKeyHash, stakeCredentialHash } = deserializeAddress(walletAddress);
+const lovelacePrice = 5000000; // 5 ADA per NFT
+
+const txBuilder = new MeshTxBuilder({ fetcher: provider, verbose: true });
+
+const unsignedTx = await txBuilder
+  // Consume the parameter UTXO (enables one-time minting)
   .txIn(
     paramUtxo.input.txHash,
     paramUtxo.input.outputIndex,
     paramUtxo.output.amount,
-    paramUtxo.output.address,
+    paramUtxo.output.address
   )
+  // Mint the oracle NFT
   .mintPlutusScriptV3()
-  .mint("1", policyId, tokenName)
-  .mintingScript(paramScript)
-  .mintRedeemerValue(mConStr0([]))
-  .txOut(oracleAddress, [{ unit: policyId, quantity: "1" }])
+  .mint("1", oracleNftPolicyId, "")
+  .mintingScript(oracleNftScript)
+  .mintRedeemerValue(mConStr0([]))  // RMint
+  // Send oracle NFT to oracle address with initial datum
+  .txOut(oracleScript.address, [{ unit: oracleNftPolicyId, quantity: "1" }])
   .txOutInlineDatumValue(
     mConStr0([
-      0,
+      0,  // count starts at 0
       lovelacePrice,
       mPubKeyAddress(pubKeyHash, stakeCredentialHash),
-    ]),
+    ])
   )
+  // Collateral
   .txInCollateral(
     collateral.input.txHash,
     collateral.input.outputIndex,
     collateral.output.amount,
-    collateral.output.address,
+    collateral.output.address
   )
   .changeAddress(walletAddress)
   .selectUtxosFrom(utxos)
   .complete();
+
+const signedTx = await wallet.signTx(unsignedTx, false);
+const txHash = await wallet.submitTx(signedTx);
+
+console.log("Oracle setup transaction:", txHash);
+// Save paramUtxo info for later use
 ```
 
-Important, we need to save the `paramUtxo` information for later use:
+## Step 5: Mint an NFT
 
-## Mint Plutus NFT
-
-To mint the Plutus NFT, first we need to define static info:
+With the oracle set up, mint NFTs by updating the oracle state and minting the token.
 
 ```ts
-type OracleDatum = ConStr0<[Integer, Integer, PubKeyAddress]>;
+import { stringToHex, parseDatumCbor, integer, conStr0 } from "@meshsdk/core";
 
-const oracleCompileCode = <the compile code from oracle blueprint>;
-const oracleNftCbor = applyParamsToScript(blueprint.validators[2]!.compiledCode, [
-  mOutputReference(paramUtxo.txHash, paramUtxo.outputIndex),
-])
-const oracleNftPolicyId = resolveScriptHash(oracleNftCbor, "V3");
+// Helper to find UTXOs with a specific token
+const getAddressUtxosWithToken = async (address: string, assetHex: string) => {
+  const utxos = await provider.fetchAddressUTxOs(address);
+  return utxos.filter((u) => {
+    const assetAmount = u.output.amount.find((a) => a.unit === assetHex)?.quantity;
+    return Number(assetAmount) >= 1;
+  });
+};
 
-const oracleCbor = applyCborEncoding(<the oracle compile code>)
-const oracleAddress = serializePlutusScript(
-      {
-        code: oracleCbor,
-        version: "V3",
-      },
-      "", // the stake credential, we can supply if we have one
-      "preprod",
-    ).address
-
-const getAddressUtxosWithToken = async (
-    walletAddress: string,
-    assetHex: string,
-  ) => {
-    let utxos = await fetcher.fetchAddressUTxOs(walletAddress);
-    return utxos.filter((u) => {
-      const assetAmount = u.output.amount.find(
-        (a: any) => a.unit === assetHex,
-      )?.quantity;
-      return Number(assetAmount) >= 1;
-    });
-  };
-```
-
-And a helper method to get the existing oracle information:
-
-```ts
+// Get current oracle data
 const getOracleData = async () => {
-  const oracleUtxo = (
-    await getAddressUtxosWithToken(oracleAddress, oracleNftPolicyId)
-  )[0]!;
-  const oracleDatum: OracleDatum = parseDatumCbor(
-    oracleUtxo!.output.plutusData!,
-  );
-
-  const nftIndex = oracleDatum.fields[0].int;
-  const lovelacePrice = oracleDatum.fields[1].int;
-  const feeCollectorAddressObj = oracleDatum.fields[2];
-  const feeCollectorAddress = serializeAddressObj(
-    feeCollectorAddressObj,
-    "preprod",
-  );
-
-  const policyId = resolveScriptHash(oracleNftCbor, "V3");
+  const oracleUtxo = (await getAddressUtxosWithToken(oracleScript.address, oracleNftPolicyId))[0];
+  const oracleDatum = parseDatumCbor(oracleUtxo.output.plutusData!);
 
   return {
-    nftIndex,
-    policyId,
-    lovelacePrice,
+    nftIndex: oracleDatum.fields[0].int,
+    lovelacePrice: oracleDatum.fields[1].int,
+    feeCollectorAddress: serializeAddressObj(oracleDatum.fields[2], "preprod"),
+    feeCollectorAddressObj: oracleDatum.fields[2],
     oracleUtxo,
-    oracleNftPolicyId,
-    feeCollectorAddress,
-    feeCollectorAddressObj,
   };
 };
-```
 
-Then we can build the core logic to mint the Plutus NFT:
+// Mint the NFT
+const mintNft = async () => {
+  const utxos = await wallet.getUtxosMesh();
+  const collateral = (await wallet.getCollateral())[0];
+  const walletAddress = await wallet.getChangeAddressBech32();
 
-```ts
-const utxos = await wallet?.getUtxos();
-const collateral = (await wallet.getCollateral())[0]!;
-const walletAddress = await wallet.getChangeAddress()
+  const collectionName = "MyNFTCollection";
 
-const collectionName = "MyNFTCollection";
-const nftCbor = applyParamsToScript(<the plutus NFT compiled code>, [
-  stringToHex(collectionName),
-  oracleNftPolicyId,
-]);
+  // Get NFT minting script
+  const nftValidator = blueprint.validators.find(
+    (v) => v.title === "plutus_nft.plutus_nft.mint"
+  );
+  const nftScript = applyParamsToScript(nftValidator.compiledCode, [
+    stringToHex(collectionName),
+    oracleNftPolicyId,
+  ]);
+  const nftPolicyId = resolveScriptHash(nftScript, "V3");
 
+  // Get current oracle state
+  const { nftIndex, lovelacePrice, feeCollectorAddress, feeCollectorAddressObj, oracleUtxo } =
+    await getOracleData();
 
-const {
-  nftIndex,
-  policyId,
-  lovelacePrice,
-  oracleUtxo,
-  oracleNftPolicyId,
-  feeCollectorAddress,
-  feeCollectorAddressObj,
-} = await getOracleData();
+  // Build token name
+  const tokenName = `${collectionName} (${nftIndex})`;
+  const tokenNameHex = stringToHex(tokenName);
 
-const tokenName = `${collectionName} (${nftIndex})`;
-const tokenNameHex = stringToHex(tokenName);
+  // Build updated oracle datum
+  const updatedOracleDatum = conStr0([
+    integer(nftIndex + 1),
+    integer(lovelacePrice),
+    feeCollectorAddressObj,
+  ]);
 
-const updatedOracleDatum: OracleDatum = conStr0([
-  integer((nftIndex as number) + 1),
-  integer(lovelacePrice),
-  feeCollectorAddressObj,
-]);
+  const txBuilder = new MeshTxBuilder({ fetcher: provider, verbose: true });
 
-const tx = txBuilder
-  .spendingPlutusScriptV3()
-  .txIn(
-    oracleUtxo.input.txHash,
-    oracleUtxo.input.outputIndex,
-    oracleUtxo.output.amount,
-    oracleUtxo.output.address,
-    0
-  )
-  .txInRedeemerValue(mConStr0([]))
-  .txInScript(oracleCbor)
-  .txInInlineDatumPresent()
-  .txOut(oracleAddress, [{ unit: oracleNftPolicyId, quantity: "1" }])
-  .txOutInlineDatumValue(updatedOracleDatum, "JSON")
-  .mintPlutusScriptV3()
-  .mint("1", policyId, tokenNameHex)
-  .mintingScript(nftCbor);
+  // Spend the oracle UTXO
+  txBuilder
+    .spendingPlutusScriptV3()
+    .txIn(
+      oracleUtxo.input.txHash,
+      oracleUtxo.input.outputIndex,
+      oracleUtxo.output.amount,
+      oracleUtxo.output.address
+    )
+    .txInRedeemerValue(mConStr0([]))  // MintPlutusNFT
+    .txInScript(oracleValidator.compiledCode)
+    .txInInlineDatumPresent()
 
-const assetMetadata = {
-  name: `MyNFTCollection (${nftIndex})`,
-  image: "ipfs://QmRzicpReutwCkM6aotuKjErFCUD213DpwPq6ByuzMJaua",
-  mediaType: "image/jpg",
-  description: "This NFT was minted by Mesh (https://meshjs.dev/).",
+    // Output oracle with updated state
+    .txOut(oracleScript.address, [{ unit: oracleNftPolicyId, quantity: "1" }])
+    .txOutInlineDatumValue(updatedOracleDatum, "JSON")
+
+    // Mint the NFT
+    .mintPlutusScriptV3()
+    .mint("1", nftPolicyId, tokenNameHex)
+    .mintingScript(nftScript)
+    .mintRedeemerValue(mConStr0([]));  // RMint
+
+  // Add CIP-25 metadata
+  const assetMetadata = {
+    name: tokenName,
+    image: "ipfs://QmRzicpReutwCkM6aotuKjErFCUD213DpwPq6ByuzMJaua",
+    mediaType: "image/jpg",
+    description: "This NFT was minted by Mesh (https://meshjs.dev/).",
+  };
+  const metadata = { [nftPolicyId]: { [tokenName]: assetMetadata } };
+  txBuilder.metadataValue(721, metadata);
+
+  // Pay the fee
+  txBuilder
+    .txOut(feeCollectorAddress, [{ unit: "lovelace", quantity: lovelacePrice.toString() }])
+    .txInCollateral(
+      collateral.input.txHash,
+      collateral.input.outputIndex,
+      collateral.output.amount,
+      collateral.output.address
+    )
+    .changeAddress(walletAddress)
+    .selectUtxosFrom(utxos);
+
+  const unsignedTx = await txBuilder.complete();
+  const signedTx = await wallet.signTx(unsignedTx, false);
+  const txHash = await wallet.submitTx(signedTx);
+
+  console.log("NFT minted:", tokenName);
+  console.log("Transaction hash:", txHash);
 };
-
-const metadata = { [policyId]: { [tokenName]: { ...assetMetadata } } };
-tx.metadataValue(721, metadata);
-
-tx.mintRedeemerValue(mConStr0([]))
-  .txOut(feeCollectorAddress, [
-    { unit: "lovelace", quantity: lovelacePrice.toString() },
-  ])
-  .txInCollateral(
-    collateral.input.txHash,
-    collateral.input.outputIndex,
-    collateral.output.amount,
-    collateral.output.address,
-  )
-  .changeAddress(walletAddress)
-  .selectUtxosFrom(utxos);
-
-const txHex = await tx.complete();
 ```
 
-## Packaged functions
+## Complete Working Example
 
-The Plutus NFT contract has been implemented in `@meshsdk/contract` package, you can find further explanation at the <Link href="/smart-contracts/plutus-nft">Mesh documentation</Link> and more details about entire stack source code at <Link href="https://github.com/MeshJS/mesh/tree/main/packages/mesh-contract/src/plutus-nft">Mesh repository</Link>.
+### Project Structure
+
+```
+plutus-nft/
+  aiken-workspace/
+    lib/
+      plutus_nft/
+        types.ak
+    validators/
+      oracle_nft.ak
+      oracle.ak
+      plutus_nft.ak
+    plutus.json
+  offchain/
+    setup-oracle.ts
+    mint-nft.ts
+```
+
+### Transaction Flow
+
+1. **Setup Oracle**
+   - Consume parameter UTXO
+   - Mint oracle NFT (one-time)
+   - Create oracle UTXO with count=0
+
+2. **Mint NFT**
+   - Spend oracle UTXO (validates count increment, fee payment)
+   - Mint NFT with name "Collection (N)"
+   - Output oracle with count=N+1
+   - Pay fee to collector
+
+## Key Concepts Explained
+
+### State Thread Token Pattern
+
+The oracle NFT serves as a "state thread token":
+
+- **Uniqueness**: Only one oracle NFT exists
+- **Location tracking**: Find the current state by locating the NFT
+- **Continuity**: The NFT must be carried forward in valid transactions
+
+### Multi-Validator Coordination
+
+The three validators work together:
+
+1. **Oracle NFT**: Ensures the oracle can only be created once
+2. **Oracle Validator**: Manages state updates and fee collection
+3. **Plutus NFT**: Reads state and mints correctly named tokens
+
+Each validator trusts the others through:
+- Policy ID references
+- Input/output validation
+- Consistent datum structures
+
+## Exercises
+
+1. **Maximum supply**: Modify the oracle to enforce a maximum NFT count.
+
+2. **Whitelist minting**: Add a whitelist of addresses allowed to mint before public sale.
+
+3. **Dynamic pricing**: Implement a bonding curve where price increases with each mint.
+
+4. **Batch minting**: Allow minting multiple NFTs in a single transaction.
+
+## Next Steps
+
+You have learned:
+
+- How to design multi-validator systems
+- How to implement one-time minting policies
+- How to use state thread tokens for on-chain state
+- How to prevent unbounded value attacks
+
+In the next lesson, you explore <Link href="/resources/cardano-course/09-hydra">Hydra</Link> for Layer 2 scaling.
+
+## Related Links
+
+- <Link href="https://github.com/MeshJS/mesh/tree/main/packages/mesh-contract/src/plutus-nft">Mesh Plutus NFT Contract Source</Link>
+- <Link href="/smart-contracts/plutus-nft">Mesh SDK Plutus NFT Documentation</Link>
+- <Link href="https://cips.cardano.org/cips/cip25/">CIP-25: NFT Metadata Standard</Link>

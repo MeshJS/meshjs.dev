@@ -1,7 +1,8 @@
 ---
-title: "TypeScript-First Cardano Development"
-description: "Build Cardano dApps with complete type safety. Mesh SDK provides comprehensive TypeScript definitions for transactions, wallets, and blockchain data."
+title: "TypeScript-First Development"
+description: "Build Cardano dApps with complete type safety using Mesh SDK's comprehensive TypeScript definitions."
 ---
+
 import Link from "next/link";
 import { HowToSchema, FAQSchema } from "@/components/seo";
 
@@ -12,7 +13,7 @@ import { HowToSchema, FAQSchema } from "@/components/seo";
   steps={[
     { name: "Install Mesh packages", text: "Run npm install @meshsdk/core to add the fully-typed Cardano SDK to your project." },
     { name: "Configure TypeScript", text: "Ensure tsconfig.json has strict mode enabled for maximum type safety benefits." },
-    { name: "Import typed modules", text: "Import MeshTxBuilder, BrowserWallet, and other typed classes from @meshsdk/core." },
+    { name: "Import typed modules", text: "Import MeshTxBuilder from @meshsdk/core and MeshCardanoBrowserWallet from @meshsdk/wallet." },
     { name: "Use IDE autocompletion", text: "Leverage IntelliSense to explore available methods and required parameters with full type hints." }
   ]}
 />
@@ -21,46 +22,32 @@ import { HowToSchema, FAQSchema } from "@/components/seo";
   faqs={[
     {
       question: "Does Mesh SDK have TypeScript support?",
-      answer: "Mesh SDK is built TypeScript-first with comprehensive type definitions for all APIs. Every function, class, transaction type, and blockchain data structure is fully typed, enabling compile-time error checking and powerful IDE autocompletion."
+      answer: "Mesh SDK is built TypeScript-first with comprehensive type definitions for all APIs. Every function, class, transaction type, and blockchain data structure is fully typed."
     },
     {
       question: "What TypeScript version is required for Mesh SDK?",
-      answer: "Mesh SDK works with TypeScript 4.7 and above. We recommend using the latest TypeScript version for the best developer experience and access to the newest language features."
+      answer: "Mesh SDK works with TypeScript 4.7 and above. We recommend using the latest TypeScript version for the best developer experience."
     },
     {
-      question: "Can I use Mesh SDK with JavaScript instead of TypeScript?",
-      answer: "Yes, Mesh SDK works with JavaScript projects. While you won't get compile-time type checking, most IDEs still provide autocompletion and documentation hints from the TypeScript definitions."
+      question: "Can I use Mesh SDK with JavaScript?",
+      answer: "Yes, Mesh SDK works with JavaScript projects. While you won't get compile-time type checking, most IDEs still provide autocompletion from the TypeScript definitions."
     },
     {
-      question: "How do Mesh types help prevent transaction errors?",
-      answer: "Mesh's typed transaction builder enforces correct parameter types at compile time. You can't accidentally pass a string where a number is expected, or forget required fields. The type system catches these errors before your code even runs."
-    },
-    {
-      question: "Are Cardano-specific types like UTxO and Address provided?",
-      answer: "Yes, Mesh provides types for all Cardano primitives including UTxO, Asset, Address, Transaction, Datum, Redeemer, and more. These types match the Cardano specification and provide accurate representations of blockchain data."
+      question: "Are Cardano-specific types provided?",
+      answer: "Yes, Mesh provides types for all Cardano primitives including UTxO, Asset, Address, Transaction, Datum, Redeemer, and more."
     }
   ]}
 />
 
-**TL;DR:** Mesh SDK is a TypeScript blockchain SDK with comprehensive type definitions for all Cardano APIs. Get compile-time validation, IDE autocompletion, and full type safety for transactions, wallets, and smart contracts. Install with `npm install @meshsdk/core` and build type-safe Cardano dApps.
+Mesh SDK provides complete TypeScript definitions for all Cardano APIs. Catch errors at compile time, explore APIs through autocompletion, and build with confidence.
 
----
-
-Mesh SDK solves the <Link href="/resources/challenges/learning-curve">Cardano learning curve challenge</Link> by providing complete TypeScript definitions for every API. Instead of memorizing Cardano's data structures or debugging runtime errors, your IDE guides you with autocompletion and the compiler catches type mismatches before code runs. This TypeScript blockchain SDK means catching errors at compile time, exploring APIs through IDE autocompletion, and building with confidence that your code handles Cardano's data structures correctly.
-
-## How Do I Set Up TypeScript for Cardano?
-
-Set up a fully-typed Cardano development environment:
-
-**Step 1: Install Mesh SDK**
+## Quick start
 
 ```bash
 npm install @meshsdk/core @meshsdk/react
 ```
 
-**Step 2: Configure TypeScript (optional but recommended)**
-
-Ensure your tsconfig.json enables strict mode for maximum type safety:
+### Configure TypeScript
 
 ```json
 {
@@ -73,16 +60,16 @@ Ensure your tsconfig.json enables strict mode for maximum type safety:
 }
 ```
 
-**Step 3: Start building with types**
+### Build with types
 
 ```typescript
-import { MeshTxBuilder, BrowserWallet } from "@meshsdk/core";
+import { MeshTxBuilder } from "@meshsdk/core";
+import { MeshCardanoBrowserWallet } from "@meshsdk/wallet";
 import type { UTxO, Asset } from "@meshsdk/core";
 
-// TypeScript enforces correct parameter types
-const wallet = await BrowserWallet.enable("eternl");
-const utxos: UTxO[] = await wallet.getUtxos();
-const changeAddress: string = await wallet.getChangeAddress();
+const wallet = await MeshCardanoBrowserWallet.enable("eternl");
+const utxos: UTxO[] = await wallet.getUtxosMesh();
+const changeAddress: string = await wallet.getChangeAddressBech32();
 
 const txBuilder = new MeshTxBuilder();
 const unsignedTx = await txBuilder
@@ -91,76 +78,72 @@ const unsignedTx = await txBuilder
   .selectUtxosFrom(utxos)
   .complete();
 
-// IDE shows available methods with full documentation
 const signedTx = await wallet.signTx(unsignedTx);
 ```
 
-## What TypeScript Features Does Mesh Provide?
+---
 
-Mesh TypeScript integration provides comprehensive development support:
+## Features
 
-- **Complete Type Coverage**: Every API surface is fully typed with accurate definitions
-- **IDE Autocompletion**: IntelliSense shows available methods, parameters, and return types
-- **Compile-Time Validation**: Catch type mismatches and missing parameters before runtime
-- **Documentation in Code**: JSDoc comments appear in your editor with usage examples
-- **Refactoring Support**: Rename symbols safely with full codebase awareness
-- **Generic Type Support**: Transaction builder and utilities use TypeScript generics for flexibility
-- **Cardano Data Types**: UTxO, Asset, Address, Datum, and all Cardano primitives are typed
-- **Framework Agnostic**: Works with React, Vue, Svelte, Node.js, and any TypeScript environment
+| Feature | Description |
+|---------|-------------|
+| Complete type coverage | Every API surface is fully typed |
+| IDE autocompletion | IntelliSense shows methods, parameters, return types |
+| Compile-time validation | Catch errors before runtime |
+| JSDoc documentation | Usage examples appear in your editor |
+| Cardano primitives | UTxO, Asset, Address, Datum, Redeemer types |
+| Framework agnostic | Works with React, Vue, Svelte, Node.js |
 
-## What Are the Type System Benefits?
+---
 
-### How Does TypeScript Help with Transaction Building?
+## Type-safe patterns
 
-The transaction builder enforces correct usage through types:
+### Transaction building
 
 ```typescript
-import { MeshTxBuilder, BrowserWallet } from "@meshsdk/core";
+import { MeshTxBuilder } from "@meshsdk/core";
+import { MeshCardanoBrowserWallet } from "@meshsdk/wallet";
 import type { UTxO, Asset } from "@meshsdk/core";
 
-const wallet = await BrowserWallet.enable("eternl");
-const utxos: UTxO[] = await wallet.getUtxos();
-const changeAddress: string = await wallet.getChangeAddress();
+const wallet = await MeshCardanoBrowserWallet.enable("eternl");
+const utxos: UTxO[] = await wallet.getUtxosMesh();
+const changeAddress: string = await wallet.getChangeAddressBech32();
 
 const txBuilder = new MeshTxBuilder();
 
 // TypeScript enforces string for address, Asset[] for amount
 txBuilder.txOut(
-  "addr_test1qz...",  // address: string
-  [{ unit: "lovelace", quantity: "5000000" }]  // amount: Asset[]
+  "addr_test1qz...",
+  [{ unit: "lovelace", quantity: "5000000" }]
 );
 
-// TypeScript enforces Asset type for token sending
+// Send native tokens
 txBuilder.txOut("addr_test1qz...", [
   {
-    unit: "policy_id_hex" + "asset_name_hex",  // unit: string
-    quantity: "100"                             // quantity: string
+    unit: "policy_id_hex" + "asset_name_hex",
+    quantity: "100"
   }
 ]);
 
-// Build returns typed transaction object
 const unsignedTx: string = await txBuilder
   .changeAddress(changeAddress)
   .selectUtxosFrom(utxos)
   .complete();
-const signedTx: string = await wallet.signTx(unsignedTx);
 ```
 
-### How Are Wallet APIs Typed?
-
-Wallet methods return properly typed data:
+### Wallet APIs
 
 ```typescript
-import { BrowserWallet } from "@meshsdk/core";
+import { MeshCardanoBrowserWallet } from "@meshsdk/wallet";
 import type { UTxO, Asset } from "@meshsdk/core";
 
-const wallet = await BrowserWallet.enable("eternl");
+const wallet = await MeshCardanoBrowserWallet.enable("eternl");
 
 // Typed return values
-const address: string = await wallet.getChangeAddress();
+const address: string = await wallet.getChangeAddressBech32();
 const networkId: number = await wallet.getNetworkId();
-const utxos: UTxO[] = await wallet.getUtxos();
-const balance: Asset[] = await wallet.getBalance();
+const utxos: UTxO[] = await wallet.getUtxosMesh();
+const balance: Asset[] = await wallet.getBalanceMesh();
 
 // UTxO type includes all fields
 utxos.forEach(utxo => {
@@ -171,9 +154,7 @@ utxos.forEach(utxo => {
 });
 ```
 
-### What Cardano Data Types Are Available?
-
-All Cardano primitives have accurate type definitions:
+### Cardano data types
 
 ```typescript
 import type {
@@ -185,13 +166,13 @@ import type {
   Recipient
 } from "@meshsdk/core";
 
-// Asset type for tokens
+// Asset type
 const asset: Asset = {
   unit: "lovelace",
   quantity: "5000000"
 };
 
-// UTxO type matches Cardano specification
+// UTxO type
 const utxo: UTxO = {
   input: {
     txHash: "abc123...",
@@ -213,9 +194,7 @@ const script: PlutusScript = {
 };
 ```
 
-### How Do Types Help with Smart Contracts?
-
-Type-safe Cardano smart contract interactions:
+### Smart contracts
 
 ```typescript
 import { MeshTxBuilder, mConStr0, mConStr1 } from "@meshsdk/core";
@@ -238,22 +217,9 @@ txBuilder
   .txOutInlineDatumValue(datum);
 ```
 
-## How Does IDE Integration Work?
+---
 
-Mesh's TypeScript definitions enable powerful IDE features:
-
-### What Does VS Code Provide?
-
-VS Code provides full IntelliSense with Mesh:
-
-- Hover over any Mesh import to see type definitions
-- Autocompletion shows all available methods with signatures
-- Parameter hints appear as you type function calls
-- Quick documentation displays JSDoc comments inline
-- Go to Definition jumps to type sources
-- Find All References works across your codebase
-
-### How Does TypeScript Catch Errors at Compile Time?
+## Compile-time error catching
 
 TypeScript catches mistakes before you run code:
 
@@ -263,48 +229,28 @@ import { MeshTxBuilder } from "@meshsdk/core";
 const txBuilder = new MeshTxBuilder();
 
 // Error: Argument of type 'number' is not assignable to parameter of type 'string'
-txBuilder.txOut("addr_test1...", [{ unit: "lovelace", quantity: 5000000 }]);  // Wrong!
+txBuilder.txOut("addr_test1...", [{ unit: "lovelace", quantity: 5000000 }]);
 
-// Correct
-txBuilder.txOut("addr_test1...", [{ unit: "lovelace", quantity: "5000000" }]);  // quantity as string
+// Correct: quantity must be a string
+txBuilder.txOut("addr_test1...", [{ unit: "lovelace", quantity: "5000000" }]);
 ```
 
-### How Does TypeScript Enable Safe Refactoring?
+---
 
-Rename symbols with confidence:
+## IDE features
 
-```typescript
-// Rename 'recipientAddress' and TypeScript updates all usages
-const recipientAddress = "addr_test1...";
+| Feature | Benefit |
+|---------|---------|
+| Hover documentation | See type definitions inline |
+| Autocompletion | Discover methods as you type |
+| Parameter hints | Know required arguments |
+| Go to Definition | Jump to type sources |
+| Find All References | Track usage across codebase |
+| Safe refactoring | Rename symbols with confidence |
 
-txBuilder.txOut(recipientAddress, [{ unit: "lovelace", quantity: "5000000" }]);
-txBuilder.txOut(recipientAddress, assets);
-// Both references update automatically
-```
+---
 
-## Why Use TypeScript for Cardano dApp Development?
-
-### How Does TypeScript Prevent Costly Mistakes?
-
-Cardano transactions involve real value. A runtime error in production could mean failed transactions or worse. TypeScript catches type mismatches, missing parameters, and incorrect data structures at compile time, before your code reaches users.
-
-### How Does TypeScript Enable Faster Development?
-
-Strong typing enables faster iteration. Instead of reading documentation, your IDE shows available methods as you type. Instead of running code to find errors, the compiler tells you immediately. This feedback loop dramatically speeds up development.
-
-### How Does TypeScript Improve Team Collaboration?
-
-Types serve as living documentation. When you return to code after months, types explain what each function expects and returns. When teammates work on your code, types guide them toward correct usage without verbal communication.
-
-### How Does TypeScript Manage Cardano Complexity?
-
-Cardano has complex data structures: UTxOs, datums, redeemers, plutus data. Hand-managing these in JavaScript invites errors. Mesh's types encode Cardano's rules, preventing invalid data construction and ensuring your transactions match Cardano's expectations.
-
-## What Configuration Do I Need?
-
-### What Is the Recommended tsconfig.json?
-
-For optimal Mesh development:
+## Recommended configuration
 
 ```json
 {
@@ -321,9 +267,7 @@ For optimal Mesh development:
 }
 ```
 
-### How Do I Work with BigInt?
-
-Cardano uses large numbers. Mesh supports BigInt where appropriate:
+### Working with BigInt
 
 ```typescript
 // BigInt for large values
@@ -334,22 +278,25 @@ const quantity = BigInt("1000000000000");
 txBuilder.txOut(address, [{ unit: "lovelace", quantity: lovelace.toString() }]);
 ```
 
-## Related Resources
+---
 
-TypeScript support enhances all Mesh capabilities:
+## Why TypeScript for Cardano
 
-- <Link href="/resources/solutions/transaction-builder">Transaction Builder</Link>: Type-safe transaction construction
-- <Link href="/resources/solutions/react-components">React Components</Link>: Typed React blockchain components and hooks
-- <Link href="/resources/solutions/wallet-integration">Wallet Integration</Link>: Typed wallet APIs
-- <Link href="/resources/challenges/learning-curve">Overcoming Cardano's Learning Curve</Link>: How types help newcomers
-- <Link href="/getting-started">Getting Started</Link>: Complete setup guide
+| Benefit | Details |
+|---------|---------|
+| Prevent costly mistakes | Catch errors before transactions reach mainnet |
+| Faster development | IDE guidance instead of documentation lookup |
+| Team collaboration | Types serve as living documentation |
+| Manage complexity | Encode Cardano's rules in the type system |
 
-## How Do I Get Started?
+---
 
-Install Mesh and start building with full type safety:
+## Related resources
 
-```bash
-npm install @meshsdk/core @meshsdk/react
-```
-
-Mesh's TypeScript-first design means you spend less time debugging runtime errors and more time building Cardano dApps. This TypeScript blockchain SDK acts as a knowledgeable guide, steering you toward correct Cardano development patterns while catching mistakes before they become problems—essential for JavaScript Web3 development on Cardano.
+| Resource | Link |
+|----------|------|
+| Transaction builder | [/resources/solutions/transaction-builder](/resources/solutions/transaction-builder) |
+| React components | [/resources/solutions/react-components](/resources/solutions/react-components) |
+| Wallet integration | [/resources/solutions/wallet-integration](/resources/solutions/wallet-integration) |
+| Learning curve | [/resources/challenges/learning-curve](/resources/challenges/learning-curve) |
+| Getting started | [/getting-started](/getting-started) |

@@ -1,412 +1,220 @@
 ---
 title: "Tutorials"
-description: "Step-by-step tutorials for building Cardano applications with Mesh SDK - from beginner to advanced."
+description: "Step-by-step tutorials for building Cardano applications with Mesh SDK."
 ---
 
 import Link from 'next/link';
 import { Card, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 
-Learn Cardano development with Mesh through hands-on tutorials. Each tutorial includes working code examples, explanations, and best practices.
+Learn to build on Cardano with hands-on tutorials. Each tutorial includes working code, explanations, and best practices.
 
-## 🚀 Getting Started
+## Getting started
 
-Perfect for developers new to Mesh or Cardano.
+Start here if you are new to Mesh or Cardano development.
 
-<div className="grid md:grid-cols-2 gap-4 my-6">
-  <Link href="/guides" className="no-underline">
-    <Card className="h-full hover:border-primary/50 transition-colors">
-      <CardHeader>
-        <CardTitle>Installation & Setup</CardTitle>
-        <CardDescription>
-          ⏱️ 10 minutes • 🎯 Beginner
-          <br /><br />
-          Install Mesh and set up your first Cardano project with React or Next.js.
-        </CardDescription>
-      </CardHeader>
-    </Card>
-  </Link>
+| Tutorial | Time | Level |
+|----------|------|-------|
+| [Installation & Setup](/guides) | 10 min | Beginner |
+| [Next.js Integration](/guides/nextjs) | 15 min | Beginner |
+| [React Hooks & Components](/react/getting-started) | 20 min | Beginner |
+| [Wallet Connection](/guides/prove-wallet-ownership) | 15 min | Beginner |
 
-  <Link href="/guides/nextjs" className="no-underline">
-    <Card className="h-full hover:border-primary/50 transition-colors">
-      <CardHeader>
-        <CardTitle>Next.js Integration</CardTitle>
-        <CardDescription>
-          ⏱️ 15 minutes • 🎯 Beginner
-          <br /><br />
-          Integrate Mesh with Next.js App Router and Pages Router configurations.
-        </CardDescription>
-      </CardHeader>
-    </Card>
-  </Link>
+---
 
-  <Link href="/react/getting-started" className="no-underline">
-    <Card className="h-full hover:border-primary/50 transition-colors">
-      <CardHeader>
-        <CardTitle>React Hooks & Components</CardTitle>
-        <CardDescription>
-          ⏱️ 20 minutes • 🎯 Beginner
-          <br /><br />
-          Use Mesh React hooks and components to build wallet-connected interfaces.
-        </CardDescription>
-      </CardHeader>
-    </Card>
-  </Link>
-
-  <Link href="/guides/prove-wallet-ownership" className="no-underline">
-    <Card className="h-full hover:border-primary/50 transition-colors">
-      <CardHeader>
-        <CardTitle>Wallet Connection</CardTitle>
-        <CardDescription>
-          ⏱️ 15 minutes • 🎯 Beginner
-          <br /><br />
-          Connect Cardano wallets and prove wallet ownership in your dApp.
-        </CardDescription>
-      </CardHeader>
-    </Card>
-  </Link>
-</div>
-
-## 💰 Transactions & Payments
+## Transactions
 
 Learn to build and submit Cardano transactions.
 
-<div className="grid md:grid-cols-2 gap-4 my-6">
-  <Link href="/apis/txbuilder/basics" className="no-underline">
-    <Card className="h-full hover:border-primary/50 transition-colors">
-      <CardHeader>
-        <CardTitle>Send ADA & Tokens</CardTitle>
-        <CardDescription>
-          ⏱️ 20 minutes • 🎯 Beginner
-          <br /><br />
-          Build transactions to send ADA and native tokens to any address.
-        </CardDescription>
-      </CardHeader>
-    </Card>
-  </Link>
+| Tutorial | Time | Level |
+|----------|------|-------|
+| [Send ADA & Tokens](/apis/txbuilder/basics) | 20 min | Beginner |
+| [Transaction Builder](/apis/txbuilder/basics) | 30 min | Intermediate |
+| [Multi-Asset Transactions](/apis/txbuilder/minting) | 25 min | Intermediate |
+| [Server-Side Transactions](/guides/minting-on-nodejs) | 30 min | Intermediate |
 
-  <Link href="/apis/txbuilder/basics" className="no-underline">
-    <Card className="h-full hover:border-primary/50 transition-colors">
-      <CardHeader>
-        <CardTitle>Transaction Builder</CardTitle>
-        <CardDescription>
-          ⏱️ 30 minutes • 🎯 Intermediate
-          <br /><br />
-          Master the transaction builder for complex multi-input/output transactions.
-        </CardDescription>
-      </CardHeader>
-    </Card>
-  </Link>
+### Send ADA example
 
-  <Link href="/apis/txbuilder/minting" className="no-underline">
-    <Card className="h-full hover:border-primary/50 transition-colors">
-      <CardHeader>
-        <CardTitle>Multi-Asset Transactions</CardTitle>
-        <CardDescription>
-          ⏱️ 25 minutes • 🎯 Intermediate
-          <br /><br />
-          Handle transactions with multiple native assets and tokens.
-        </CardDescription>
-      </CardHeader>
-    </Card>
-  </Link>
+```typescript
+import { MeshTxBuilder } from '@meshsdk/core';
 
-  <Link href="/guides/minting-on-nodejs" className="no-underline">
-    <Card className="h-full hover:border-primary/50 transition-colors">
-      <CardHeader>
-        <CardTitle>Server-Side Transactions</CardTitle>
-        <CardDescription>
-          ⏱️ 30 minutes • 🎯 Intermediate
-          <br /><br />
-          Build and submit transactions from Node.js backend applications.
-        </CardDescription>
-      </CardHeader>
-    </Card>
-  </Link>
-</div>
+const txBuilder = new MeshTxBuilder({
+  fetcher: provider,
+  submitter: provider,
+});
 
-## 🎨 NFT Development
+const unsignedTx = await txBuilder
+  .txOut(recipientAddress, [{ unit: 'lovelace', quantity: '5000000' }])
+  .changeAddress(await wallet.getChangeAddress())
+  .selectUtxosFrom(await wallet.getUtxos())
+  .complete();
+
+const signedTx = await wallet.signTx(unsignedTx);
+const txHash = await wallet.submitTx(signedTx);
+```
+
+---
+
+## NFT development
 
 Create and manage NFTs on Cardano.
 
-<div className="grid md:grid-cols-2 gap-4 my-6">
-  <Link href="/guides/nft-collection" className="no-underline">
-    <Card className="h-full hover:border-primary/50 transition-colors">
-      <CardHeader>
-        <CardTitle>Mint Your First NFT</CardTitle>
-        <CardDescription>
-          ⏱️ 30 minutes • 🎯 Beginner
-          <br /><br />
-          Create a complete NFT collection with proper metadata and minting policies.
-        </CardDescription>
-      </CardHeader>
-    </Card>
-  </Link>
+| Tutorial | Time | Level |
+|----------|------|-------|
+| [Mint Your First NFT](/guides/nft-collection) | 30 min | Beginner |
+| [Multi-Signature Minting](/guides/multisig-minting) | 45 min | Intermediate |
+| [Advanced NFT Metadata](/apis/txbuilder/minting) | 35 min | Intermediate |
+| [Burning Assets](/apis/txbuilder/minting#burning-assets) | 25 min | Intermediate |
 
-  <Link href="/guides/multisig-minting" className="no-underline">
-    <Card className="h-full hover:border-primary/50 transition-colors">
-      <CardHeader>
-        <CardTitle>Multi-Signature Minting</CardTitle>
-        <CardDescription>
-          ⏱️ 45 minutes • 🎯 Intermediate
-          <br /><br />
-          Implement multi-signature NFT minting for team collaborations.
-        </CardDescription>
-      </CardHeader>
-    </Card>
-  </Link>
+### Mint NFT example
 
-  <Link href="/apis/txbuilder/minting" className="no-underline">
-    <Card className="h-full hover:border-primary/50 transition-colors">
-      <CardHeader>
-        <CardTitle>Advanced NFT Metadata</CardTitle>
-        <CardDescription>
-          ⏱️ 35 minutes • 🎯 Intermediate
-          <br /><br />
-          Work with CIP-25 and CIP-68 metadata standards for NFTs.
-        </CardDescription>
-      </CardHeader>
-    </Card>
-  </Link>
+```typescript
+const tx = await txBuilder
+  .mint('1', policyId, assetName)
+  .mintingScript(mintingScript)
+  .txOut(recipientAddress, [
+    { unit: policyId + assetName, quantity: '1' },
+    { unit: 'lovelace', quantity: '2000000' }
+  ])
+  .changeAddress(changeAddress)
+  .selectUtxosFrom(utxos)
+  .complete();
+```
 
-  <Link href="/apis/txbuilder/minting#burning-assets" className="no-underline">
-    <Card className="h-full hover:border-primary/50 transition-colors">
-      <CardHeader>
-        <CardTitle>Burning & Managing Assets</CardTitle>
-        <CardDescription>
-          ⏱️ 25 minutes • 🎯 Intermediate
-          <br /><br />
-          Burn tokens and NFTs, manage asset lifecycles.
-        </CardDescription>
-      </CardHeader>
-    </Card>
-  </Link>
-</div>
+---
 
-## 🔐 Smart Contracts
+## Smart contracts
 
 Build with Plutus and Aiken smart contracts.
 
-<div className="grid md:grid-cols-2 gap-4 my-6">
-  <Link href="/aiken/getting-started" className="no-underline">
-    <Card className="h-full hover:border-primary/50 transition-colors">
-      <CardHeader>
-        <CardTitle>Getting Started with Aiken</CardTitle>
-        <CardDescription>
-          ⏱️ 40 minutes • 🎯 Intermediate
-          <br /><br />
-          Set up Aiken development environment and write your first smart contract.
-        </CardDescription>
-      </CardHeader>
-    </Card>
-  </Link>
+| Tutorial | Time | Level |
+|----------|------|-------|
+| [Getting Started with Aiken](/aiken/getting-started) | 40 min | Intermediate |
+| [Your First Aiken Script](/aiken/first-script) | 50 min | Intermediate |
+| [Smart Contract Transactions](/guides/smart-contract-transactions) | 60 min | Advanced |
+| [Advanced Contract Patterns](/aiken/transactions) | 90 min | Advanced |
 
-  <Link href="/aiken/first-script" className="no-underline">
-    <Card className="h-full hover:border-primary/50 transition-colors">
-      <CardHeader>
-        <CardTitle>Your First Aiken Script</CardTitle>
-        <CardDescription>
-          ⏱️ 50 minutes • 🎯 Intermediate
-          <br /><br />
-          Build a complete Aiken validator and integrate it with Mesh.
-        </CardDescription>
-      </CardHeader>
-    </Card>
-  </Link>
+### Lock funds to script
 
-  <Link href="/guides/smart-contract-transactions" className="no-underline">
-    <Card className="h-full hover:border-primary/50 transition-colors">
-      <CardHeader>
-        <CardTitle>Smart Contract Transactions</CardTitle>
-        <CardDescription>
-          ⏱️ 60 minutes • 🎯 Advanced
-          <br /><br />
-          Lock and unlock assets using smart contracts with proper datum and redeemer handling.
-        </CardDescription>
-      </CardHeader>
-    </Card>
-  </Link>
+```typescript
+const tx = await txBuilder
+  .txOut(scriptAddress, [{ unit: 'lovelace', quantity: '10000000' }])
+  .txOutDatumHashValue(datum)
+  .changeAddress(changeAddress)
+  .selectUtxosFrom(utxos)
+  .complete();
+```
 
-  <Link href="/aiken/transactions" className="no-underline">
-    <Card className="h-full hover:border-primary/50 transition-colors">
-      <CardHeader>
-        <CardTitle>Advanced Smart Contract Patterns</CardTitle>
-        <CardDescription>
-          ⏱️ 90 minutes • 🎯 Advanced
-          <br /><br />
-          Implement complex patterns like state machines, oracles, and multi-party contracts.
-        </CardDescription>
-      </CardHeader>
-    </Card>
-  </Link>
-</div>
+### Unlock funds from script
 
-## 🛠️ Advanced Topics
+```typescript
+const tx = await txBuilder
+  .spendingPlutusScript(languageVersion)
+  .txIn(scriptUtxo.input.txHash, scriptUtxo.input.outputIndex)
+  .txInScript(scriptCbor)
+  .txInDatumValue(datum)
+  .txInRedeemerValue(redeemer)
+  .txOut(recipient, outputValue)
+  .txInCollateral(collateralTxHash, collateralIndex)
+  .changeAddress(changeAddress)
+  .selectUtxosFrom(utxos)
+  .complete();
+```
+
+---
+
+## Advanced topics
 
 For experienced developers building production applications.
 
-<div className="grid md:grid-cols-2 gap-4 my-6">
-  <Link href="/guides/custom-provider" className="no-underline">
-    <Card className="h-full hover:border-primary/50 transition-colors">
-      <CardHeader>
-        <CardTitle>Custom Providers</CardTitle>
-        <CardDescription>
-          ⏱️ 45 minutes • 🎯 Advanced
-          <br /><br />
-          Create custom blockchain data providers for specific use cases.
-        </CardDescription>
-      </CardHeader>
-    </Card>
-  </Link>
+| Tutorial | Time | Level |
+|----------|------|-------|
+| [Custom Providers](/guides/custom-provider) | 45 min | Advanced |
+| [Provider Integration](/providers) | 30 min | Intermediate |
+| [Local Development with Yaci](/yaci) | 40 min | Advanced |
+| [Production Best Practices](/guides/aiken) | 60 min | Advanced |
 
-  <Link href="/providers" className="no-underline">
-    <Card className="h-full hover:border-primary/50 transition-colors">
-      <CardHeader>
-        <CardTitle>Provider Integration</CardTitle>
-        <CardDescription>
-          ⏱️ 30 minutes • 🎯 Intermediate
-          <br /><br />
-          Integrate with Blockfrost, Maestro, Koios, and other data providers.
-        </CardDescription>
-      </CardHeader>
-    </Card>
-  </Link>
+---
 
-  <Link href="/yaci" className="no-underline">
-    <Card className="h-full hover:border-primary/50 transition-colors">
-      <CardHeader>
-        <CardTitle>Local Development with Yaci</CardTitle>
-        <CardDescription>
-          ⏱️ 40 minutes • 🎯 Advanced
-          <br /><br />
-          Set up local Cardano development network for rapid iteration and testing.
-        </CardDescription>
-      </CardHeader>
-    </Card>
-  </Link>
+## Framework integrations
 
-  <Link href="/guides/aiken" className="no-underline">
-    <Card className="h-full hover:border-primary/50 transition-colors">
-      <CardHeader>
-        <CardTitle>Production Best Practices</CardTitle>
-        <CardDescription>
-          ⏱️ 60 minutes • 🎯 Advanced
-          <br /><br />
-          Security, optimization, error handling, and deployment strategies.
-        </CardDescription>
-      </CardHeader>
-    </Card>
-  </Link>
-</div>
+Use Mesh with your preferred framework.
 
-## 📱 Framework Integrations
+| Framework | Tutorial | Time |
+|-----------|----------|------|
+| Next.js | [Full Stack Guide](/guides/nextjs) | 45 min |
+| Svelte | [Svelte Integration](/svelte) | 30 min |
+| Node.js | [Backend Guide](/guides/node-specific-imports) | 35 min |
 
-Use Mesh with your favorite framework.
+---
 
-<div className="grid md:grid-cols-2 gap-4 my-6">
-  <Link href="/guides/nextjs" className="no-underline">
-    <Card className="h-full hover:border-primary/50 transition-colors">
-      <CardHeader>
-        <CardTitle>Next.js Full Stack</CardTitle>
-        <CardDescription>
-          ⏱️ 45 minutes • 🎯 Intermediate
-          <br /><br />
-          Build full-stack Cardano dApps with Next.js, including API routes and server components.
-        </CardDescription>
-      </CardHeader>
-    </Card>
-  </Link>
+## Learning paths
 
-  <Link href="/svelte" className="no-underline">
-    <Card className="h-full hover:border-primary/50 transition-colors">
-      <CardHeader>
-        <CardTitle>Svelte Integration</CardTitle>
-        <CardDescription>
-          ⏱️ 30 minutes • 🎯 Intermediate
-          <br /><br />
-          Use Mesh with Svelte and SvelteKit for reactive Cardano applications.
-        </CardDescription>
-      </CardHeader>
-    </Card>
-  </Link>
+Follow these structured paths based on your goals.
 
-  <Link href="/guides/node-specific-imports" className="no-underline">
-    <Card className="h-full hover:border-primary/50 transition-colors">
-      <CardHeader>
-        <CardTitle>Node.js Backend</CardTitle>
-        <CardDescription>
-          ⏱️ 35 minutes • 🎯 Intermediate
-          <br /><br />
-          Use Mesh in Node.js backends, APIs, and automation scripts.
-        </CardDescription>
-      </CardHeader>
-    </Card>
-  </Link>
+### Path 1: Web developer to dApp developer
 
-  <Card className="h-full opacity-60">
-    <CardHeader>
-      <CardTitle>Vue.js Integration</CardTitle>
-      <CardDescription>
-        ⏱️ Coming Soon • 🎯 Intermediate
-        <br /><br />
-        Tutorial for using Mesh with Vue.js and Nuxt.
-      </CardDescription>
-    </CardHeader>
-  </Card>
-</div>
+| Step | Tutorial | Time |
+|------|----------|------|
+| 1 | Installation & Setup | 10 min |
+| 2 | Wallet Connection | 15 min |
+| 3 | Send ADA & Tokens | 20 min |
+| 4 | React Hooks & Components | 20 min |
+| 5 | Mint Your First NFT | 30 min |
+| 6 | Next.js Integration | 45 min |
 
-## 🎓 Learning Paths
+**Total: ~2.5 hours** | Beginner to Intermediate
 
-Structured learning journeys that combine the tutorials and guides listed on this page into recommended sequences for different goals.
+### Path 2: Smart contract developer
 
-### Path 1: Web Developer → Cardano dApp Developer
-1. Installation & Setup (10 min)
-2. Wallet Connection (15 min)
-3. Send ADA & Tokens (20 min)
-4. React Hooks & Components (20 min)
-5. Mint Your First NFT (30 min)
-6. Next.js Integration (45 min)
+| Step | Tutorial | Time |
+|------|----------|------|
+| 1 | Getting Started with Aiken | 40 min |
+| 2 | Your First Aiken Script | 50 min |
+| 3 | Smart Contract Transactions | 60 min |
+| 4 | Advanced Contract Patterns | 90 min |
+| 5 | Local Development with Yaci | 40 min |
+| 6 | Production Best Practices | 60 min |
 
-**Total Time:** ~2.5 hours • **Level:** Beginner to Intermediate
+**Total: ~5.5 hours** | Intermediate to Advanced
 
-### Path 2: Smart Contract Developer
-1. Getting Started with Aiken (40 min)
-2. Your First Aiken Script (50 min)
-3. Smart Contract Transactions (60 min)
-4. Advanced Smart Contract Patterns (90 min)
-5. Local Development with Yaci (40 min)
-6. Production Best Practices (60 min)
+### Path 3: NFT collection creator
 
-**Total Time:** ~5.5 hours • **Level:** Intermediate to Advanced
+| Step | Tutorial | Time |
+|------|----------|------|
+| 1 | Installation & Setup | 10 min |
+| 2 | Wallet Connection | 15 min |
+| 3 | Mint Your First NFT | 30 min |
+| 4 | Advanced NFT Metadata | 35 min |
+| 5 | Multi-Signature Minting | 45 min |
+| 6 | Server-Side Transactions | 30 min |
 
-### Path 3: NFT Collection Creator
-1. Installation & Setup (10 min)
-2. Wallet Connection (15 min)
-3. Mint Your First NFT (30 min)
-4. Advanced NFT Metadata (35 min)
-5. Multi-Signature Minting (45 min)
-6. Server-Side Transactions (30 min)
+**Total: ~2.5 hours** | Beginner to Intermediate
 
-**Total Time:** ~2.5 hours • **Level:** Beginner to Intermediate
+---
 
-## 📚 Additional Resources
+## Additional resources
 
-- **[API Reference](/apis)** - Complete API documentation
-- **[Code Examples](https://github.com/MeshJS/examples)** - Working code repositories
-- **[FAQ](/resources/faq)** - Frequently asked questions
-- **[Use Cases](/resources/use-cases)** - Real-world applications
-- **[Developer Resources](/resources/developer-resources)** - Tools and communities
+| Resource | Description |
+|----------|-------------|
+| [API Reference](/apis) | Complete API documentation |
+| [Code Examples](https://github.com/MeshJS/examples) | Working repositories |
+| [FAQ](/resources/faq) | Common questions |
+| [Use Cases](/resources/use-cases) | Real-world applications |
+| [Developer Resources](/resources/developer-resources) | Tools and communities |
 
-## 💬 Need Help?
+## Get help
 
-Stuck on a tutorial? Here's how to get help:
+| Channel | Best for |
+|---------|----------|
+| [Discord](https://discord.gg/dH48jH3BKa) | Real-time support |
+| [GitHub Discussions](https://github.com/MeshJS/mesh/discussions) | Technical Q&A |
+| [Stack Overflow](https://stackoverflow.com/questions/tagged/meshsdk) | Searchable answers |
 
-- **[Discord Community](https://discord.gg/dH48jH3BKa)** - Real-time support from the community
-- **[GitHub Discussions](https://github.com/MeshJS/mesh/discussions)** - Longer-form Q&A
-- **[Stack Overflow](https://stackoverflow.com/questions/tagged/meshsdk)** - Tagged questions
+---
 
-## 🎯 What's Next?
+## After these tutorials
 
-After completing these tutorials, you'll be ready to:
+You will be ready to:
 
 - Build production Cardano dApps
 - Create NFT collections and marketplaces
@@ -414,7 +222,7 @@ After completing these tutorials, you'll be ready to:
 - Integrate smart contracts
 - Contribute to the Cardano ecosystem
 
-Start your journey today with our [Getting Started Guide](/guides)!
+**Start now** with the [Getting Started Guide](/guides).
 
 <script type="application/ld+json">
 {JSON.stringify({
@@ -434,8 +242,8 @@ Start your journey today with our [Getting Started Guide](/guides)!
     {
       "@type": "HowTo",
       "position": 2,
-      "name": "Wallet Connection Tutorial",
-      "description": "Connect Cardano wallets and prove wallet ownership",
+      "name": "Wallet Connection",
+      "description": "Connect Cardano wallets and prove ownership",
       "totalTime": "PT15M",
       "skillLevel": "Beginner"
     },
@@ -450,7 +258,7 @@ Start your journey today with our [Getting Started Guide](/guides)!
     {
       "@type": "HowTo",
       "position": 4,
-      "name": "Smart Contract Development with Aiken",
+      "name": "Smart Contract Development",
       "description": "Build and deploy Aiken smart contracts",
       "totalTime": "PT90M",
       "skillLevel": "Advanced"

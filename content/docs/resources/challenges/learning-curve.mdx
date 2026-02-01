@@ -1,57 +1,48 @@
 ---
-title: "How Hard Is Cardano Development? Learning Curve Guide"
-description: "Overcome Cardano's learning curve with the Mesh Cardano SDK. Learn why it differs from Ethereum and how TypeScript APIs make dApp development accessible."
+title: "Learning Curve"
+description: "Overcome Cardano's learning curve with Mesh SDK's beginner-friendly TypeScript APIs."
 ---
+
 import Link from "next/link";
 import { HowToSchema, FAQSchema } from "@/components/seo";
 
 <HowToSchema
-  name="Start Cardano dApp Development with Mesh SDK"
-  description="Begin Cardano dApp development using the Mesh TypeScript blockchain SDK's beginner-friendly abstractions and progressive learning approach."
+  name="Start Cardano Development with Mesh SDK"
+  description="Begin Cardano dApp development using Mesh SDK's beginner-friendly APIs and progressive learning approach."
   totalTime="PT15M"
   steps={[
-    { name: "Install Mesh SDK", text: "Run npm install @meshsdk/core @meshsdk/react to add the Cardano SDK to your JavaScript Web3 project." },
-    { name: "Connect a wallet", text: "Use Mesh's BrowserWallet to connect any Cardano wallet with a single function call." },
-    { name: "Build your first transaction", text: "Use MeshTxBuilder to construct and submit a simple ADA transfer transaction." }
+    { name: "Install Mesh SDK", text: "Run npm install @meshsdk/core @meshsdk/react to add the Cardano SDK." },
+    { name: "Connect a wallet", text: "Use MeshCardanoBrowserWallet to connect any Cardano wallet with a single function call." },
+    { name: "Build your first transaction", text: "Use MeshTxBuilder to construct and submit a simple ADA transfer." }
   ]}
 />
 
 <FAQSchema
   faqs={[
     {
-      question: "How hard is it to learn Cardano dApp development?",
-      answer: "Cardano has a steeper learning curve than Ethereum due to its UTXO model, native asset system, and functional programming foundations. However, a TypeScript blockchain SDK like Mesh significantly reduces the barrier with familiar JavaScript APIs that abstract complexity while giving access when needed."
+      question: "How hard is Cardano development?",
+      answer: "Cardano has a steeper learning curve than Ethereum due to its UTXO model and native asset system. However, Mesh SDK significantly reduces the barrier with familiar JavaScript APIs that abstract complexity."
     },
     {
-      question: "Do I need to learn Haskell to build Cardano dApps?",
-      answer: "No. While Plutus smart contracts use Haskell, you can build full dApps using JavaScript/TypeScript with Mesh SDK. For on-chain logic, Aiken offers more familiar syntax. Most Cardano dApp development happens off-chain where JavaScript Web3 works perfectly."
+      question: "Do I need to learn Haskell for Cardano development?",
+      answer: "No. You can build full dApps using JavaScript/TypeScript with Mesh SDK. For on-chain logic, Aiken offers familiar syntax without requiring Haskell knowledge."
     },
     {
-      question: "What makes Cardano different from Ethereum for developers?",
-      answer: "Cardano's UTXO model versus Ethereum's account model is the main difference. Instead of updating balances, you spend and create discrete outputs. Transactions are deterministic. Native assets don't require smart contracts. These require new mental models but enable parallel transaction processing."
+      question: "What makes Cardano different from Ethereum?",
+      answer: "Cardano's UTXO model versus Ethereum's account model is the main difference. Instead of updating balances, you spend and create discrete outputs. Native assets don't require smart contracts."
     },
     {
-      question: "What should I learn first for Cardano development?",
-      answer: "Start with wallet integration and simple transactions using Mesh SDK. This teaches the UTXO model practically. Then explore native assets, metadata, and finally Cardano smart contracts. The Mesh Cardano SDK API guides this progression naturally."
-    },
-    {
-      question: "Why does Cardano use unfamiliar terminology?",
-      answer: "Cardano draws from academic research and functional programming. 'Lovelace' for smallest ADA unit, 'datum' for data, 'redeemer' for input. The Mesh TypeScript blockchain SDK uses clearer naming while maintaining compatibility."
+      question: "What should I learn first?",
+      answer: "Start with wallet integration and simple transactions. This teaches the UTXO model practically. Then explore native assets, metadata, and finally smart contracts."
     }
   ]}
 />
 
-Cardano dApp development has a steeper learning curve than Ethereum due to the UTXO model, native assets, and academic terminology. The Mesh Cardano SDK flattens this curve with intuitive TypeScript APIs that let you build functional dApps immediately while gradually introducing concepts. Ship your first transaction in minutes.
+Cardano has a steeper learning curve due to the UTXO model, native assets, and academic terminology. Mesh flattens this curve with intuitive APIs that let you build functional dApps immediately.
 
-**Key Takeaway:** You don't need to understand everything about Cardano to start building. A JavaScript Web3 SDK like Mesh lets you learn progressively—simple transactions first, Cardano smart contracts later.
+## The challenge
 
-## Why Is Cardano Development Different?
-
-Cardano development differs from Ethereum because of the UTXO model, native multi-asset support, and functional programming foundations. These architectural decisions prioritize formal verification and security but require JavaScript Web3 developers to learn new mental models. The Mesh Cardano SDK bridges this gap with familiar patterns.
-
-### What Is the UTXO Mental Model Shift?
-
-Most developers learn account-based blockchains first. Ethereum feels intuitive—accounts have balances. Cardano's UTXO model differs fundamentally:
+### UTXO mental model shift
 
 | Ethereum (Accounts) | Cardano (UTXO) |
 |---------------------|----------------|
@@ -60,86 +51,45 @@ Most developers learn account-based blockchains first. Ethereum feels intuitive�
 | Partial spending possible | Must consume entire UTXO, create change |
 | Sequential processing | Parallel transaction processing |
 
-Once understood, the UTXO model offers advantages. Initial confusion is normal.
+### What makes it harder
 
-### Do I Need to Learn Haskell?
+| Challenge | Impact |
+|-----------|--------|
+| UTXO model | Different from familiar account systems |
+| Haskell roots | Plutus smart contracts use Haskell |
+| Academic terminology | Datums, redeemers, lovelace |
+| Fragmented docs | Multiple tools and approaches |
 
-Cardano's research-first approach means:
+---
 
-- Cardano smart contracts (Plutus) are built on Haskell
-- Documentation assumes functional programming familiarity
-- Terminology prioritizes precision over accessibility
+## The solution
 
-**The good news:** Most Cardano dApp development happens off-chain with JavaScript Web3 tools. For on-chain logic, Aiken offers familiar syntax without learning Haskell.
+Mesh provides progressive complexity. Start simple, add advanced features as needed.
 
-### How Do Native Assets Differ from Ethereum Tokens?
+### Quick start
 
-On Cardano, tokens and NFTs don't require smart contracts:
-
-- Defined by minting policies, not contract addresses
-- Identified by policy IDs + asset names, not contract calls
-- Live in UTXOs alongside ADA (creating "minimum ADA" requirement)
-
-### Why Is Documentation Fragmented?
-
-Cardano development spans multiple languages and tools:
-
-- Cardano Foundation for concepts
-- IOG documentation for Plutus
-- Community tool documentation
-- Multiple competing approaches
-
-The Mesh Cardano SDK documentation consolidates JavaScript Web3 development guidance in one place.
-
-## How Does Mesh SDK Make Cardano Development Easier?
-
-The Mesh TypeScript blockchain SDK provides progressive complexity—simple APIs for common tasks, full control when needed. You learn Cardano concepts through practical use.
-
-### How Do Mesh APIs Compare to Other SDKs?
-
-Mesh uses patterns familiar to JavaScript Web3 developers:
-
-```typescript
-import { MeshWallet, BlockfrostProvider } from "@meshsdk/core";
-
-// Similar to ethers.js pattern
-const provider = new BlockfrostProvider("<your-api-key>");
-
-const wallet = new MeshWallet({
-  networkId: 0, // testnet
-  fetcher: provider,
-  submitter: provider,
-  key: {
-    type: "mnemonic",
-    words: ["your", "mnemonic", "phrase", "..."],
-  },
-});
-
-const address = wallet.getChangeAddress();
+```bash
+npm install @meshsdk/core @meshsdk/react
 ```
 
-### What React Blockchain Components Does Mesh Provide?
-
-Mesh provides pre-built React blockchain components that handle wallet connection, transaction signing, and state management. The `CardanoWallet` component supports all CIP-30 wallets with zero configuration—no protocol knowledge required.
+### Connect a wallet
 
 ```tsx
-import { CardanoWallet, useWallet } from "@meshsdk/react";
+import { CardanoWallet, MeshProvider, useWallet } from "@meshsdk/react";
 
 function App() {
-  const { connected, wallet } = useWallet();
+  const { connected } = useWallet();
 
   return (
-    <div>
+    <MeshProvider>
       <CardanoWallet />
-      {connected && <p>Connected! Address: {wallet.getChangeAddress()}</p>}
-    </div>
+      {connected && <p>Wallet connected!</p>}
+    </MeshProvider>
   );
 }
 ```
 
-### How Does Transaction Building Work?
-
-MeshTxBuilder uses a fluent interface describing intent, not UTXO mechanics:
+### Build a transaction
 
 ```typescript
 import { MeshTxBuilder } from "@meshsdk/core";
@@ -156,59 +106,35 @@ const unsignedTx = await txBuilder
   .complete();
 ```
 
-You say "send 5 ADA to this address"—the Cardano SDK handles UTXO selection, fee calculation, and change automatically.
+You say "send 5 ADA to this address." Mesh handles UTXO selection, fee calculation, and change automatically.
 
-## How Do I Get Started?
+---
 
-**1. Install Mesh SDK**
+## Recommended learning path
 
-```bash
-npm install @meshsdk/core @meshsdk/react
-```
+### Week 1: Wallets and transfers
 
-TypeScript-first with full type definitions for excellent IDE support.
-
-**2. Connect a wallet**
-
-```typescript
-import { BrowserWallet } from "@meshsdk/core";
-
-const wallet = await BrowserWallet.enable("eternl");
-// Or let users choose: await BrowserWallet.getAvailableWallets();
-```
-
-**3. Build and submit a transaction**
+| Topic | What you learn |
+|-------|----------------|
+| Wallet connection | Addresses, connection state |
+| ADA transfers | Transaction lifecycle, UTXOs |
+| Balance checking | UTXO aggregation |
 
 ```typescript
-import { MeshTxBuilder, BlockfrostProvider } from "@meshsdk/core";
+import { MeshCardanoBrowserWallet } from "@meshsdk/wallet";
 
-const provider = new BlockfrostProvider("<your-blockfrost-key>");
-const txBuilder = new MeshTxBuilder({ fetcher: provider, submitter: provider });
-
-const unsignedTx = await txBuilder
-  .txOut("addr_test1...", [{ unit: "lovelace", quantity: "2000000" }])
-  .changeAddress(await wallet.getChangeAddress())
-  .selectUtxosFrom(await wallet.getUtxos())
-  .complete();
-
-const signedTx = await wallet.signTx(unsignedTx);
-const txHash = await wallet.submitTx(signedTx);
+const wallet = await MeshCardanoBrowserWallet.enable("eternl");
+const address = await wallet.getChangeAddressBech32();
+const utxos = await wallet.getUtxosMesh();
 ```
 
-You've built a Cardano transaction without managing UTXOs, calculating fees, or understanding serialization formats.
+### Week 2: Native assets
 
-## What Is the Recommended Learning Path?
-
-The recommended path starts with wallet integration and simple transfers, then progresses to native assets and finally Cardano smart contracts. The Mesh Cardano SDK design supports this progression with APIs that grow in complexity as your understanding deepens.
-
-| Week | Focus | What You Learn |
-|------|-------|----------------|
-| 1 | Wallets + ADA transfers | Addresses, transaction lifecycle, UTXOs |
-| 2 | Native assets | Token mechanics, minimum UTXO requirements |
-| 3 | Metadata | Transaction metadata, advanced patterns |
-| 4+ | Cardano smart contracts | Datums, redeemers, script execution |
-
-### Week 2: Native Assets Example
+| Topic | What you learn |
+|-------|----------------|
+| Token transfers | Asset structure |
+| Minting | Policy scripts |
+| Multi-asset transactions | Token bundles |
 
 ```typescript
 const tx = await txBuilder
@@ -221,7 +147,30 @@ const tx = await txBuilder
   .complete();
 ```
 
-### Week 4+: Cardano Smart Contracts Example
+### Week 3: Metadata
+
+| Topic | What you learn |
+|-------|----------------|
+| Transaction metadata | On-chain data |
+| NFT metadata | CIP-25, CIP-68 |
+| Message standards | CIP-20 |
+
+```typescript
+const tx = await txBuilder
+  .txOut(recipient, [{ unit: "lovelace", quantity: "5000000" }])
+  .metadataValue("674", { msg: ["Hello Cardano"] })
+  .changeAddress(changeAddress)
+  .selectUtxosFrom(utxos)
+  .complete();
+```
+
+### Week 4+: Smart contracts
+
+| Topic | What you learn |
+|-------|----------------|
+| Datums | Script state storage |
+| Redeemers | Unlock conditions |
+| Script execution | Budgets, collateral |
 
 ```typescript
 const tx = await txBuilder
@@ -233,35 +182,78 @@ const tx = await txBuilder
   .complete();
 ```
 
-By this point, "datum" and "redeemer" make sense from practical context.
+---
 
-## What Does Cardano Terminology Mean?
+## Key terminology
 
-| Term | Meaning | Mesh Usage |
+| Term | Meaning | Mesh usage |
 |------|---------|------------|
 | Lovelace | Smallest ADA unit (1M = 1 ADA) | `{ unit: "lovelace", quantity: "1000000" }` |
-| UTXO | Unspent output—a "coin" you can spend | `wallet.getUtxos()` |
+| UTXO | Unspent output - a "coin" to spend | `wallet.getUtxos()` |
 | Datum | Data attached to script output | `txInDatumValue()` |
 | Redeemer | Input to unlock script output | `txInRedeemerValue()` |
 | Policy ID | Token collection identifier | Part of asset unit string |
 
-## Where Can I Learn More?
+---
 
-Multiple resources support your Cardano dApp development journey with the Mesh TypeScript blockchain SDK:
+## Why Mesh makes it easier
 
-- **[Mesh Documentation](/docs)**: Comprehensive guides and API reference
-- **[Cardano Developer Portal](https://developers.cardano.org)**: Official learning resources
-- **Discord**: Real-time SDK questions
-- **GitHub**: Bug reports and feature requests
+### Familiar patterns
 
-## Related Challenges
+```typescript
+import { MeshCardanoHeadlessWallet, AddressType } from "@meshsdk/wallet";
+import { BlockfrostProvider } from "@meshsdk/core";
 
-- <Link href="/docs/resources/challenges/utxo-model">Understanding the UTXO Model</Link>: Deeper architecture insight
-- <Link href="/docs/resources/challenges/wallet-integration">Wallet Integration</Link>: Connection challenges
-- <Link href="/docs/resources/challenges/transaction-failures">Transaction Failures</Link>: Error handling
+// Similar to ethers.js pattern
+const provider = new BlockfrostProvider("<api-key>");
+const wallet = await MeshCardanoHeadlessWallet.fromMnemonic({
+  networkId: 0,
+  walletAddressType: AddressType.Base,
+  fetcher: provider,
+  mnemonic: ["your", "mnemonic", "words", "..."],
+});
+```
 
-## Next Steps
+### Pre-built React components
 
-The learning curve is real but surmountable. The Mesh TypeScript blockchain SDK lets you build working React blockchain applications immediately while deepening your Cardano dApp development understanding over time. Start with the Quick Start above, then explore the <Link href="/docs/resources/challenges">Challenges Hub</Link> for specific solutions.
+```tsx
+import { CardanoWallet, useWallet, useLovelace } from "@meshsdk/react";
 
-Every Cardano developer started where you are. Concepts foreign today become intuitive with practice.
+function Dashboard() {
+  const { connected } = useWallet();
+  const lovelace = useLovelace();
+
+  return (
+    <div>
+      <CardanoWallet />
+      {connected && <p>Balance: {Number(lovelace) / 1_000_000} ADA</p>}
+    </div>
+  );
+}
+```
+
+### TypeScript support
+
+Full type definitions for IDE autocompletion and compile-time error catching.
+
+---
+
+## Learning resources
+
+| Resource | Link |
+|----------|------|
+| Mesh Documentation | [/docs](/docs) |
+| Getting Started | [/guides](/guides) |
+| Developer Portal | [developers.cardano.org](https://developers.cardano.org) |
+| Discord | [Join](https://discord.gg/dH48jH3BKa) |
+
+---
+
+## Related topics
+
+| Topic | Link |
+|-------|------|
+| UTXO model | [/resources/challenges/utxo-model](/resources/challenges/utxo-model) |
+| Wallet integration | [/resources/challenges/wallet-integration](/resources/challenges/wallet-integration) |
+| Transaction failures | [/resources/challenges/transaction-failures](/resources/challenges/transaction-failures) |
+| Beginner solutions | [/resources/solutions/beginners](/resources/solutions/beginners) |

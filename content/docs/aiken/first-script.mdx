@@ -1,69 +1,300 @@
 ---
 title: "Write a Smart Contract"
-description: "Learn how to write your first Aiken script, with a simple redeemer"
+description: "Create your first Aiken validator with datum and redeemer validation"
 ---
+
 import Link from "fumadocs-core/link";
 
-## Write your first smart contract in Aiken
+## Overview
 
-In this section, we will walk you through the process of writing a simple smart contract in Aiken.
+In this guide, you create an Aiken validator that locks assets on-chain. The validator requires a specific message ("Hello, World!") and the owner's signature to unlock the funds.
 
-We will use the Visual Studio Code editor for this tutorial. You can use any other editor of your choice, but we recommend using Visual Studio Code for its rich feature set and support for Aiken.
+**What you'll build:**
+- A validator with custom datum (owner's key hash)
+- Redeemer validation (message check)
+- Transaction signature verification
 
-First, we create a new Aiken project within this project folder:
+**Prerequisites:**
+- <Link href="/docs/aiken/getting-started">Aiken CLI installed</Link>
+- Basic understanding of Cardano transactions
+
+## Quick Start
+
+Create and compile a validator in 3 steps.
 
 ```bash
-$ aiken new meshjs/hello_world
-$ cd hello_world
-$ aiken check
+aiken new meshjs/hello_world
+cd hello_world
 ```
 
-Remember to check your Aiken project by running `aiken check` after creating a new project and as you develop the contract.
+Create `validators/hello_world.ak`:
 
-### Write the smart contract [!toc]
+```rust
+use aiken/collection/list
+use aiken/crypto.{VerificationKeyHash}
+use cardano/transaction.{ScriptContext}
 
-Let's create file for our validator, `validators/hello_world.ak`:
-
-```tsx
-use aiken/hash.{Blake2b_224, Hash}
-use aiken/list
-use aiken/transaction.{ScriptContext}
-use aiken/transaction/credential.{VerificationKey}
-
-type Datum {
-  owner: Hash<Blake2b_224, VerificationKey>,
+pub type Datum {
+  owner: VerificationKeyHash,
 }
 
-type Redeemer {
+pub type Redeemer {
   msg: ByteArray,
 }
 
-validator {
-  fn hello_world(datum: Datum, redeemer: Redeemer, context: ScriptContext) -> Bool {
-    let must_say_hello =
-      redeemer.msg == "Hello, World!"
+validator hello_world {
+  spend(
+    datum: Option<Datum>,
+    redeemer: Redeemer,
+    _own_ref: Data,
+    tx: transaction.Transaction,
+  ) {
+    expect Some(d) = datum
+    let must_say_hello = redeemer.msg == "Hello, World!"
+    let must_be_signed = list.has(tx.extra_signatories, d.owner)
+    must_say_hello && must_be_signed
+  }
+}
+```
 
-    let must_be_signed =
-      list.has(context.transaction.extra_signatories, datum.owner)
+```bash
+aiken build
+```
+
+## Step-by-Step Guide
+
+### Step 1: Create a New Project
+
+Initialize an Aiken project with the standard structure.
+
+```bash
+aiken new meshjs/hello_world
+cd hello_world
+```
+
+Verify the project was created:
+
+```bash
+aiken check
+```
+
+### Step 2: Define Your Types
+
+Create a new file `validators/hello_world.ak`. Start by defining the datum and redeemer types.
+
+```rust
+use aiken/collection/list
+use aiken/crypto.{VerificationKeyHash}
+use cardano/transaction.{ScriptContext}
+
+/// The datum stores the owner's verification key hash.
+/// Only the owner can unlock funds from this script.
+pub type Datum {
+  owner: VerificationKeyHash,
+}
+
+/// The redeemer contains the message that must match "Hello, World!"
+pub type Redeemer {
+  msg: ByteArray,
+}
+```
+
+**Key points:**
+- `VerificationKeyHash` is a 28-byte hash of a public key
+- Custom types make your contract self-documenting
+- Comments with `///` appear in generated documentation
+
+### Step 3: Write the Validator Logic
+
+Add the validator function that checks the unlock conditions.
+
+```rust
+validator hello_world {
+  spend(
+    datum: Option<Datum>,
+    redeemer: Redeemer,
+    _own_ref: Data,
+    tx: transaction.Transaction,
+  ) {
+    // Unwrap the datum - fail if None
+    expect Some(d) = datum
+
+    // Check 1: Redeemer message must be "Hello, World!"
+    let must_say_hello = redeemer.msg == "Hello, World!"
+
+    // Check 2: Transaction must be signed by the owner
+    let must_be_signed = list.has(tx.extra_signatories, d.owner)
+
+    // Both conditions must be true
+    must_say_hello && must_be_signed
+  }
+}
+```
+
+**What this validator does:**
+1. Extracts the datum containing the owner's key hash
+2. Verifies the redeemer message equals "Hello, World!"
+3. Confirms the transaction is signed by the owner
+4. Returns `True` only if both conditions pass
+
+### Step 4: Compile the Contract
+
+Build the project to generate the Plutus blueprint.
+
+```bash
+aiken build
+```
+
+This creates `plutus.json` in the project root. The blueprint contains:
+
+```json
+{
+  "validators": [
+    {
+      "title": "hello_world.hello_world.spend",
+      "compiledCode": "5901a2...",
+      "hash": "abc123..."
+    }
+  ]
+}
+```
+
+### Step 5: Verify with Type Checking
+
+Run the type checker to ensure your code is valid.
+
+```bash
+aiken check
+```
+
+If there are errors, fix them before proceeding. Common issues:
+- Missing imports
+- Type mismatches in datum/redeemer
+- Incorrect function signatures
+
+## Complete Validator Code
+
+Here's the full `validators/hello_world.ak` file:
+
+```rust
+use aiken/collection/list
+use aiken/crypto.{VerificationKeyHash}
+use cardano/transaction.{ScriptContext}
+
+/// The datum stores the owner's verification key hash.
+/// Only the owner can unlock funds from this script.
+pub type Datum {
+  owner: VerificationKeyHash,
+}
+
+/// The redeemer contains the unlock message.
+pub type Redeemer {
+  msg: ByteArray,
+}
+
+/// A simple validator that requires:
+/// 1. The redeemer message to be "Hello, World!"
+/// 2. The transaction to be signed by the datum owner
+validator hello_world {
+  spend(
+    datum: Option<Datum>,
+    redeemer: Redeemer,
+    _own_ref: Data,
+    tx: transaction.Transaction,
+  ) {
+    expect Some(d) = datum
+    let must_say_hello = redeemer.msg == "Hello, World!"
+    let must_be_signed = list.has(tx.extra_signatories, d.owner)
+    must_say_hello && must_be_signed
+  }
+}
+```
+
+## Using the Compiled Script with Mesh
+
+After building, integrate the compiled script with your TypeScript application.
+
+```typescript
+import {
+  applyParamsToScript,
+  resolvePlutusScriptAddress,
+  PlutusScript,
+} from "@meshsdk/core";
+import blueprint from "./hello_world/plutus.json";
+
+// Get the compiled code from the blueprint
+const compiledCode = blueprint.validators[0].compiledCode;
+
+// Apply parameters (none in this case, but required for CBOR encoding)
+const scriptCbor = applyParamsToScript(compiledCode, []);
+
+// Create the script object
+const script: PlutusScript = {
+  code: scriptCbor,
+  version: "V3",
+};
+
+// Resolve the script address (0 = mainnet, 1 = preprod/preview)
+const scriptAddress = resolvePlutusScriptAddress(script, 0);
+
+console.log("Script Address:", scriptAddress);
+```
+
+## Troubleshooting
+
+### aiken build fails
+
+Check for syntax errors with `aiken check`. Common issues:
+
+```rust
+// Wrong: Missing comma
+pub type Datum {
+  owner: VerificationKeyHash
+  name: ByteArray  // <- Missing comma
+}
+
+// Correct
+pub type Datum {
+  owner: VerificationKeyHash,
+  name: ByteArray,
+}
+```
+
+### Validator returns False unexpectedly
+
+Debug by testing each condition separately:
+
+```rust
+validator hello_world {
+  spend(datum: Option<Datum>, redeemer: Redeemer, _own_ref: Data, tx: transaction.Transaction) {
+    expect Some(d) = datum
+
+    // Debug: Log which condition fails
+    trace @"Checking message..."
+    let must_say_hello = redeemer.msg == "Hello, World!"
+
+    trace @"Checking signature..."
+    let must_be_signed = list.has(tx.extra_signatories, d.owner)
 
     must_say_hello && must_be_signed
   }
 }
 ```
 
-The validator checks for two conditions:
+### Import errors
 
-- The redeemer message is `Hello, World!`
-- The transaction is signed by the owner
+Ensure you import from the correct modules:
 
-If both conditions are met, the validator returns `true`. Otherwise, it returns `false`.
-
-## Compile and build
-
-Let's compile the smart contract with the Aiken CLI:
-
-```tsx
-$ aiken build
+```rust
+// Correct imports for Aiken v1.1+
+use aiken/collection/list
+use aiken/crypto.{VerificationKeyHash}
+use cardano/transaction.{ScriptContext}
 ```
 
-This command will compile the smart contract and generate the `plutus.json` file in the root folder. This file is a <Link href="https://cips.cardano.org/cip/CIP-0057">CIP-0057 Plutus blueprint</Link>, blueprint describes your on-chain contract and its binary interface.
+## Related Links
+
+- <Link href="/docs/aiken/transactions">Build Transactions</Link> - Lock and unlock assets with this validator
+- <Link href="/docs/aiken/getting-started">Getting Started</Link> - Installation and CLI reference
+- <Link href="https://aiken-lang.org/language-tour">Aiken Language Tour</Link> - Complete syntax reference
+- <Link href="https://aiken-lang.org/example--hello-world">Official Hello World Example</Link> - Aiken's tutorial

@@ -1,63 +1,561 @@
 ---
-title: "OfflineFetcher"
-description: "An offline blockchain data provider for testing, development and offline scenarios."
+title: "Offline Fetcher"
+description: "Test and develop Cardano applications without network connectivity"
 ---
+
 import Link from "fumadocs-core/link";
 
-The OfflineFetcher provides access to blockchain data without requiring network connectivity. It's ideal for testing, development, and scenarios where you need to work with pre-loaded blockchain data offline.
+## Overview
 
-Initialize the fetcher:
+The OfflineFetcher provides access to blockchain data without requiring network connectivity. It stores data locally and returns it when queried, making it a drop-in replacement for other providers.
+
+**Use OfflineFetcher when you need:**
+- Unit testing without network dependencies
+- Development in offline environments
+- Mocking blockchain state for specific scenarios
+- Reproducible test fixtures
+
+The OfflineFetcher implements the same interface as online providers like <Link href="/providers/blockfrost">BlockfrostProvider</Link>, so you can swap them interchangeably.
+
+## Quick Start
+
+Install the MeshJS package:
+
+```bash
+npm install @meshsdk/core
+```
+
+Create and populate the fetcher:
 
 ```tsx
 import { OfflineFetcher } from "@meshsdk/core";
 
 // Create a new instance
 const fetcher = new OfflineFetcher();
-// Create with specified network
-const fetcherWithNetwork = new OfflineFetcher("mainnet");
-```
 
-Before you can fetch data, you need to add it to the fetcher. Here are examples of adding different types of blockchain data:
-
-```tsx
-// Add account information
-fetcher.addAccount("addr1...", {
-  balance: "1000000",
-  rewards: "500000",
-  withdrawals: "100000",
-  poolId: "pool1..." // optional
-});
-
-// Add UTXOs
+// Add test data
 fetcher.addUTxOs([
   {
     input: {
-      txHash: "1234...",
-      outputIndex: 0
+      txHash: "abc123...",
+      outputIndex: 0,
     },
     output: {
-      address: "addr1...",
-      amount: [{ unit: "lovelace", quantity: "1000000" }],
-      // Optional fields for script UTXOs:
-      scriptHash: "abcd...",
-      dataHash: "ef12...",
-      plutusData: "...",
-      scriptRef: "..."
-    }
-  }
+      address: "addr_test1...",
+      amount: [{ unit: "lovelace", quantity: "5000000" }],
+    },
+  },
 ]);
 
-// Add asset addresses
-fetcher.addAssetAddresses("policyID.assetName", [
-  { address: "addr1...", quantity: "1" }
-]);
+// Use like any other provider
+const utxos = await fetcher.fetchAddressUTxOs("addr_test1...");
+```
 
-// Add asset metadata
-fetcher.addAssetMetadata("policyID.assetName", {
-  name: "Asset Name",
-  image: "ipfs://...",
-  // Any other metadata attributes
+## Configuration Options
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `network` | `string` | No | Network identifier (e.g., "mainnet", "preprod") |
+
+**Example:**
+
+```tsx
+import { OfflineFetcher } from "@meshsdk/core";
+
+// Create with default network
+const fetcher = new OfflineFetcher();
+
+// Create with specific network
+const mainnetFetcher = new OfflineFetcher("mainnet");
+const preprodFetcher = new OfflineFetcher("preprod");
+```
+
+## Adding Data
+
+Before fetching data, you must add it to the OfflineFetcher. The following methods populate the internal data store.
+
+### addAccount
+
+Add stake account information.
+
+```tsx
+fetcher.addAccount(address: string, info: AccountInfo): void
+```
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `address` | `string` | Yes | The stake address |
+| `info` | `AccountInfo` | Yes | Account information object |
+
+**Example:**
+
+```tsx
+import { OfflineFetcher } from "@meshsdk/core";
+
+const fetcher = new OfflineFetcher();
+
+fetcher.addAccount("stake_test1...", {
+  balance: "1000000000",
+  rewards: "50000000",
+  withdrawals: "10000000",
+  poolId: "pool1...", // optional
 });
+```
+
+---
+
+### addUTxOs
+
+Add UTxOs to the fetcher. These are returned by `fetchAddressUTxOs` and `fetchUTxOs`.
+
+```tsx
+fetcher.addUTxOs(utxos: UTxO[]): void
+```
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `utxos` | `UTxO[]` | Yes | Array of UTxO objects |
+
+**Example:**
+
+```tsx
+import { OfflineFetcher } from "@meshsdk/core";
+
+const fetcher = new OfflineFetcher();
+
+fetcher.addUTxOs([
+  {
+    input: {
+      txHash: "abc123def456...",
+      outputIndex: 0,
+    },
+    output: {
+      address: "addr_test1qpvx0sacufuypa2k4sngk7q40zc5c4npl337uusdh64kv0uafhxhu32dys6pvn6wlw8dav6cmp4pmtv7cc3yel9uu0nq93swx9",
+      amount: [
+        { unit: "lovelace", quantity: "5000000" },
+        { unit: "d9312da562da182b02322fd8acb536f37eb9d29fba7c49dc172555274d657368546f6b656e", quantity: "1" },
+      ],
+    },
+  },
+  // Add script UTxOs with additional fields
+  {
+    input: {
+      txHash: "def789...",
+      outputIndex: 0,
+    },
+    output: {
+      address: "addr_test1...",
+      amount: [{ unit: "lovelace", quantity: "10000000" }],
+      scriptHash: "abcd1234...",
+      dataHash: "ef567890...",
+      plutusData: "...",
+      scriptRef: "...",
+    },
+  },
+]);
+```
+
+---
+
+### addAssetAddresses
+
+Add address holdings for a specific asset.
+
+```tsx
+fetcher.addAssetAddresses(asset: string, addresses: AssetAddress[]): void
+```
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `asset` | `string` | Yes | The asset unit (policy ID + asset name) |
+| `addresses` | `AssetAddress[]` | Yes | Array of addresses and quantities |
+
+**Example:**
+
+```tsx
+import { OfflineFetcher } from "@meshsdk/core";
+
+const fetcher = new OfflineFetcher();
+
+fetcher.addAssetAddresses(
+  "d9312da562da182b02322fd8acb536f37eb9d29fba7c49dc172555274d657368546f6b656e",
+  [
+    { address: "addr_test1...", quantity: "1" },
+    { address: "addr_test2...", quantity: "5" },
+  ]
+);
+```
+
+---
+
+### addAssetMetadata
+
+Add metadata for an asset.
+
+```tsx
+fetcher.addAssetMetadata(asset: string, metadata: AssetMetadata): void
+```
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `asset` | `string` | Yes | The asset unit (policy ID + asset name) |
+| `metadata` | `AssetMetadata` | Yes | Asset metadata object |
+
+**Example:**
+
+```tsx
+import { OfflineFetcher } from "@meshsdk/core";
+
+const fetcher = new OfflineFetcher();
+
+fetcher.addAssetMetadata(
+  "d9312da562da182b02322fd8acb536f37eb9d29fba7c49dc172555274d657368546f6b656e",
+  {
+    name: "MeshToken",
+    image: "ipfs://QmXyz...",
+    description: "A test token",
+    // Any other CIP-25 metadata fields
+  }
+);
+```
+
+---
+
+### addProtocolParameters
+
+Add protocol parameters.
+
+```tsx
+fetcher.addProtocolParameters(params: Protocol): void
+```
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `params` | `Protocol` | Yes | Protocol parameters object |
+
+**Example:**
+
+```tsx
+import { OfflineFetcher } from "@meshsdk/core";
+
+const fetcher = new OfflineFetcher();
+
+fetcher.addProtocolParameters({
+  epoch: 290,
+  minFeeA: 44,
+  minFeeB: 155381,
+  maxBlockSize: 73728,
+  maxTxSize: 16384,
+  maxBlockHeaderSize: 1100,
+  keyDeposit: 2000000,
+  poolDeposit: 500000000,
+  minPoolCost: "340000000",
+  priceMem: 0.0577,
+  priceStep: 0.0000721,
+  // ... other parameters
+});
+```
+
+---
+
+### addSerializedTransaction
+
+Add a serialized transaction for tracking.
+
+```tsx
+fetcher.addSerializedTransaction(txHash: string): void
+```
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `txHash` | `string` | Yes | The transaction hash |
+
+**Example:**
+
+```tsx
+import { OfflineFetcher } from "@meshsdk/core";
+
+const fetcher = new OfflineFetcher();
+
+fetcher.addSerializedTransaction(
+  "f4ec9833a3bf95403d395f699bc564938f3419537e7fb5084425d3838a4b6159"
+);
+```
+
+## State Persistence
+
+The OfflineFetcher can save and load its state, enabling test fixtures and data sharing.
+
+### toJSON
+
+Export the current state as JSON.
+
+```tsx
+const state = fetcher.toJSON(): string
+```
+
+**Returns:** JSON string representation of all stored data.
+
+**Example:**
+
+```tsx
+import { OfflineFetcher } from "@meshsdk/core";
+
+const fetcher = new OfflineFetcher();
+
+// Add data
+fetcher.addUTxOs([...]);
+fetcher.addProtocolParameters({...});
+
+// Save state
+const state = fetcher.toJSON();
+localStorage.setItem("fetcher-state", state);
+
+// Or save to file
+import fs from "fs";
+fs.writeFileSync("test-fixtures.json", state);
+```
+
+---
+
+### fromJSON
+
+Create a new OfflineFetcher from saved state.
+
+```tsx
+const fetcher = OfflineFetcher.fromJSON(json: string): OfflineFetcher
+```
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `json` | `string` | Yes | JSON state from `toJSON()` |
+
+**Returns:** New OfflineFetcher instance with loaded data.
+
+**Example:**
+
+```tsx
+import { OfflineFetcher } from "@meshsdk/core";
+
+// Load from localStorage
+const savedState = localStorage.getItem("fetcher-state");
+const fetcher = OfflineFetcher.fromJSON(savedState);
+
+// Or load from file
+import fs from "fs";
+const fileState = fs.readFileSync("test-fixtures.json", "utf-8");
+const fetcher = OfflineFetcher.fromJSON(fileState);
+```
+
+## API Reference
+
+All fetch methods work identically to online providers but return data from the internal store.
+
+### get
+
+Fetch data from a URL path (returns empty for offline).
+
+```tsx
+await fetcher.get(endpoint: string): Promise<any>
+```
+
+---
+
+### fetchAccountInfo
+
+Retrieve stake account information.
+
+```tsx
+await fetcher.fetchAccountInfo(address: string): Promise<AccountInfo>
+```
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `address` | `string` | Yes | The stake address |
+
+**Example:**
+
+```tsx
+import { OfflineFetcher } from "@meshsdk/core";
+
+const fetcher = new OfflineFetcher();
+
+fetcher.addAccount("stake_test1...", {
+  balance: "1000000000",
+  rewards: "50000000",
+  withdrawals: "10000000",
+});
+
+const accountInfo = await fetcher.fetchAccountInfo("stake_test1...");
+console.log(accountInfo.balance);
+```
+
+---
+
+### fetchAddressAssets
+
+Fetch assets held by an address.
+
+```tsx
+await fetcher.fetchAddressAssets(address: string): Promise<Asset[]>
+```
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `address` | `string` | Yes | The wallet address |
+
+**Returns:** Array of assets derived from UTxOs at that address.
+
+---
+
+### fetchAddressUTxOs
+
+Fetch UTxOs controlled by an address.
+
+```tsx
+await fetcher.fetchAddressUTxOs(address: string, asset?: string): Promise<UTxO[]>
+```
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `address` | `string` | Yes | The wallet address |
+| `asset` | `string` | No | Filter by asset unit |
+
+**Example:**
+
+```tsx
+import { OfflineFetcher } from "@meshsdk/core";
+
+const fetcher = new OfflineFetcher();
+
+fetcher.addUTxOs([
+  {
+    input: { txHash: "abc123...", outputIndex: 0 },
+    output: {
+      address: "addr_test1...",
+      amount: [{ unit: "lovelace", quantity: "5000000" }],
+    },
+  },
+]);
+
+// Fetch all UTxOs
+const utxos = await fetcher.fetchAddressUTxOs("addr_test1...");
+
+// Fetch UTxOs with specific asset
+const filtered = await fetcher.fetchAddressUTxOs(
+  "addr_test1...",
+  "d9312da562da182b02322fd8acb536f37eb9d29fba7c49dc172555274d657368546f6b656e"
+);
+```
+
+---
+
+### fetchAssetAddresses
+
+Fetch addresses holding a specific asset.
+
+```tsx
+await fetcher.fetchAssetAddresses(asset: string): Promise<AssetAddress[]>
+```
+
+---
+
+### fetchAssetMetadata
+
+Fetch metadata for an asset.
+
+```tsx
+await fetcher.fetchAssetMetadata(asset: string): Promise<AssetMetadata>
+```
+
+---
+
+### fetchBlockInfo
+
+Fetch block information.
+
+```tsx
+await fetcher.fetchBlockInfo(hash: string): Promise<BlockInfo>
+```
+
+---
+
+### fetchCollectionAssets
+
+Fetch assets in a collection by policy ID.
+
+```tsx
+await fetcher.fetchCollectionAssets(policyId: string, cursor?: number): Promise<{ assets: Asset[]; next: number | null }>
+```
+
+---
+
+### fetchHandleAddress
+
+Resolve an ADA Handle to an address.
+
+```tsx
+await fetcher.fetchHandleAddress(handle: string): Promise<string>
+```
+
+---
+
+### fetchHandle
+
+Fetch CIP-68 handle metadata.
+
+```tsx
+await fetcher.fetchHandle(handle: string): Promise<HandleMetadata>
+```
+
+---
+
+### fetchProtocolParameters
+
+Fetch protocol parameters.
+
+```tsx
+await fetcher.fetchProtocolParameters(epoch?: number): Promise<Protocol>
+```
+
+---
+
+### fetchTxInfo
+
+Fetch transaction information.
+
+```tsx
+await fetcher.fetchTxInfo(hash: string): Promise<TransactionInfo>
+```
+
+---
+
+### fetchUTxOs
+
+Fetch UTxOs by transaction hash.
+
+```tsx
+await fetcher.fetchUTxOs(hash: string, index?: number): Promise<UTxO[]>
+```
+
+---
+
+### fetchGovernanceProposal
+
+Fetch governance proposal information.
+
+```tsx
+await fetcher.fetchGovernanceProposal(txHash: string, certIndex: number): Promise<ProposalInfo>
+```
+
+## Complete Example
+
+```tsx
+import { OfflineFetcher, MeshTxBuilder } from "@meshsdk/core";
+import { MeshCardanoHeadlessWallet, AddressType } from "@meshsdk/wallet";
+
+// Create and populate fetcher
+const fetcher = new OfflineFetcher("preprod");
 
 // Add protocol parameters
 fetcher.addProtocolParameters({
@@ -70,270 +568,86 @@ fetcher.addProtocolParameters({
   keyDeposit: 2000000,
   poolDeposit: 500000000,
   minPoolCost: "340000000",
-  // Other parameters...
+  priceMem: 0.0577,
+  priceStep: 0.0000721,
+  maxValSize: 5000,
+  collateralPercent: 150,
+  maxCollateralInputs: 3,
+  coinsPerUtxoSize: "4310",
 });
 
-// Add serilized transaction
-fetcher.addSerializedTransaction("txHash");
-```
-
-The fetcher's state can be saved and loaded, making it easy to persist data between sessions:
-
-```tsx
-// Save state
-const state = fetcher.toJSON();
-localStorage.setItem('fetcher-state', state);
-
-// Load state
-const savedState = localStorage.getItem('fetcher-state');
-const fetcher = OfflineFetcher.fromJSON(savedState);
-```
-
-Once data is added, you can use the fetch* methods just like with other providers such as <Link href="/providers/blockfrost">BlockfrostProvider</Link>. This makes OfflineFetcher a drop-in replacement for testing and offline scenarios.
-
-
-## Get data from URL
-
-You can fetch any data from the blockchain by providing the URL path.
-
-```tsx
-// Params: URL
-
-await provider.get('/addresses/addr_test1qpvx0sacufuypa2k4sngk7q40zc5c4npl337uusdh64kv0uafhxhu32dys6pvn6wlw8dav6cmp4pmtv7cc3yel9uu0nq93swx9/transactions')
-```
-
-
-## Fetch Account Info
-
-Obtain information about a specific stake account.
-
-```tsx
-// Params: Stake Address
-
-await provider.fetchAccountInfo('stake_test1uzw5mnt7g4xjgdqkfa80hrk7kdvds6sa4k0vvgjvlj7w8eskffj2n')
-```
-
-
-## Fetch Address Assets
-
-Fetch assets from an address.
-
-```tsx
-// Params: Address
-
-await provider.fetchAddressAssets('addr_test1qpvx0sacufuypa2k4sngk7q40zc5c4npl337uusdh64kv0uafhxhu32dys6pvn6wlw8dav6cmp4pmtv7cc3yel9uu0nq93swx9')
-```
-
-<Card>
-  ### Fetch Address UTxOs [!toc]
-
-  Fetch UTxOs from address
-
-  ```tsx
-  await provider.fetchAddressAssets(
-    'addr_test1qpvx0sacufuypa2k4sngk7q40zc5c4npl337uusdh64kv0uafhxhu32dys6pvn6wlw8dav6cmp4pmtv7cc3yel9uu0nq93swx9'
-  );
-  ```
-</Card>
-
-
-<br />
-
-<Card>
-  ### Fetch assets from address [!toc]
-
-  Fetch assets given an address
-
-  ```tsx
-  await provider.fetchAddressAssets(
-    'addr_test1qpvx0sacufuypa2k4sngk7q40zc5c4npl337uusdh64kv0uafhxhu32dys6pvn6wlw8dav6cmp4pmtv7cc3yel9uu0nq93swx9',
-  );
-  ```
-</Card>
-
-
-## Fetch Address UTxOs
-
-Fetch UTxOs controlled by an address.
-
-```tsx
-// Params: Address
-
-await provider.fetchAddressUTxOs('addr_test1qpvx0sacufuypa2k4sngk7q40zc5c4npl337uusdh64kv0uafhxhu32dys6pvn6wlw8dav6cmp4pmtv7cc3yel9uu0nq93swx9')
-```
-
-Optionally, you can filter UTXOs containing a particular asset by providing `asset`, where it is the concatenation of policy ID and asset.
-
-```tsx
-await fetchAddressUTxOs(address: string, asset?: string)
-```
-
-<Card>
-  ### Fetch Address UTxOs [!toc]
-
-  Fetch UTxOs from address
-
-  ```tsx
-  await provider.fetchAddressUTxOs(
-    'addr_test1qpvx0sacufuypa2k4sngk7q40zc5c4npl337uusdh64kv0uafhxhu32dys6pvn6wlw8dav6cmp4pmtv7cc3yel9uu0nq93swx9'
-  );
-  ```
-</Card>
-
-<br />
-
-<Card>
-  ### Fetch UTxOs with Asset [!toc]
-
-  Fetch UTxOs from address with asset
-
-  ```tsx
-  await provider.fetchAddressUTxOs(
-    'addr_test1qpvx0sacufuypa2k4sngk7q40zc5c4npl337uusdh64kv0uafhxhu32dys6pvn6wlw8dav6cmp4pmtv7cc3yel9uu0nq93swx9',
-    'd9312da562da182b02322fd8acb536f37eb9d29fba7c49dc172555274d657368546f6b656e'
-  );
-  ```
-</Card>
-
-
-## Fetch Asset Addresses
-
-Fetch a list of a addresses containing a specific asset where it is the concatenation of policy ID and asset.
-
-```tsx
-// Params: Asset Unit
-
-await provider.fetchAssetAddresses('d9312da562da182b02322fd8acb536f37eb9d29fba7c49dc172555274d657368546f6b656e')
-```
-
-
-## Fetch Asset Metadata
-
-Fetch the asset metadata by providing asset's `unit`, which is the concatenation of policy ID and asset name in hex.
-
-```tsx
-// Params: Asset Unit
-
-await provider.fetchAssetMetadata('d9312da562da182b02322fd8acb536f37eb9d29fba7c49dc172555274d657368546f6b656e')
-```
-
-
-## Fetch Block Info
-
-Fetch block infomation. You can get the hash from `fetchTxInfo()`.
-
-```tsx
-// Params: Block hash
-
-await provider.fetchBlockInfo('79f60880b097ec7dabb81f75f0b52fedf5e922d4f779a11c0c432dcf22c56089')
-```
-
-
-## Fetch Collection Assets
-
-Fetch a list of assets belonging to a collection by providing its Policy ID.
-
-```tsx
-await provider.fetchCollectionAssets('d9312da562da182b02322fd8acb536f37eb9d29fba7c49dc17255527')
-```
-
-The API will return a list of `assets` and a cursor `next`. If the cursor is not null, you can use it to fetch the next page of results. Here is an example of the response.
-
-```tsx
-{
-  "assets": [
-    {
-      "unit": "d9312da562da182b02322fd8acb536f37eb9d29fba7c49dc17255527",
-      "quantity": "1"
+// Add test UTxOs
+fetcher.addUTxOs([
+  {
+    input: {
+      txHash: "abc123def456789abc123def456789abc123def456789abc123def456789abc1",
+      outputIndex: 0,
     },
-  ],
-  "next": 2
+    output: {
+      address: "addr_test1qpvx0sacufuypa2k4sngk7q40zc5c4npl337uusdh64kv0uafhxhu32dys6pvn6wlw8dav6cmp4pmtv7cc3yel9uu0nq93swx9",
+      amount: [{ unit: "lovelace", quantity: "100000000" }],
+    },
+  },
+]);
+
+// Use in tests
+async function testTransaction() {
+  const wallet = await MeshCardanoHeadlessWallet.fromMnemonic({
+    networkId: 0,
+    walletAddressType: AddressType.Base,
+    fetcher: fetcher,
+    mnemonic: ["test", "test", "test", "test", "test", "test", "test", "test", "test", "test", "test", "test", "test", "test", "test", "test", "test", "test", "test", "test", "test", "test", "test", "test"],
+  });
+
+  const utxos = await wallet.getUtxosMesh();
+  console.log(`Wallet has ${utxos.length} UTxOs`);
+
+  const txBuilder = new MeshTxBuilder({
+    fetcher: fetcher,
+  });
+
+  const unsignedTx = await txBuilder
+    .txOut("addr_test1...", [{ unit: "lovelace", quantity: "5000000" }])
+    .changeAddress(await wallet.getChangeAddressBech32())
+    .selectUtxosFrom(utxos)
+    .complete();
+
+  console.log("Transaction built successfully");
 }
+
+// Save state for reuse
+const state = fetcher.toJSON();
+console.log("State saved:", state.length, "bytes");
 ```
 
-The `fetchCollectionAssets` function also accepts an optional `cursor` parameter to fetch the next page of results. The default value is `1`.
+## Troubleshooting
 
-```tsx
-await fetchCollectionAssets(
-  policyId: string,
-  cursor = 1
-)
-```
+### Empty Results
 
+**Problem:** Fetch methods return empty arrays or undefined.
 
-## Fetch Handle Address
+**Solution:** Ensure you've added the corresponding data before fetching. The OfflineFetcher only returns data that has been explicitly added.
 
-<Link href="https://handle.me/">ADA Handle</Link> allows users to use a human-readable "Handle" to associate an address.
+### Address Mismatch
 
-Each Handle is a unique NFT, minted and issued on the Cardano blockchain. These NFTs act as unique identifiers for the UTXO that they reside in.
+**Problem:** UTxOs not found for an address.
 
-We can resolve the handle's address with `fetchHandleAddress`.
+**Solution:** Verify the address in `addUTxOs` matches exactly what you're querying. Addresses are case-sensitive.
 
-```tsx
-// Params: Handle
+### Missing Protocol Parameters
 
-await provider.fetchHandleAddress('meshsdk')
-```
+**Problem:** Transaction building fails without protocol parameters.
 
+**Solution:** Call `addProtocolParameters` with complete parameter object before building transactions.
 
-## Fetch Handle
+### State Not Loading
 
-<Link href="https://handle.me/">ADA Handle</Link> allows users to use a human-readable "Handle" to associate an address.
+**Problem:** `fromJSON` throws an error.
 
-Each Handle is a unique NFT, minted and issued on the Cardano blockchain. These NFTs act as unique identifiers for the UTXO that they reside in.
+**Solution:** Ensure the JSON string is valid and was created by `toJSON`. Check for corruption if loading from file.
 
-ADA Handle also released a CIP68 handle and this function will fetch the metadata of the handle.
+## Related Links
 
-```tsx
-// Params: Handle
-
-await provider.fetchHandle('meshsdk')
-```
-
-
-## Fetch Protocol Parameters
-
-Fetch the latest protocol parameters.
-
-```tsx
-await provider.fetchProtocolParameters()
-```
-
-Optionally, you can provide an epoch number to fetch the protocol parameters of that epoch.
-
-
-## Fetch Transaction Info
-
-Fetch transaction infomation. Only confirmed transaction can be retrieved.
-
-```tsx
-await provider.fetchTxInfo('f4ec9833a3bf95403d395f699bc564938f3419537e7fb5084425d3838a4b6159')
-```
-
-
-## Fetch UTxOs
-
-Get UTxOs for a given hash.
-
-```tsx
-// Params: Hash
-
-await provider.fetchUTxOs('dfd2a2616e6154a092807b1ceebb9ddcadc0f22cf5c8e0e6b0757815083ccb70')
-```
-
-Optionally, you can specify the index of the index output.
-
-```tsx
-await provider.fetchUTxOs('hash_here', 0)
-```
-
-
-## Fetch Proposal Info
-
-Get information for a given governance proposal, identified by the txHash and proposal index
-
-```tsx
-// Params: TxHash, CertIndex
-
-await provider.fetchGovernanceProposal('372d688faa77e146798b581b322c0f2981a9023764736ade5d12e0e4e796af8c', 0)
-```
+- [Offline Evaluator](/providers/offline-evaluator) - Evaluate Plutus scripts offline
+- [MeshJS Transaction Builder](/transaction/basics)
+- [MeshJS Testing Guide](/guides/testing)

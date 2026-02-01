@@ -1,7 +1,8 @@
 ---
-title: "How to Run Standalone Cardano Scripts with TypeScript"
-description: "Execute TypeScript scripts directly to interact with the Cardano blockchain using the Mesh Cardano SDK and tsx for JavaScript Web3 development."
+title: "Run Standalone Cardano Scripts with TypeScript"
+description: "Execute TypeScript scripts directly to interact with Cardano using Mesh SDK. Build, sign, and submit transactions without a framework."
 ---
+
 import Link from "fumadocs-core/link";
 import { HowToSchema } from "@/components/seo";
 
@@ -10,103 +11,286 @@ import { HowToSchema } from "@/components/seo";
   description="Run JavaScript/TypeScript files directly to interact with the Cardano blockchain using Mesh SDK and the tsx package."
   totalTime="PT15M"
   steps={[
-    { name: "Create package.json", text: "Create a package.json file in the project root with type module and tsx dev script." },
-    { name: "Install packages", text: "Run npm install to install dependencies, then npm install tsx @meshsdk/core." },
-    { name: "Create index.ts", text: "Create index.ts with blockchain provider setup, wallet initialization, and transaction code." },
-    { name: "Configure credentials", text: "Replace YOUR_KEY_HERE with a valid Blockfrost key and add your mnemonic words." },
-    { name: "Run the application", text: "Execute npm run dev to run the script and view the transaction hash in the console." }
+    { name: "Create project", text: "Initialize a new project with package.json configured for ES modules." },
+    { name: "Install dependencies", text: "Install tsx for TypeScript execution and @meshsdk/core for blockchain interaction." },
+    { name: "Create script", text: "Write a TypeScript script that builds and submits a transaction." },
+    { name: "Configure credentials", text: "Add your Blockfrost API key and wallet mnemonic." },
+    { name: "Run the script", text: "Execute the script with npm run dev to submit the transaction." }
   ]}
 />
 
-Running standalone TypeScript scripts is the fastest way to interact with Cardano for testing, automation, and quick prototypes. Using `tsx`, you can execute TypeScript files directly without a build step—ideal for Cardano dApp development and blockchain scripting.
+## Overview
 
-**What you'll build:**
-- A minimal project setup with the Mesh Cardano SDK
+Standalone scripts let you interact with Cardano without a web framework. This is ideal for testing, automation, backend services, and quick prototypes.
+
+### What you will build
+
+- A minimal TypeScript project that runs directly with `tsx`
 - A script that creates a wallet and sends a transaction
 - Zero-config TypeScript execution
 
-## How Do You Set Up the Project?
+### Prerequisites
 
-Create `package.json` in your project root:
+- Node.js 18+ installed
+- A Blockfrost API key (free tier available)
+- A funded Cardano wallet (testnet or mainnet)
 
-```tsx
+### Time to complete
+
+15 minutes
+
+## Quick Start
+
+Clone the template repository for the fastest setup:
+
+```bash
+git clone https://github.com/MeshJS/standalone-template
+cd standalone-template
+npm install
+```
+
+Add your credentials to `.env` and run:
+
+```bash
+npm run dev
+```
+
+## Step-by-Step Setup
+
+### Step 1: Create the project
+
+Create a new directory and initialize the project:
+
+```bash
+mkdir mesh-script
+cd mesh-script
+npm init -y
+```
+
+**What to expect:** A `package.json` file is created.
+
+### Step 2: Configure package.json
+
+Update `package.json` with ES module settings:
+
+```json
 {
+  "name": "mesh-script",
   "type": "module",
-  "dependencies": {},
   "scripts": {
     "dev": "tsx index.ts"
-  }
+  },
+  "dependencies": {}
 }
 ```
 
-Install the dependencies:
+**What to expect:** The project is configured to use ES modules and run TypeScript directly.
 
-```tsx
+### Step 3: Install dependencies
+
+Install the required packages:
+
+```bash
 npm install tsx @meshsdk/core
 ```
 
-- `@meshsdk/core` — The Mesh Cardano SDK for TypeScript blockchain development
-- `tsx` — Runs TypeScript directly without compilation
+- `tsx` - Runs TypeScript files directly without compilation
+- `@meshsdk/core` - Mesh SDK core functionality
 
-## How Do You Send a Transaction?
+**What to expect:** Both packages install successfully.
 
-Create `index.ts` with the following code:
+### Step 4: Create the script
 
-```tsx
-import { BlockfrostProvider, MeshWallet, MeshTxBuilder } from "@meshsdk/core";
+Create `index.ts`:
 
-// Set up the blockchain provider with your key
-const provider = new BlockfrostProvider("YOUR_KEY_HERE");
+```typescript
+import {
+  BlockfrostProvider,
+  MeshTxBuilder,
+} from "@meshsdk/core";
+import { MeshCardanoHeadlessWallet, AddressType } from "@meshsdk/wallet";
 
-// Initialize the wallet with a mnemonic key
-const wallet = new MeshWallet({
-  networkId: 0,
+// Configure the blockchain provider
+const provider = new BlockfrostProvider("YOUR_BLOCKFROST_KEY");
+
+// Initialize wallet with mnemonic
+const wallet = await MeshCardanoHeadlessWallet.fromMnemonic({
+  networkId: 0, // 0 = testnet, 1 = mainnet
+  walletAddressType: AddressType.Base,
   fetcher: provider,
   submitter: provider,
-  key: {
-    type: "mnemonic",
-    words: [
-      "your", "mnemonic", "...", "here",
-    ],
-  },
+  mnemonic: [
+    "your", "twelve", "word", "mnemonic",
+    "phrase", "goes", "here", "replace",
+    "with", "actual", "words", "now",
+  ],
 });
 
-// Get UTxOs and change address
-const utxos = await wallet.getUtxos();
-const changeAddress = await wallet.getChangeAddress();
+// Get wallet info
+const utxos = await wallet.getUtxosMesh();
+const changeAddress = await wallet.getChangeAddressBech32();
 
-// Create and send a transaction
+console.log("Wallet address:", changeAddress);
+console.log("UTxO count:", utxos.length);
+
+// Build and send a transaction
 const txBuilder = new MeshTxBuilder({
   fetcher: provider,
 });
 
+const recipientAddress = "addr_test1qp2k7wnshzngpqw0xmy33hvexw4aeg60yr79x3yeeqt3s2uvldqg2n2p8y4kyjm8sqfyg0tpq9042atz0fr8c3grjmysdp6yv3";
+
 const unsignedTx = await txBuilder
-  .txOut("addr_test1qp2k7wnshzngpqw0xmy33hvexw4aeg60yr79x3yeeqt3s2uvldqg2n2p8y4kyjm8sqfyg0tpq9042atz0fr8c3grjmysdp6yv3", [{ unit: "lovelace", quantity: "1000000" }])
+  .txOut(recipientAddress, [{ unit: "lovelace", quantity: "1000000" }])
   .changeAddress(changeAddress)
   .selectUtxosFrom(utxos)
   .complete();
 
-const signedTx = await wallet.signTx(unsignedTx);
+const signedTx = await wallet.signTx(unsignedTx, false);
 const txHash = await wallet.submitTx(signedTx);
-console.log('Transaction hash:', txHash);
+
+console.log("Transaction submitted:", txHash);
 ```
 
-## How Do You Run the Script?
+**What to expect:** A TypeScript file that sends 1 ADA to a recipient address.
+
+### Step 5: Configure credentials
 
 Before running, replace the placeholder values:
-- Get a Blockfrost API key from <Link href="https://blockfrost.io/">blockfrost.io</Link>
-- Generate a mnemonic using <Link href="/apis/wallets/meshwallet#generate-wallet">MeshWallet.brew()</Link>
+
+1. Get a Blockfrost API key from [blockfrost.io](https://blockfrost.io/)
+2. Generate a wallet mnemonic using `generateMnemonic()` from `@meshsdk/core` or use an existing one
+3. Fund the wallet using the [Cardano testnet faucet](https://docs.cardano.org/cardano-testnets/tools/faucet)
+
+**What to expect:** Your script is configured with valid credentials.
+
+### Step 6: Run the script
 
 Execute the script:
 
-```tsx
+```bash
 npm run dev
 ```
 
-The transaction hash logs to the console upon success.
+**What to expect:** The console displays:
 
-## What Should You Explore Next?
+```
+Wallet address: addr_test1q...
+UTxO count: 3
+Transaction submitted: abc123def456...
+```
 
-- View the <Link href="https://github.com/MeshJS/standalone-template">complete template on GitHub</Link>
-- Learn about <Link href="/apis/txbuilder">transaction building options</Link>
-- Explore <Link href="/guides/minting-on-nodejs">server-side NFT minting</Link>
+## Complete Example
+
+Here is the complete `index.ts` with environment variables:
+
+```typescript
+import {
+  BlockfrostProvider,
+  MeshTxBuilder,
+} from "@meshsdk/core";
+import { MeshCardanoHeadlessWallet, AddressType } from "@meshsdk/wallet";
+
+// Load from environment variables for security
+const BLOCKFROST_KEY = process.env.BLOCKFROST_KEY!;
+const MNEMONIC = process.env.MNEMONIC!;
+
+if (!BLOCKFROST_KEY || !MNEMONIC) {
+  console.error("Missing BLOCKFROST_KEY or MNEMONIC environment variables");
+  process.exit(1);
+}
+
+const provider = new BlockfrostProvider(BLOCKFROST_KEY);
+
+async function main() {
+  const wallet = await MeshCardanoHeadlessWallet.fromMnemonic({
+    networkId: 0,
+    walletAddressType: AddressType.Base,
+    fetcher: provider,
+    submitter: provider,
+    mnemonic: MNEMONIC.split(" "),
+  });
+
+  const utxos = await wallet.getUtxosMesh();
+  const changeAddress = await wallet.getChangeAddressBech32();
+
+  console.log("Wallet address:", changeAddress);
+  console.log("Available UTxOs:", utxos.length);
+
+  if (utxos.length === 0) {
+    console.error("No UTxOs available. Fund the wallet first.");
+    process.exit(1);
+  }
+
+  const txBuilder = new MeshTxBuilder({ fetcher: provider });
+
+  const recipientAddress = "addr_test1qp2k7wnshzngpqw0xmy33hvexw4aeg60yr79x3yeeqt3s2uvldqg2n2p8y4kyjm8sqfyg0tpq9042atz0fr8c3grjmysdp6yv3";
+
+  const unsignedTx = await txBuilder
+    .txOut(recipientAddress, [{ unit: "lovelace", quantity: "1000000" }])
+    .changeAddress(changeAddress)
+    .selectUtxosFrom(utxos)
+    .complete();
+
+  const signedTx = await wallet.signTx(unsignedTx, false);
+  const txHash = await wallet.submitTx(signedTx);
+
+  console.log("Transaction submitted:", txHash);
+  console.log(`View on explorer: https://preprod.cardanoscan.io/transaction/${txHash}`);
+}
+
+main().catch(console.error);
+```
+
+Run with environment variables:
+
+```bash
+BLOCKFROST_KEY=your_key MNEMONIC="your twelve word phrase" npm run dev
+```
+
+## Next Steps
+
+- <Link href="/apis/txbuilder">Learn transaction building options</Link> - Multiple outputs, metadata, minting
+- <Link href="/guides/minting-on-nodejs">Mint NFTs server-side</Link> - Create tokens without a browser
+- <Link href="/apis/wallets/meshwallet">Explore Headless Wallet options</Link> - Private keys, mnemonic
+- <Link href="/guides/aiken">Interact with smart contracts</Link> - Lock and unlock funds
+
+## Troubleshooting
+
+### No UTxOs available
+
+**Cause:** The wallet has no funds.
+
+**Solution:** Fund the wallet using the [Cardano testnet faucet](https://docs.cardano.org/cardano-testnets/tools/faucet) or transfer ADA from another wallet.
+
+### Invalid Blockfrost key
+
+**Cause:** The API key is incorrect or for the wrong network.
+
+**Solution:** Verify the key at [blockfrost.io](https://blockfrost.io/). Use a Preprod key for testnet (`networkId: 0`) or Mainnet key for mainnet (`networkId: 1`).
+
+### Transaction failed
+
+**Cause:** Various issues like insufficient funds, invalid addresses, or network problems.
+
+**Solution:** Check the error message. Common fixes:
+- Ensure you have enough ADA (at least 2 ADA for most transactions)
+- Verify the recipient address is valid
+- Wait and retry if the network is congested
+
+### TypeScript errors
+
+**Cause:** Type mismatches or missing dependencies.
+
+**Solution:** Ensure you have the latest `@meshsdk/core` installed:
+
+```bash
+npm install @meshsdk/core@latest
+```
+
+## Related Links
+
+- <Link href="https://github.com/MeshJS/standalone-template">Complete template on GitHub</Link>
+- <Link href="/apis/txbuilder">Transaction Builder API</Link>
+- <Link href="/apis/wallets/meshwallet">Headless Wallet API</Link>
+- <Link href="/providers">Blockchain Providers</Link>

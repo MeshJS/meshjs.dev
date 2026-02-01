@@ -1,194 +1,381 @@
 ---
-title: "Getting Started"
-description: "Set up Yaci Dev Kit and start the devnet"
+title: "Getting Started with Yaci"
+description: "Set up a local Cardano devnet in minutes. Install Yaci DevKit, start your first devnet, and connect with Mesh SDK."
 ---
+
 import Link from "fumadocs-core/link";
 
-## Mesh Hosted Yaci Devnet
+## Overview
 
-### Connect right away with Yaci Provider [!toc]
+This guide walks you through setting up Yaci DevKit on your machine. By the end, you will have a fully functional local Cardano devnet ready for development.
 
-Mesh has a hosted Yaci Devnet that you can connect to right away. You can use the following URL to connect to the hosted Yaci Devnet:
+### What you will learn
 
-```bash
-https://yaci-node.meshjs.dev/api/v1/
-```
+- Connect to the Mesh-hosted Yaci devnet instantly
+- Install and configure Yaci DevKit locally
+- Create and manage devnets with yaci-cli
+- Fund wallets and query UTxOs
 
-### Import Yaci Provider [!toc]
+## Prerequisites
 
-Import `YaciProvider` and start using it to interact with the Yaci Devnet.
+Before installing Yaci DevKit locally, ensure you have:
 
-```tsx
+| Requirement | Description |
+|-------------|-------------|
+| **Docker** | Docker Desktop or Docker Engine installed and running |
+| **Disk space** | At least 10GB free for container images |
+| **Memory** | Minimum 4GB RAM available for containers |
+
+For the hosted option, you only need the `@meshsdk/core` package.
+
+## Quick start: Hosted devnet
+
+Connect to the Mesh-hosted Yaci devnet immediately - no installation required:
+
+```typescript
 import { YaciProvider } from "@meshsdk/core";
 
+// Connect to Mesh's hosted devnet (default URL)
 const provider = new YaciProvider();
+
+// Or specify the URL explicitly
+const providerExplicit = new YaciProvider("https://yaci-node.meshjs.dev/api/v1/");
+
+// Test the connection
 const params = await provider.fetchProtocolParameters();
-console.log(params);
+console.log("Protocol parameters:", params);
 ```
 
-<Link href="/yaci/transactions#import-yaci-provider">Learn more about Yaci Provider</Link> and learn more about <Link href="https://cloud.meshjs.dev/yaci">hosted Yaci Devnet</Link>
+Learn more about the <Link href="https://cloud.meshjs.dev/yaci">hosted Yaci devnet</Link>.
 
+## Installation: Local devnet
 
-## Set up your system to run Yaci Devkit
+### Step 1: Install Docker
 
-### Download and install Docker [!toc]
+Download and install Docker from the <Link href="https://docs.docker.com/get-started/get-docker/">official Docker website</Link>.
 
-You can download Docker from the official website. Docker is a platform for developers and sysadmins to develop, deploy, and run applications with containers.
-
-Go to the <Link href="https://docs.docker.com/get-started/get-docker/">Docker website</Link> and download the latest version, then follow the instructions to install it.
-
-After installing, open the Docker Desktop app and make sure it's running in the background.
-
-### Download the latest Yaci DevKit release [!toc]
-
-Go to Yaci releases on Github and download the latest release. Under `Assets`, you will find the `yaci-devkit-version.zip` file.
-
-Extract the zip file to a folder on your system. This folder will be your Yaci DevKit root directory.
-
-
-## Start a Yaci Devnet
-
-Open a terminal and navigate to the Yaci DevKit root directory. Run the following command to start the DevKit containers and yaci-cli:
+After installation:
+1. Open Docker Desktop
+2. Ensure Docker is running (check the system tray icon)
+3. Verify installation:
 
 ```bash
-$ ./bin/devkit.sh start
+docker --version
+# Docker version 24.0.0 or later
 ```
 
-### Start node [!toc]
+### Step 2: Download Yaci DevKit
 
-To create a new devnet, run the following command from yaci-cli:
+Download the latest release from <Link href="https://github.com/bloxbean/yaci-devkit/releases">GitHub Releases</Link>.
+
+1. Find the latest `yaci-devkit-x.x.x.zip` under Assets
+2. Extract to a folder (this becomes your DevKit root directory)
+3. Navigate to the extracted folder
 
 ```bash
-yaci-cli:>create-node -o --start
+cd yaci-devkit-x.x.x
 ```
 
-To create a new devnet with Babbage era, run the following command from yaci-cli:
+### Step 3: Start DevKit
+
+Launch the DevKit containers and yaci-cli:
 
 ```bash
-yaci-cli:>create-node -o --era babbage --start
+./bin/devkit.sh start
 ```
 
-To start a devnet with zero fees, run the following command from yaci-cli:
+This starts the Docker containers and opens the yaci-cli prompt.
+
+### Step 4: Create a devnet
+
+From the yaci-cli prompt, create and start a new devnet:
 
 ```bash
-yaci-cli:>create-node -o --genesis-profile zero_fee --start
+yaci-cli:> create-node -o --start
 ```
 
-To start a devnet with 30 slots per epoch, run the following command from yaci-cli:
+You should see output indicating the node is starting. The devnet is ready when blocks start being produced.
+
+## Setup options
+
+### Default devnet (Conway era)
 
 ```bash
-yaci-cli:>create-node -o -e 30 --start
+yaci-cli:> create-node -o --start
 ```
 
-After you have started your devnet, you can open Yaci Viewer from http://localhost:5173. Here you can view the blocks, transactions, and other details of the devnet.
+### Babbage era devnet
 
-If you want to configure the devnet, go to `config/node.properties`. And if you want to change settings and change default topup addreses, go to `config/env`.
+For compatibility with older smart contracts:
 
-You can use `YaciProvider` with the Yaci Store Api URL (http://localhost:8080/api/v1), to interact with the Yaci Devnet.
+```bash
+yaci-cli:> create-node -o --era babbage --start
+```
 
-```tsx
+### Zero-fee devnet
+
+Eliminate transaction fees for simpler testing:
+
+```bash
+yaci-cli:> create-node -o --genesis-profile zero_fee --start
+```
+
+### Custom epoch length
+
+Set slots per epoch (useful for testing epoch-dependent features):
+
+```bash
+# 30 slots per epoch
+yaci-cli:> create-node -o -e 30 --start
+```
+
+## Connect with Mesh SDK
+
+Once your devnet is running, connect with YaciProvider:
+
+```typescript
 import { YaciProvider } from "@meshsdk/core";
 
-const provider = new YaciProvider('http://localhost:8080/api/v1/');
+// Connect to local devnet
+const provider = new YaciProvider("http://localhost:8080/api/v1/");
+
+// Verify connection
 const params = await provider.fetchProtocolParameters();
-console.log(params);
+console.log("Connected to local devnet");
+
+// Fetch UTxOs
+const utxos = await provider.fetchAddressUTxOs(
+  "addr_test1qryvgass5dsrf2kxl3vgfz76uhp83kv5lagzcp29tcana68ca5aqa6swlq6llfamln09tal7n5kvt4275ckwedpt4v7q48uhex"
+);
+console.log("UTxOs:", utxos);
 ```
 
-### Support external PostgreSQL database for indexer [!toc]
+## API reference
 
-By default, Yaci DevKit's indexer uses an embedded H2 database. With this update, you can also configure an external PostgreSQL database.
+### YaciProvider constructor
 
-For Non-Docker distribution, edit config/application.properties and uncomment the following properties to set PostgreSQL database details:
+```typescript
+import { YaciProvider } from "@meshsdk/core";
+
+const provider = new YaciProvider(
+  yaciUrl?: string,      // Yaci Store API URL (default: Mesh hosted)
+  adminUrl?: string      // Optional admin API URL
+);
+```
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `yaciUrl` | `https://yaci-node.meshjs.dev/api/v1/` | Yaci Store REST API endpoint |
+| `adminUrl` | `undefined` | Admin API for advanced operations |
+
+## Built-in tools
+
+### Yaci Viewer
+
+After starting your devnet, open the block explorer at:
+
+```
+http://localhost:5173
+```
+
+View blocks, transactions, addresses, and UTxOs in a user-friendly interface.
+
+### Yaci Store API
+
+The REST API is available at:
+
+```
+http://localhost:8080/api/v1/
+```
+
+This API is Blockfrost-compatible, making it easy to swap between local and production environments.
+
+## CLI commands
+
+### Top up ADA
+
+Fund any address with test ADA:
 
 ```bash
-yaci.store.db.url=jdbc:postgresql://<dbhost>:<dbport>/<dbname>?currentSchema=<schema_name>
-yaci.store.db.username=user
-yaci.store.db.password=password
+devnet:default> topup <address> <amount>
 ```
 
-For Docker distribution, edit config/env and uncomment the following properties:
+Example:
 
 ```bash
-yaci_store_db_url=jdbc:postgresql://<dbhost>:<dbport>/<dbname>?currentSchema=<schema_name>
-yaci_store_db_username=user
-yaci_store_db_password=password
+devnet:default> topup addr_test1qpvx0sacufuypa2k4sngk7q40zc5c4npl337uusdh64kv0uafhxhu32dys6pvn6wlw8dav6cmp4pmtv7cc3yel9uu0nq93swx9 1000
 ```
 
+### Check UTxOs
 
-## Useful commands
-
-Here are some useful commands to interact with the Yaci DevKit.
-
-### Topup ADA [!toc]
-
-After you have started your devnet, you can topup ADA in your wallet. To topup ADA in your wallet, run the following command from devnet:
+Query UTxOs for an address:
 
 ```bash
-devnet:default>topup <address> <amount>
+devnet:default> utxos <address>
 ```
 
-For example:
+### Default addresses
 
-```bash
-devnet:default>topup addr_test1qpvx0sacufuypa2k4sngk7q40zc5c4npl337uusdh64kv0uafhxhu32dys6pvn6wlw8dav6cmp4pmtv7cc3yel9uu0nq93swx9 1000
-```
-
-### Check UTXO [!toc]
-
-To check the UTXO of an address, run the following command from devnet:
-
-```bash
-devnet:default>utxos <address>
-```
-
-For example:
-
-```bash
-devnet:default>utxos addr_test1qpvx0sacufuypa2k4sngk7q40zc5c4npl337uusdh64kv0uafhxhu32dys6pvn6wlw8dav6cmp4pmtv7cc3yel9uu0nq93swx9
-```
-
-### Default address info [!toc]
-
-You can get the default addresses of the devnet by running:
+Get the pre-funded default addresses:
 
 ```bash
 devnet:default> default-addresses
 ```
 
-By default, wallet mnemonic is
+Default wallet mnemonic:
 
-```bash
+```
 test test test test test test test test test test test test test test test test test test test test test test test sauce
 ```
 
-And it's address is
+Default address:
 
-```bash
+```
 addr_test1qryvgass5dsrf2kxl3vgfz76uhp83kv5lagzcp29tcana68ca5aqa6swlq6llfamln09tal7n5kvt4275ckwedpt4v7q48uhex
 ```
 
-### Stop Devnet and yaci-cli [!toc]
+### Reset devnet
 
-To stop the devnet, run the following command from devnet:
-
-```bash
-devnet:default>exit
-```
-
-To stop yaci-cli, run the following command:
+Clear all chain state and start fresh:
 
 ```bash
-yaci-cli:>exit
+devnet:default> reset
 ```
 
-To stop the DevKit containers, run the following command from the Yaci DevKit root directory:
+### Stop devnet
+
+Exit the devnet context:
+
+```bash
+devnet:default> exit
+```
+
+### Stop yaci-cli
+
+Close the CLI:
+
+```bash
+yaci-cli:> exit
+```
+
+### Stop DevKit containers
+
+From your terminal (not yaci-cli):
 
 ```bash
 ./bin/devkit.sh stop
 ```
 
-Sometimes you just want to reset the devnet and start from scratch. To do that, run:
+## Configuration
+
+### Node properties
+
+Edit `config/node.properties` to customize devnet behavior.
+
+### Environment variables
+
+Edit `config/env` for additional settings including default topup addresses.
+
+### External PostgreSQL
+
+For production-like indexing, configure an external PostgreSQL database.
+
+**Non-Docker distribution** - Edit `config/application.properties`:
+
+```properties
+yaci.store.db.url=jdbc:postgresql://<host>:<port>/<database>?currentSchema=<schema>
+yaci.store.db.username=<username>
+yaci.store.db.password=<password>
+```
+
+**Docker distribution** - Edit `config/env`:
 
 ```bash
-devnet:default>reset
+yaci_store_db_url=jdbc:postgresql://<host>:<port>/<database>?currentSchema=<schema>
+yaci_store_db_username=<username>
+yaci_store_db_password=<password>
 ```
+
+## Complete example
+
+Set up a local devnet and verify it works:
+
+```typescript
+import { YaciProvider, MeshTxBuilder } from "@meshsdk/core";
+import { MeshCardanoHeadlessWallet, AddressType } from "@meshsdk/wallet";
+
+async function main() {
+  // Connect to local devnet
+  const provider = new YaciProvider("http://localhost:8080/api/v1/");
+
+  // Verify connection
+  const params = await provider.fetchProtocolParameters();
+  console.log("Devnet protocol version:", params.protocolVersion);
+
+  // Create wallet from default mnemonic
+  const wallet = await MeshCardanoHeadlessWallet.fromMnemonic({
+    networkId: 0,
+    walletAddressType: AddressType.Base,
+    fetcher: provider,
+    submitter: provider,
+    mnemonic: "test test test test test test test test test test test test test test test test test test test test test test test sauce".split(" "),
+  });
+
+  // Get wallet address
+  const address = await wallet.getChangeAddressBech32();
+  console.log("Wallet address:", address);
+
+  // Fund wallet (use yaci-cli topup command first)
+  const utxos = await provider.fetchAddressUTxOs(address);
+  console.log("Available UTxOs:", utxos.length);
+
+  // Ready for transactions!
+  console.log("Devnet is ready for development");
+}
+
+main().catch(console.error);
+```
+
+## Troubleshooting
+
+### Docker containers won't start
+
+Ensure Docker Desktop is running:
+
+```bash
+docker ps
+# Should not show "Cannot connect to the Docker daemon"
+```
+
+### Port conflicts
+
+If port 8080 or 5173 is in use, stop the conflicting service or modify the DevKit configuration.
+
+### Devnet not producing blocks
+
+Check the node logs in the DevKit directory. Common issues:
+- Insufficient memory allocated to Docker
+- Disk space running low
+
+### Connection refused from Mesh SDK
+
+Verify the devnet is running and the URL is correct:
+
+```bash
+curl http://localhost:8080/api/v1/protocol-parameters
+```
+
+### Reset if corrupted
+
+If the devnet behaves unexpectedly:
+
+```bash
+devnet:default> reset
+```
+
+## Related resources
+
+- [Build Transactions](/docs/yaci/transactions) - Create and submit transactions on Yaci
+- [Yaci Overview](/docs/yaci) - Introduction to Yaci DevKit
+- [Mesh Cloud Yaci](https://cloud.meshjs.dev/yaci) - Hosted devnet service
+- [YaciProvider API](/docs/providers/yaci) - Full provider documentation
