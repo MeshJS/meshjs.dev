@@ -1,4 +1,5 @@
 import {
+  BuildingLibraryIcon,
   FireIcon,
   GlobeAltIcon,
   MagnifyingGlassIcon,
@@ -16,9 +17,15 @@ export const linksSolutions = [
   },
   metaSmartContract,
   {
+    link: "https://app.cgov.io/",
+    title: "Cardano Governance",
+    desc: "Browse and vote on proposals, and participate in Cardano on-chain governance",
+    icon: BuildingLibraryIcon,
+  },
+  {
     link: `https://multisig.meshjs.dev/`,
     title: "Multisig platform",
-    desc: "Secure your treasury and participant in Cardano governance as a team with multi-signature",
+    desc: "Secure your treasury and participate in Cardano governance as a team with multi-signature",
     icon: UserGroupIcon,
   },
   {

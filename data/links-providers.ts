@@ -77,7 +77,7 @@ export const linksProviders = [
 
 export const metaProviders = {
   title: "Providers",
-  desc: "Data providers for connecting to the blockchain",
+  desc: "Connect to Cardano via Blockfrost, Koios, Ogmios, Maestro, or UTxO RPC with a unified API.",
   link: "/providers",
   icon: CloudIcon,
   items: linksProviders,

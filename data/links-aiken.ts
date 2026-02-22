@@ -34,7 +34,7 @@ export const linksAiken = [
 
 export const metaAiken = {
   title: "Aiken",
-  desc: "Functional programming language created for Cardano smart contract development",
+  desc: "Write Cardano smart contracts in Aiken and build off-chain code with Mesh SDK.",
   link: "/aiken",
   items: linksAiken,
   icon: "icons/aiken.png",

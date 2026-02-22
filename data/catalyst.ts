@@ -119,7 +119,7 @@ export const fund12 = [
   },
   {
     title: "Mesh Software as a Service",
-    desc: "We provide hosted server instances for wallet and transactions builder by restful APIs, this allow integration and interaction to Cardano blockchain from any technology stacks and systems.",
+    desc: "We provide hosted server instances for wallet and transaction builder via restful APIs, allowing integration and interaction with the Cardano blockchain from any technology stacks and systems.",
     url: "https://projectcatalyst.io/funds/12/cardano-use-cases-concept/mesh-software-as-a-service",
     completed: [
       "Cloud infrastructure",

@@ -3,12 +3,12 @@ import { WalletIcon } from "@heroicons/react/24/solid";
 export const metaAppwallet = {
   link: `/apis/wallets/appwallet`,
   title: "App Wallet (deprecated)",
-  desc: "Core wallet functionality for building other user wallets and fully customed applications's backend.",
+  desc: "Core wallet functionality for building other user wallets and fully custom application backends.",
 };
 export const metaBrowserwallet = {
   link: `/apis/wallets/browserwallet`,
   title: "Browser Wallet",
-  desc: "For connecting, queries and performs wallet functions in accordance to CIP-30.",
+  desc: "For connecting, querying, and performing wallet functions in accordance with CIP-30.",
 };
 export const metaMeshwallet = {
   link: `/apis/wallets/meshwallet`,
@@ -20,7 +20,7 @@ export const linksWallets = [metaBrowserwallet, metaMeshwallet];
 
 export const metaWallets = {
   title: "Wallets",
-  desc: "Wallets APIs for interacting with the blockchain.",
+  desc: "Connect CIP-30 browser wallets and create server-side wallets for Cardano dApps.",
   link: "/apis/wallets",
   icon: WalletIcon,
   items: linksWallets,

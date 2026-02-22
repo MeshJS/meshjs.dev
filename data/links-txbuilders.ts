@@ -3,7 +3,7 @@ import { BanknotesIcon } from "@heroicons/react/24/solid";
 export const metaTxbuilderBasic = {
   link: `/apis/txbuilder/basics`,
   title: "Transaction Basics",
-  desc: "Working with transactions and its various options",
+  desc: "Working with transactions and their various options",
 };
 export const metaTxbuilderMinting = {
   link: `/apis/txbuilder/minting`,
@@ -18,7 +18,7 @@ export const metaTxbuilderSmartContract = {
 export const metaTxbuilderStaking = {
   link: `/apis/txbuilder/staking`,
   title: "Staking Transactions",
-  desc: "Transactions for delegating ADA and managing stakepools",
+  desc: "Transactions for delegating ADA and managing stake pools",
 };
 export const metaTxbuilderGovernance = {
   link: `/apis/txbuilder/governance`,
@@ -36,7 +36,7 @@ export const linksTxbuilder = [
 
 export const metaTxbuilder = {
   title: "Transaction Builder",
-  desc: "Build transactions with cardano-cli like APIs",
+  desc: "Build and sign Cardano transactions with automatic UTXO selection and fee calculation.",
   link: "/apis/txbuilder",
   icon: BanknotesIcon,
   items: linksTxbuilder,

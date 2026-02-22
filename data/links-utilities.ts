@@ -36,7 +36,7 @@ export const linksUtilities = [
 
 export const metaUtilities = {
   title: "Utilities",
-  desc: "Serializers, resolvers and data types for converting between different formats.",
+  desc: "CBOR serializers, bech32 resolvers, and Cardano data type converters for off-chain code.",
   link: "/apis/utilities",
   icon: WrenchScrewdriverIcon,
   items: linksUtilities,

@@ -75,7 +75,7 @@ export const linksMidnightContractsWizard = [
 
 export const metaMidnight = {
   title: "Midnight",
-  desc: "Zero-knowledge privacy network for Cardano",
+  desc: "Build privacy-preserving dApps with zero-knowledge proofs on the Midnight Network.",
   link: "/midnight",
   items: linksMidnight,
   icon: "icons/midnight.svg",

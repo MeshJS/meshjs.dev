@@ -24,7 +24,7 @@ export const linksReact = [
 
 export const metaReact = {
   title: "React Components",
-  desc: "Frontend React UI components and React hooks",
+  desc: "Pre-built React wallet UI components and hooks for Cardano dApp frontends.",
   link: "/react",
   icon: ComputerDesktopIcon,
   items: linksReact,

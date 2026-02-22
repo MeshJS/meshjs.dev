@@ -12,24 +12,27 @@ import { metaWallets } from "./links-wallets";
 import { metaYaci } from "./links-yaci";
 
 export const metaWeb3Wallet = {
-  title: "Wallet as a Service",
-  desc: "Access self-custodial wallet using social logins",
-  link: "https://utxos.dev/wallet-as-a-service",
+  title: "Web3 Services",
+  desc: "UTXOS provide developers with non-custodial wallets, social logins, transaction sponsorship (gasless UX), developer-controlled wallets, and white-label embedding.",
+  link: "https://utxos.dev",
   icon: "icons/utxos-white.png",
   items: [
     {
       title: "Wallet as a Service",
       link: "https://utxos.dev/wallet-as-a-service",
-    }
-  ]
+      desc: "Access self-custodial wallet using social logins",
+    },
+    {
+      title: "Transaction Sponsorship",
+      desc: "Sponsor blockchain transaction fees for your users to eliminate friction.",
+      link: "https://utxos.dev/transaction-sponsorship",
+    },
+    {
+      title: "Fiat On-ramp",
+      link: "https://docs.utxos.dev/onramp",
+    },
+  ],
 };
-
-export const metaTransactionSponsorship = {
-  title: "Transaction Sponsorship",
-  desc: "Sponsor blockchain transaction fees for your users to eliminate friction.",
-  link: "https://utxos.dev/transaction-sponsorship",
-  icon: "icons/utxos-white.png"
-}
 
 export const linksApi = [
   metaWallets,
@@ -45,5 +48,4 @@ export const linksApi = [
   metaYaci,
   metaMidnight,
   metaWeb3Wallet,
-  metaTransactionSponsorship
 ];

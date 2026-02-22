@@ -30,7 +30,7 @@ export const guideownership = {
 };
 export const guideprovider = {
   title: "Implement Custom Provider",
-  desc: "Build custom Providers that provides an API to access and process information provided by services.",
+  desc: "Build custom Providers that provide an API to access and process information provided by services.",
   link: "/guides/custom-provider",
   thumbnail: "/guides/implement-custom-provider.png",
   image: "/guides/service-g2192fe835_640.jpg",
@@ -51,14 +51,14 @@ export const guideaiken = {
 };
 export const guidestandalone = {
   title: "Executing a standalone script",
-  desc: "Learn how to execute a standalone script to manage wallets and creating transactions.",
+  desc: "Learn how to execute a standalone script to manage wallets and create transactions.",
   link: "/guides/standalone",
   thumbnail: "/guides/standalone.png",
   image: "/guides/salt-harvesting-3060093_1280.jpg",
 };
 export const guideVesting = {
   title: "Vesting Script End-to-End",
-  desc: "Learn how to vesting contract that locks up funds for a period of time and allows the beneficiary to withdraw the funds after the lockup period.",
+  desc: "Learn how to use a vesting contract that locks up funds for a period of time and allows the beneficiary to withdraw the funds after the lockup period.",
   link: "/guides/vesting",
   thumbnail: "/guides/vesting.png",
   image: "/guides/laptop-3196481_640.jpg",

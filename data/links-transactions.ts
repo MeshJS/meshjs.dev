@@ -3,7 +3,7 @@ import { BanknotesIcon } from "@heroicons/react/24/solid";
 export const metaTransactionBasic = {
   link: `/apis/txbuilder/basics`,
   title: "Transaction Basics",
-  desc: "Working with transactions and its various options",
+  desc: "Working with transactions and their various options",
 };
 export const metaMinting = {
   link: `/apis/txbuilder/minting`,
@@ -18,7 +18,7 @@ export const metaTransactionSmartContract = {
 export const metaStaking = {
   link: `/apis/txbuilder/staking`,
   title: "Staking Transactions",
-  desc: "Transactions for delegating ADA and managing stakepools",
+  desc: "Transactions for delegating ADA and managing stake pools",
 };
 export const linksTransactions = [
   metaTransactionBasic,
@@ -29,7 +29,7 @@ export const linksTransactions = [
 
 export const metaTransaction = {
   title: "Transactions",
-  desc: "Easy-to-use APIs to build transactions to mint tokens and working with smart contracts",
+  desc: "Easy-to-use APIs to build transactions to mint tokens and work with smart contracts",
   link: "/apis/txbuilder",
   icon: BanknotesIcon,
   items: linksTransactions,

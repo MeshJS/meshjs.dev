@@ -14,7 +14,7 @@ export const linksTxParser = [metaTxParserBasic, metaTxParserTxTester];
 
 export const metaTxParser = {
   title: "Transaction Parser",
-  desc: "Parse transactions for testing and rebuilding",
+  desc: "Parse Cardano transactions from CBOR, run unit tests, and rebuild with modifications.",
   link: "/apis/txparser",
   icon: MagnifyingGlassIcon,
   items: linksTxParser,

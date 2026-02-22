@@ -1,0 +1,237 @@
+---
+title: "Agent Skills for AI Coding Assistants"
+description: "Give your AI coding assistant deep knowledge of Mesh SDK for faster Cardano development - works with Claude Code, Cursor, Codex, and 37+ tools"
+---
+import Link from "fumadocs-core/link";
+
+Agent Skills provide your AI coding assistant with comprehensive knowledge of Mesh SDK packages. Once installed, your assistant understands the full API, common patterns, and troubleshooting approaches without needing to search documentation.
+
+Compatible with Claude Code, Cursor, GitHub Copilot, Codex, and <Link href="https://skills.sh">37+ other tools</Link>.
+
+## Overview
+
+Skills are structured knowledge files that AI assistants load based on context. Each skill contains:
+
+- Complete API reference with every method, parameter, and return type
+- Working code recipes for common tasks
+- Troubleshooting guides for frequent errors
+- Best practices and gotchas
+
+## Use Cases
+
+| Challenge Without Skills | With Skills Installed |
+|-------------------------|----------------------|
+| Must read docs to understand API | AI already knows the full API |
+| Trial-and-error for transaction patterns | Ask "build a transaction that sends 5 ADA" and get working code |
+| Debugging cryptic Cardano errors | Troubleshooting guides built into AI context |
+| Forgetting method order (e.g., `spendingPlutusScriptV2()` before `txIn()`) | AI knows the correct order |
+| Looking up CIP standards | AI understands CIP-30, CIP-8, etc. |
+
+## Available Skills
+
+| Skill | Package | Description |
+|-------|---------|-------------|
+| `mesh-transaction` | `@meshsdk/transaction` | MeshTxBuilder API, minting NFTs, Plutus scripts, governance, DRep registration |
+| `mesh-wallet` | `@meshsdk/wallet` | Browser wallets (Eternl, Nami, Lace, Flint, Yoroi), headless wallets, signing, CIP-30 |
+| `mesh-core-cst` | `@meshsdk/core-cst` | CBOR serialization, Plutus data, address resolution, CIP-8, native script hashing |
+
+## Quick Start
+
+### Option 1: skills.sh CLI (Recommended)
+
+Install all skills with a single command:
+
+```bash
+# Install all Mesh skills
+npx skills add MeshJS/skills
+
+# Install a specific skill
+npx skills add MeshJS/skills --skill mesh-transaction
+
+# Install for a specific agent
+npx skills add MeshJS/skills -a claude-code
+npx skills add MeshJS/skills -a cursor
+npx skills add MeshJS/skills -a codex
+```
+
+Browse available skills on <Link href="https://skills.sh">skills.sh</Link>.
+
+### Option 2: Manual Installation (Claude Code)
+
+Copy skill folders to Claude Code's skill directory:
+
+```bash
+cp -r mesh-transaction ~/.claude/skills/mesh-transaction
+cp -r mesh-wallet ~/.claude/skills/mesh-wallet
+cp -r mesh-core-cst ~/.claude/skills/mesh-core-cst
+```
+
+### Option 3: Project-Local (Team-Wide)
+
+Add skills to your repository so everyone on your team gets them automatically:
+
+```bash
+mkdir -p .claude/skills
+cp -r mesh-transaction .claude/skills/mesh-transaction
+cp -r mesh-wallet .claude/skills/mesh-wallet
+cp -r mesh-core-cst .claude/skills/mesh-core-cst
+```
+
+Commit to git. Any team member using Claude Code will have the skills when they clone the repo.
+
+### Option 4: Cursor IDE
+
+For a single skill:
+
+```bash
+cp mesh-transaction/SKILL.md .cursorrules
+```
+
+For multiple skills:
+
+```bash
+cat mesh-transaction/SKILL.md mesh-wallet/SKILL.md > .cursorrules
+```
+
+## How Skills Work
+
+Each skill has a `SKILL.md` file with a `description` field that tells the AI assistant when to activate:
+
+```yaml
+---
+name: mesh-transaction
+description: Use when building Cardano transactions with MeshJS SDK. Covers MeshTxBuilder API for sending ADA, minting NFTs and tokens, spending from Plutus scripts, staking, governance voting, DRep registration, and multi-sig patterns.
+license: Apache-2.0
+metadata:
+  author: MeshJS
+  version: "1.0"
+---
+```
+
+When you ask something like "help me build a transaction with MeshTxBuilder", your AI assistant matches the description and loads the full skill context including API reference, patterns, and troubleshooting.
+
+## Usage Examples
+
+Once installed, ask your AI assistant:
+
+**Build transactions:**
+```
+Build a transaction that sends 5 ADA to addr1qy...
+```
+
+**Mint NFTs:**
+```
+How do I mint an NFT with a Plutus minting policy?
+```
+
+**Connect wallets:**
+```
+Help me connect a browser wallet using CIP-30
+```
+
+**Work with Plutus:**
+```
+Show me how to interact with a Plutus V3 script
+```
+
+**Debug errors:**
+```
+Why am I getting 'missing required signer' error?
+```
+
+**Governance:**
+```
+How do I register as a DRep and vote on a proposal?
+```
+
+## Complete Example
+
+Here is an example conversation after installing skills:
+
+**You:** Create a transaction that mints an NFT with metadata
+
+**AI Assistant:** (with skills loaded)
+
+```typescript
+import { MeshTxBuilder, ForgeScript, Mint, AssetMetadata } from "@meshsdk/transaction";
+import { MeshCardanoBrowserWallet } from "@meshsdk/wallet";
+
+// Connect wallet
+const wallet = await MeshCardanoBrowserWallet.enable("eternl");
+const address = await wallet.getChangeAddressBech32();
+const utxos = await wallet.getUtxosMesh();
+
+// Create forge script from address
+const forgeScript = ForgeScript.fromAddress(address);
+const policyId = forgeScript.policyId;
+
+// Define metadata
+const metadata: AssetMetadata = {
+  name: "My NFT",
+  image: "ipfs://...",
+  description: "My first NFT with Mesh",
+};
+
+// Build mint transaction
+const txBuilder = new MeshTxBuilder();
+
+const mint: Mint = {
+  assetName: "MyNFT",
+  assetQuantity: "1",
+  metadata: metadata,
+  recipient: address,
+};
+
+const unsignedTx = await txBuilder
+  .mint("1", policyId, mint.assetName)
+  .mintingScript(forgeScript)
+  .metadataValue("721", { [policyId]: { [mint.assetName]: metadata } })
+  .selectUtxosFrom(utxos)
+  .changeAddress(address)
+  .complete();
+
+// Sign and submit
+const signedTx = await wallet.signTx(unsignedTx, false);
+const txHash = await wallet.submitTx(signedTx);
+
+console.log("Transaction submitted:", txHash);
+```
+
+## Skill Structure
+
+Each skill follows the <Link href="https://agentskills.io/specification">Agent Skills specification</Link>:
+
+```
+mesh-transaction/
+  SKILL.md              # Main entry - description, overview, quick reference
+  TRANSACTION.md        # Complete API reference
+  PATTERNS.md           # Common recipes with working code
+  TROUBLESHOOTING.md    # Error solutions and debugging
+```
+
+The `SKILL.md` file uses YAML frontmatter with `name` (must match directory name) and `description` (tells the AI when to activate).
+
+## Contributing
+
+We welcome contributions to improve and expand Mesh SDK skills.
+
+1. Fork the <Link href="https://github.com/MeshJS/skills">skills repository</Link>
+2. Create a branch for your changes
+3. Edit or add skill files - fix code examples, add missing methods, add troubleshooting entries
+4. Submit a PR with a clear description of your changes
+
+See the <Link href="https://agentskills.io/specification">Agent Skills Specification</Link> for the full format reference.
+
+## Source Code
+
+The skills are open source and hosted at:
+
+<Link href="https://github.com/MeshJS/skills">github.com/MeshJS/skills</Link>
+
+## Related Resources
+
+- [MCP Server](/docs/ai/mcp) - Real-time AI integration for VS Code, Cursor, and Claude Desktop
+- [llms.txt](/docs/ai/llms-txt) - AI-friendly documentation for any tool
+- [MeshAI Chatbot](/docs/ai/chatbot) - Browser-based AI assistant
+- <Link href="https://skills.sh">skills.sh</Link> - Browse and discover agent skills
+- <Link href="https://agentskills.io">agentskills.io</Link> - Agent Skills specification

@@ -27,7 +27,7 @@ export const linksYaci = [
 
 export const metaYaci = {
   title: "Yaci",
-  desc: "Custom devnet to tailor your devnet needs with a builtin indexer",
+  desc: "Spin up a local Cardano devnet for testing smart contracts and transactions.",
   link: "/yaci",
   items: linksYaci,
   icon: "providers/yaci.png",

@@ -25,7 +25,7 @@ export const linksHydra = [
 
 export const metaHydra = {
   title: "Hydra",
-  desc: "Layer 2 scaling solution for Cardano",
+  desc: "Build fast, low-cost Cardano apps with Hydra Layer 2 state channels.",
   link: "/hydra",
   items: linksHydra,
   icon: "icons/hydra.svg",

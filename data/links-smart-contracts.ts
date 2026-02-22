@@ -60,7 +60,7 @@ export const linksSmartContracts = [
 
 export const metaSmartContract = {
   title: "Smart Contracts Lib",
-  desc: "Open-source smart contracts, complete with documentation, and live demos",
+  desc: "Production-ready Cardano smart contracts with TypeScript SDK, full docs, and live demos.",
   link: "/smart-contracts",
   icon: DocumentCheckIcon,
   items: linksSmartContracts,

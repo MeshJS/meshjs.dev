@@ -16,17 +16,12 @@ export const metaAiMcp = {
   link: "/ai/mcp",
 };
 export const metaAiSkills = {
-  title: "Claude Code Skills",
-  desc: "AI skills that give Claude deep knowledge of Mesh SDK packages",
-  link: "/ai/claude-code-skills",
+  title: "Agent Skills",
+  desc: "AI skills that give your coding assistant deep knowledge of Mesh SDK packages",
+  link: "/ai/skills",
 };
 
-export const linksAi = [
-  metaAiChatbot,
-  metaAiLlmsTxt,
-  metaAiMcp,
-  metaAiSkills,
-];
+export const linksAi = [metaAiSkills, metaAiChatbot, metaAiLlmsTxt, metaAiMcp];
 
 export const metaAi = {
   title: "Mesh AI Features",

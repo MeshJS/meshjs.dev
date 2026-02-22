@@ -11,7 +11,7 @@ export async function GET(request: NextRequest) {
     const hasTitle = searchParams.has("title");
     const title = hasTitle
       ? searchParams.get("title")?.slice(0, 100)
-      : "Mesh JS - Web3 TypeScript SDK & Off-Chain Framework";
+      : "Mesh SDK - TypeScript SDK for Cardano dApp Development";
 
     return new ImageResponse(
       (

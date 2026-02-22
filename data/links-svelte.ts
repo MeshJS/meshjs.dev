@@ -18,7 +18,7 @@ export const linksSvelte = [
 
 export const metaSvelte = {
   title: "Svelte Components",
-  desc: "Svelte UI components for wallet connections",
+  desc: "Cardano wallet UI components and connection handlers for Svelte apps.",
   link: "/svelte",
   icon: ComputerDesktopIcon,
   items: linksSvelte,
