@@ -4,7 +4,7 @@ import { metaMidnight } from "./links-midnight";
 import { metaProviders } from "./links-providers";
 import { metaReact } from "./links-react";
 import { metaSmartContract } from "./links-smart-contracts";
-import { metaSvelte } from "./links-svelte";
+// import { metaSvelte } from "./links-svelte";
 import { metaTxbuilder } from "./links-txbuilders";
 import { metaTxParser } from "./links-txparser";
 import { metaUtilities } from "./links-utilities";
@@ -41,11 +41,10 @@ export const linksApi = [
   metaProviders,
   metaUtilities,
   metaReact,
-  metaSvelte,
+  // metaSvelte,
   metaSmartContract,
   metaAiken,
   metaHydra,
   metaYaci,
   metaMidnight,
-  metaWeb3Wallet,
 ];
