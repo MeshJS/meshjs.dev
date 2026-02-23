@@ -89,59 +89,24 @@ const txHash = await wallet.submitTx(signedTx);
 
 ## Aiken Smart Contract Support
 
-The `mesh-transaction` skill includes a complete Aiken-to-MeshTxBuilder mapping guide. Give your AI assistant your Aiken type definitions and it generates the correct MeshTxBuilder transaction code — including the right data format helpers, constructor indices, and datum/redeemer conventions.
+The `mesh-transaction` skill includes a complete Aiken-to-MeshTxBuilder mapping guide. When you share your Aiken type definitions, your AI assistant knows how to translate them into the correct MeshJS data helpers — picking the right format (`conStr` for datums, `mConStr` for redeemers), mapping constructor indices to variant order, and choosing the correct type parameters.
 
-For example, given these Aiken types:
+For example, given this Aiken type:
 
 ```
-type VestingDatum {
-  beneficiary: Address,
-  deadline: Int,
-}
-
-type VestingRedeemer {
+type MarketAction {
+  Buy
   Cancel
-  Collect
+  UpdatePrice { new_price: Int }
 }
 ```
 
-Your AI assistant produces the correct MeshTxBuilder code:
+Your AI assistant knows that:
+- `Buy` is variant index 0 → `mConStr0([])`
+- `Cancel` is variant index 1 → `mConStr1([])`
+- `UpdatePrice` is variant index 2 with a field → `mConStr2([75_000_000])`
 
-```typescript
-import { conStr0, integer, pubKeyAddress } from '@meshsdk/common';
-import { mConStr1 } from '@meshsdk/common';
-
-// Lock funds — datum uses JSON format
-const vestingDatum = conStr0([
-  pubKeyAddress(beneficiaryPkh, beneficiaryStakeCred),
-  integer(deadlineSlot),
-]);
-
-const lockTx = await txBuilder
-  .txOut(scriptAddress, [{ unit: 'lovelace', quantity: '10000000' }])
-  .txOutInlineDatumValue(vestingDatum, "JSON")
-  .changeAddress(walletAddress)
-  .selectUtxosFrom(utxos)
-  .complete();
-
-// Collect funds — redeemer uses Mesh format
-const collectTx = await txBuilder
-  .spendingPlutusScriptV3()
-  .txIn(scriptUtxo.input.txHash, scriptUtxo.input.outputIndex,
-        scriptUtxo.output.amount, scriptAddress)
-  .txInScript(scriptCbor)
-  .txInInlineDatumPresent()
-  .txInRedeemerValue(mConStr1([])) // VestingRedeemer::Collect (index 1)
-  .requiredSignerHash(beneficiaryPkh)
-  .invalidBefore(deadlineSlot)
-  .txInCollateral(collateralHash, collateralIndex, collateralAmount, collateralAddr)
-  .txOut(beneficiaryAddr, [{ unit: 'lovelace', quantity: '10000000' }])
-  .changeAddress(walletAddress)
-  .selectUtxosFrom(utxos)
-  .complete();
-```
-
-The skill handles the nuances automatically: datums use JSON format with `conStr` helpers, simple redeemers use Mesh format with `mConStr` helpers, constructor indices match Aiken variant order, and script parameterization uses `applyParamsToScript` with the correct type parameter.
+Combined with the skill's transaction-building knowledge, it produces the full MeshTxBuilder chain with the correct method ordering, collateral handling, and datum/redeemer placement — so you can focus on your contract logic instead of figuring out the MeshJS data format conventions.
 
 ## Skill File Structure
 
