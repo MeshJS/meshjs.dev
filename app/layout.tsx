@@ -24,10 +24,10 @@ const inter = Inter({
 export const metadata: Metadata = {
   metadataBase: new URL('https://meshjs.dev'),
   title: {
-    default: 'Mesh - Open-Source TypeScript SDK for Cardano Blockchain Development',
+    default: 'MeshJS - Cardano TypeScript SDK for dApp Development',
     template: '%s | Mesh SDK',
   },
-  description: 'Build Cardano dApps with the open-source TypeScript SDK. Transaction builder, React wallet components, NFT minting, smart contracts, and staking. 1M+ npm downloads.',
+  description: 'MeshJS is the leading Cardano TypeScript SDK. Build dApps with transaction builder, React components, NFT minting, and smart contracts. 1M+ npm downloads.',
   keywords: [
     'Cardano',
     'TypeScript SDK',
@@ -99,8 +99,8 @@ export const metadata: Metadata = {
     locale: 'en_US',
     url: 'https://meshjs.dev',
     siteName: 'Mesh SDK',
-    title: 'Mesh SDK - Open-Source TypeScript SDK for Cardano dApp Development',
-    description: 'Build Cardano dApps with Mesh SDK. TypeScript transaction builder, React wallet components, NFT minting, smart contracts, staking, and multi-sig support. 1M+ npm downloads.',
+    title: 'MeshJS - Cardano TypeScript SDK for dApp Development',
+    description: 'MeshJS is the leading Cardano TypeScript SDK. Build dApps with transaction builder, React components, NFT minting, and smart contracts. 1M+ npm downloads.',
     images: [
       {
         url: 'https://meshjs.dev/logo-mesh/mesh.png',
@@ -115,8 +115,8 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     site: '@meshsdk',
     creator: '@meshsdk',
-    title: 'Mesh SDK - Open-Source TypeScript SDK for Cardano dApp Development',
-    description: 'Build Cardano dApps with Mesh SDK. TypeScript transaction builder, React wallet components, NFT minting, and smart contract tools. 1M+ npm downloads.',
+    title: 'MeshJS - Cardano TypeScript SDK for dApp Development',
+    description: 'MeshJS is the leading Cardano TypeScript SDK. Build dApps with transaction builder, React components, NFT minting, and smart contracts. 1M+ npm downloads.',
     images: ['https://meshjs.dev/logo-mesh/mesh.png'],
   },
   icons: {

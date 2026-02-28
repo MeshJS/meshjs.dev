@@ -7,7 +7,7 @@ import Link from "fumadocs-core/link";
 
 ## Overview
 
-Cardano's on-chain governance system (CIP-1694) enables the community to vote on proposals and protocol updates. You can delegate your voting power to Decentralized Representatives (DReps), register as a DRep yourself, and vote on governance actions.
+Cardano's on-chain governance system ([CIP-1694](https://github.com/cardano-foundation/CIPs/blob/master/CIP-1694/README.md)) enables the community to vote on proposals and protocol updates. Mesh SDK implements the [CIP-95](https://cips.cardano.org/cip/CIP-0095) Web-Wallet Bridge extension, allowing dApps to interact with governance features. You can delegate your voting power to Decentralized Representatives (DReps), register as a DRep yourself, and vote on governance actions.
 
 **When to use this:**
 - Delegating your voting power to a DRep
@@ -704,6 +704,13 @@ async function main() {
 ### "Invalid voter type" error
 - Ensure the voter type matches your role (DRep, SPO, or CC)
 - Use the correct identifier format for each type
+
+## References
+
+- [CIP-1694: Cardano On-Chain Governance](https://github.com/cardano-foundation/CIPs/blob/master/CIP-1694/README.md) - The governance specification that defines DReps, voting, and governance actions
+- [CIP-95: Web-Wallet Bridge for Conway Governance](https://cips.cardano.org/cip/CIP-0095) - The standard for wallet-dApp governance interaction
+- [CIP-119: DRep Metadata Standard](https://github.com/cardano-foundation/CIPs/blob/master/CIP-0119/README.md) - Metadata standard for DRep registration
+- [Cardano Developer Portal](https://developers.cardano.org) - Official Cardano development resources
 
 ## Related
 

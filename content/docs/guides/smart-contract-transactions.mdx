@@ -21,7 +21,7 @@ import { HowToSchema } from "@/components/seo";
 
 ## Overview
 
-In this guide, you build the transaction patterns for an NFT marketplace on Cardano. You learn how to construct listing, purchasing, canceling, and updating transactions using Plutus smart contracts.
+In this guide, you build the transaction patterns for an NFT marketplace on Cardano. You learn how to construct listing, purchasing, canceling, and updating transactions using Plutus smart contracts on the [eUTXO model](https://docs.cardano.org/about-cardano/learn/eutxo-explainer/).
 
 ### What you will build
 
@@ -482,6 +482,12 @@ if (collateral.length === 0) {
 **Cause:** The signer does not match the datum's seller address.
 
 **Solution:** Ensure `requiredSignerHash` matches the original seller for cancel/update operations.
+
+## References
+
+- [Cardano eUTXO Model](https://docs.cardano.org/about-cardano/learn/eutxo-explainer/) - Understanding the extended UTXO model that enables deterministic smart contracts
+- [Aiken Smart Contract Language](https://aiken-lang.org/) - Official documentation for writing Cardano validators
+- [Cardano Developer Portal](https://developers.cardano.org) - Official Cardano development resources and smart contract guides
 
 ## Related Links
 

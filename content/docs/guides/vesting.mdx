@@ -21,7 +21,7 @@ import { HowToSchema } from "@/components/seo";
 
 ## Overview
 
-A vesting contract locks funds until a specified time, then allows a beneficiary to withdraw. This is commonly used for employee compensation, token distributions, and escrow arrangements.
+A vesting contract locks funds until a specified time, then allows a beneficiary to withdraw. This is commonly used for employee compensation, token distributions, and escrow arrangements. This contract runs on Cardano's [extended UTXO (eUTXO) model](https://docs.cardano.org/about-cardano/learn/eutxo-explainer/), which enables deterministic script execution and predictable transaction fees.
 
 ### What you will build
 
@@ -460,6 +460,13 @@ const slotConfig = SLOT_CONFIG_NETWORK.mainnet;
 .txOutInlineDatumValue(datum)  // Use inline datum
 // NOT .txOutDatumHashValue(datum)
 ```
+
+## References
+
+- [Cardano eUTXO Model](https://docs.cardano.org/about-cardano/learn/eutxo-explainer/) - How Cardano's transaction model enables deterministic smart contracts
+- [Aiken Smart Contract Language](https://aiken-lang.org/) - Official documentation for the Aiken language used in this guide
+- [Cardano Developer Portal](https://developers.cardano.org) - Official Cardano development resources
+- [CIP-0057: Plutus Blueprint](https://cips.cardano.org/cip/CIP-57) - The standard for compiled Plutus contract blueprints
 
 ## Related Links
 

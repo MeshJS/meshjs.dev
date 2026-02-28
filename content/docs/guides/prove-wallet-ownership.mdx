@@ -20,7 +20,7 @@ import { HowToSchema } from "@/components/seo";
 
 ## Overview
 
-Wallet ownership verification lets users prove they control a Cardano address by signing a message with their private key. This is the foundation for "Sign in with Cardano" authentication.
+Wallet ownership verification lets users prove they control a Cardano address by signing a message with their private key. This uses the [CIP-8](https://cips.cardano.org/cip/CIP-0008) message signing standard and the [CIP-30](https://cips.cardano.org/cip/CIP-0030) wallet interface. Together, these standards form the foundation for "Sign in with Cardano" authentication.
 
 ### What you will build
 
@@ -456,6 +456,12 @@ checkSignature(nonce, signature, address);
 - **Validate addresses** - Check format before database operations
 - **Rate limit requests** - Prevent brute force attempts
 - **Log authentication events** - Monitor for suspicious activity
+
+## References
+
+- [CIP-8: Message Signing](https://cips.cardano.org/cip/CIP-0008) - The Cardano standard for signing and verifying arbitrary data with private keys
+- [CIP-30: dApp-Wallet Web Bridge](https://cips.cardano.org/cip/CIP-0030) - The standard enabling wallet connectivity in web applications
+- [Cardano Developer Portal](https://developers.cardano.org) - Official Cardano development resources
 
 ## Related Links
 

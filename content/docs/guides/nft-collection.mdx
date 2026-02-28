@@ -24,7 +24,7 @@ import Link from "fumadocs-core/link";
 
 ## Overview
 
-In this guide, you mint an NFT collection on Cardano using native scripts. Native assets on Cardano do not require smart contracts, making them simpler and cheaper to create.
+In this guide, you mint an NFT collection on Cardano using native scripts. Cardano's [native multi-asset](https://developers.cardano.org/docs/native-tokens/) system allows minting tokens without smart contracts, making them simpler and cheaper to create. Token metadata follows the [CIP-25](https://cips.cardano.org/cip/CIP-0025) standard.
 
 ### What you will build
 
@@ -473,6 +473,12 @@ main().catch(console.error);
 **Cause:** Not enough ADA to cover the transaction fee and min-UTXO requirements.
 
 **Solution:** Request more test ADA from the faucet. Each NFT requires approximately 1.5 ADA for the min-UTXO deposit.
+
+## References
+
+- [CIP-25: Media NFT Metadata Standard](https://cips.cardano.org/cip/CIP-0025) - The Cardano standard for NFT metadata used in this guide
+- [Cardano Developer Portal: Native Tokens](https://developers.cardano.org/docs/native-tokens/) - Official documentation on Cardano's native multi-asset system
+- [Cardano Developer Portal](https://developers.cardano.org) - Official Cardano development resources and tools
 
 ## Related Links
 

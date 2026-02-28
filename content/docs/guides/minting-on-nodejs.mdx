@@ -21,7 +21,7 @@ import { HowToSchema } from "@/components/seo";
 
 ## Overview
 
-Server-side minting lets you create Cardano NFTs without a browser. This is ideal for automated token distribution, airdrops, and backend services.
+Server-side minting lets you create Cardano NFTs without a browser. This is ideal for automated token distribution, airdrops, and backend services. This guide uses the [CIP-25](https://cips.cardano.org/cip/CIP-0025) metadata standard for NFT token metadata on Cardano.
 
 ### What you will build
 
@@ -352,6 +352,12 @@ nodejs-minting/
 **Cause:** The forging script changed between mints.
 
 **Solution:** The policy ID is deterministic based on the wallet address. Ensure you use the same wallet for all mints of a collection.
+
+## References
+
+- [CIP-25: Media NFT Metadata Standard](https://cips.cardano.org/cip/CIP-0025) - The Cardano standard for NFT metadata used in this guide
+- [Cardano Developer Portal: Native Tokens](https://developers.cardano.org/docs/native-tokens/) - Official documentation on Cardano's native token system
+- [Cardano Developer Portal](https://developers.cardano.org) - Official development resources and guides
 
 ## Related Links
 

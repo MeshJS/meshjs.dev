@@ -20,7 +20,7 @@ import { HowToSchema } from "@/components/seo";
 
 ## Overview
 
-Multi-signature (multi-sig) transactions require multiple parties to sign before submission. This is essential for NFT minting services where users pay for minting but your application controls the minting policy.
+Multi-signature (multi-sig) transactions require multiple parties to sign before submission. This is essential for NFT minting services where users pay for minting but your application controls the minting policy. Cardano's [native multi-asset](https://developers.cardano.org/docs/native-tokens/) system enables minting without smart contracts, using native scripts for policy control.
 
 ### What you will build
 
@@ -432,6 +432,12 @@ const selectedUtxos = experimentalSelectUtxos(assetMap, utxos, "7000000");
 - **Set reasonable minting fees** to cover costs and prevent abuse
 - **Implement rate limiting** on API endpoints
 - **Log minting events** for auditing
+
+## References
+
+- [Cardano Developer Portal: Native Tokens](https://developers.cardano.org/docs/native-tokens/) - Official documentation on Cardano's native multi-asset system
+- [CIP-25: Media NFT Metadata Standard](https://cips.cardano.org/cip/CIP-0025) - The Cardano standard for NFT metadata
+- [CIP-30: dApp-Wallet Web Bridge](https://cips.cardano.org/cip/CIP-0030) - The standard enabling partial signing for multi-sig transactions
 
 ## Related Links
 
