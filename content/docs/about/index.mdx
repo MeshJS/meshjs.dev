@@ -1,6 +1,6 @@
 ---
 title: "About Mesh SDK for Cardano"
-description: "Mesh is an open-source, production-ready TypeScript SDK for Cardano blockchain development. Transaction builders, wallet integrations, and data services for building dApps."
+description: "Mesh is an open-source, production-ready TypeScript SDK for Cardano blockchain development. Transaction builders, wallet integrations, and data services for building dApps. Built and maintained by an active community of builders."
 ---
 import Image from 'next/image';
 import Link from 'fumadocs-core/link';
@@ -11,8 +11,10 @@ import {
 } from "@icons-pack/react-simple-icons";
 import { GlobeAltIcon } from '@heroicons/react/24/outline';
 import {team} from "@/data/team";
+import { cn } from "@/lib/cn";
+import { buttonVariants } from "@/components/ui/button";
 
-<h1 className='text-center text-4xl mt-4'>Our Team</h1>
+<h1 className='text-center text-4xl mt-4'>Mesh Builder Community</h1>
 
 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-y-10 mb-32">
   {
@@ -46,9 +48,15 @@ import {team} from "@/data/team";
   }
 </div>
 
+<div className="flex justify-center mb-32">
+  <Link href="https://gov.meshjs.dev/contributors" className={cn(buttonVariants({ color: 'primary' }), 'rounded-lg px-6 py-2 text-sm font-semibold no-underline')}>
+    All Contributors
+  </Link>
+</div>
+
 <div className='text-center mb-32'>
   <h1 className='text-4xl'>What are we working on?</h1>
-  <p className='text-xl'>Check out our <Link href="https://github.com/MeshJS/mesh/milestones">GitHub milestones</Link> to see what we are currently working on.</p>
+  <p className='text-xl'>Check our <Link href="https://github.com/orgs/MeshJS/repositories">GitHub repositories</Link> to see what we are currently working on.</p>
 </div>
 
 <div className='text-center mb-32'>

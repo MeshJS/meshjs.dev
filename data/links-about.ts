@@ -6,8 +6,6 @@ import {
   ScaleIcon,
 } from "@heroicons/react/24/solid";
 
-import { metaCatalyst } from "./catalyst";
-
 export const metaAboutUs = {
   link: `/about`,
   title: "About Us",
@@ -18,6 +16,12 @@ export const metaGovernance = {
   link: `https://gov.meshjs.dev/`,
   title: "Governance",
   desc: "Mesh's participation in governance",
+  icon: ScaleIcon,
+};
+export const metaCatalyst = {
+  link: `https://gov.meshjs.dev/catalyst-proposals`,
+  title: "Catalyst Proposals",
+  desc: "Funded & Executed Mesh proposals at Project Catalyst",
   icon: ScaleIcon,
 };
 export const metaSupportUs = {

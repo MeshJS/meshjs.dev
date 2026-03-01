@@ -11,15 +11,15 @@ import { metaSmartContract } from "./links-smart-contracts";
 export const linksSolutions = [
   {
     link: `https://utxos.dev/`,
-    title: "Web3 Services",
+    title: "Web3 Services (UTXOS)",
     desc: "Streamline user onboarding and Web3 integration, accelerating your app's time to market",
     icon: GlobeAltIcon,
   },
   metaSmartContract,
   {
     link: "https://app.cgov.io/",
-    title: "Cardano Governance",
-    desc: "Browse and vote on proposals, and participate in Cardano on-chain governance",
+    title: "CGOV",
+    desc: "Cardano Governance platform, browse proposals and DReps and engage in onchain voting",
     icon: BuildingLibraryIcon,
   },
   {
