@@ -9,8 +9,7 @@ export const team = [
   {
     name: "Felix",
     image: "felix.webp",
-    twitter: "https://x.com/CatalystSwarm",
-    github: "https://github.com/Felix-at-Swarm",
+    github: "https://github.com/Technosophorso",
   },
   {
     name: "Erick",
