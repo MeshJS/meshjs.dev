@@ -1,18 +1,19 @@
 ---
 title: "Governance Transactions"
-description: "Participate in Cardano's on-chain governance through DRep delegation, registration, and voting."
+description: "Participate in Cardano's on-chain governance through DRep delegation, registration, voting, and submitting governance action proposals."
 ---
 
 import Link from "fumadocs-core/link";
 
 ## Overview
 
-Cardano's on-chain governance system ([CIP-1694](https://github.com/cardano-foundation/CIPs/blob/master/CIP-1694/README.md)) enables the community to vote on proposals and protocol updates. Mesh SDK implements the [CIP-95](https://cips.cardano.org/cip/CIP-0095) Web-Wallet Bridge extension, allowing dApps to interact with governance features. You can delegate your voting power to Decentralized Representatives (DReps), register as a DRep yourself, and vote on governance actions.
+Cardano's on-chain governance system ([CIP-1694](https://github.com/cardano-foundation/CIPs/blob/master/CIP-1694/README.md)) enables the community to vote on proposals and protocol updates. Mesh SDK implements the [CIP-95](https://cips.cardano.org/cip/CIP-0095) Web-Wallet Bridge extension, allowing dApps to interact with governance features. You can delegate your voting power to Decentralized Representatives (DReps), register as a DRep yourself, vote on governance actions, and submit new governance action proposals.
 
 **When to use this:**
 - Delegating your voting power to a DRep
 - Registering as a DRep to represent other voters
 - Voting on governance actions and protocol changes
+- Submitting governance action proposals (info actions, parameter changes, treasury withdrawals, etc.)
 - Building governance dashboards and tools
 - Creating DRep management applications
 
@@ -174,6 +175,141 @@ Provide the redeemer for script-based voting.
 ```tsx
 .voteRedeemerValue(redeemer: Data | object | string, type?: "Mesh" | "CBOR" | "JSON", exUnits?: Budget)
 ```
+
+### proposal()
+
+Submit a governance action proposal. Requires a deposit (returned when the action is resolved).
+
+```tsx
+.proposal(governanceAction: GovernanceAction, anchor: Anchor, rewardAccount: string, deposit?: string)
+```
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `governanceAction` | `GovernanceAction` | The governance action to propose |
+| `anchor` | `Anchor` | Proposal metadata anchor (URL + hash) |
+| `rewardAccount` | `string` | Reward address for deposit return |
+| `deposit` | `string` | Deposit amount in lovelace (defaults to `"100000000000"`, i.e. 100,000 ADA) |
+
+The `GovernanceAction` is a discriminated union with a `kind` and `action` field:
+
+```tsx
+// Info action (no on-chain effect, used for polls/sentiment)
+{ kind: "InfoAction", action: {} }
+
+// Protocol parameter change
+{
+  kind: "ParameterChangeAction",
+  action: {
+    govActionId?: { transactionId: string; govActionIndex: number },
+    protocolParamUpdates: ProtocolParamUpdate,
+    policyHash?: { bytes: string },
+  }
+}
+
+// Treasury withdrawal
+{
+  kind: "TreasuryWithdrawalsAction",
+  action: {
+    withdrawals: Record<string, string>,  // reward address -> lovelace amount
+    policyHash?: { bytes: string },
+  }
+}
+
+// No confidence in current committee
+{
+  kind: "NoConfidenceAction",
+  action: {
+    govActionId?: { transactionId: string; govActionIndex: number },
+  }
+}
+
+// Update constitutional committee
+{
+  kind: "UpdateCommitteeAction",
+  action: {
+    govActionId?: { transactionId: string; govActionIndex: number },
+    committee: {
+      members: Array<{ stakeCredential: Credential; termLimit: number }>,
+      quorumThreshold: { numerator: string; denominator: string },
+    },
+    membersToRemove: Credential[],
+  }
+}
+
+// New constitution
+{
+  kind: "NewConstitutionAction",
+  action: {
+    govActionId?: { transactionId: string; govActionIndex: number },
+    constitution: {
+      anchor: Anchor,
+      scriptHash?: { bytes: string },
+    },
+  }
+}
+
+// Hard fork initiation
+{
+  kind: "HardForkInitiationAction",
+  action: {
+    govActionId?: { transactionId: string; govActionIndex: number },
+    protocolVersion: { major: number; minor: number },
+  }
+}
+```
+
+The `Credential` type used in committee actions:
+```tsx
+{ type: "KeyHash", keyHash: string }
+// or
+{ type: "ScriptHash", scriptHash: string }
+```
+
+The `govActionId` field is optional and refers to the most recently enacted governance action of the same type that this proposal builds upon. It is required for action types that must chain from a previous action (parameter changes, hard forks, committee updates, no confidence, new constitution).
+
+### proposalScript()
+
+Attach a Plutus script witness to the proposal.
+
+```tsx
+.proposalScript(scriptCbor: string, version: "V1" | "V2" | "V3")
+```
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `scriptCbor` | `string` | CBOR hex of the Plutus script |
+| `version` | `LanguageVersion` | Plutus language version |
+
+### proposalTxInReference()
+
+Use a reference script for the proposal instead of providing it inline.
+
+```tsx
+.proposalTxInReference(txHash: string, txIndex: number, scriptSize: string, scriptHash: string, version: "V1" | "V2" | "V3")
+```
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `txHash` | `string` | Transaction hash of the reference UTxO |
+| `txIndex` | `number` | Transaction index of the reference UTxO |
+| `scriptSize` | `string` | Size of the Plutus script in bytes |
+| `scriptHash` | `string` | Script hash of the referenced script |
+| `version` | `LanguageVersion` | Plutus language version |
+
+### proposalRedeemerValue()
+
+Provide the redeemer for a Plutus script proposal.
+
+```tsx
+.proposalRedeemerValue(redeemer: Data | object | string, type?: "Mesh" | "CBOR" | "JSON", exUnits?: Budget)
+```
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `redeemer` | `Data \| object \| string` | Redeemer data |
+| `type` | `string` | Data format type (default `"Mesh"`) |
+| `exUnits` | `Budget` | Execution units budget (default `{ mem: 7_000_000, steps: 3_000_000_000 }`) |
 
 ## Common Patterns
 
@@ -525,6 +661,135 @@ const signedTx = await wallet.signTx(unsignedTx, true);
 const txHash = await wallet.submitTx(signedTx);
 ```
 
+### Submit an Info Action
+
+Submit an info action (used for polls and sentiment checks — has no on-chain effect):
+
+```tsx
+import { MeshTxBuilder, BlockfrostProvider } from "@meshsdk/core";
+
+const provider = new BlockfrostProvider("<YOUR_API_KEY>");
+const txBuilder = new MeshTxBuilder({
+  fetcher: provider,
+  verbose: true,
+});
+
+const utxos = await wallet.getUtxos();
+const changeAddress = await wallet.getChangeAddress();
+const rewardAddresses = await wallet.getRewardAddresses();
+const rewardAddress = rewardAddresses[0]!;
+
+txBuilder
+  .proposal(
+    {
+      kind: "InfoAction",
+      action: {},
+    },
+    {
+      anchorUrl: "https://example.com/proposal.jsonld",
+      anchorDataHash: "a1b1c2d3e4f5...",
+    },
+    rewardAddress
+  )
+  .changeAddress(changeAddress)
+  .selectUtxosFrom(utxos);
+
+const unsignedTx = await txBuilder.complete();
+const signedTx = await wallet.signTx(unsignedTx);
+const txHash = await wallet.submitTx(signedTx);
+
+console.log(`Info action submitted: ${txHash}`);
+```
+
+### Submit a Treasury Withdrawal
+
+Propose a treasury withdrawal to one or more reward addresses:
+
+```tsx
+import { MeshTxBuilder, BlockfrostProvider } from "@meshsdk/core";
+
+const provider = new BlockfrostProvider("<YOUR_API_KEY>");
+const txBuilder = new MeshTxBuilder({
+  fetcher: provider,
+  verbose: true,
+});
+
+const utxos = await wallet.getUtxos();
+const changeAddress = await wallet.getChangeAddress();
+const rewardAddresses = await wallet.getRewardAddresses();
+const rewardAddress = rewardAddresses[0]!;
+
+txBuilder
+  .proposal(
+    {
+      kind: "TreasuryWithdrawalsAction",
+      action: {
+        withdrawals: {
+          [rewardAddress]: "50000000000", // 50,000 ADA in lovelace
+        },
+      },
+    },
+    {
+      anchorUrl: "https://example.com/treasury-proposal.jsonld",
+      anchorDataHash: "a1b1c2d3e4f5...",
+    },
+    rewardAddress
+  )
+  .changeAddress(changeAddress)
+  .selectUtxosFrom(utxos);
+
+const unsignedTx = await txBuilder.complete();
+const signedTx = await wallet.signTx(unsignedTx);
+const txHash = await wallet.submitTx(signedTx);
+
+console.log(`Treasury withdrawal proposed: ${txHash}`);
+```
+
+### Submit a No Confidence Action
+
+Propose a motion of no confidence in the current constitutional committee:
+
+```tsx
+import { MeshTxBuilder, BlockfrostProvider } from "@meshsdk/core";
+
+const provider = new BlockfrostProvider("<YOUR_API_KEY>");
+const txBuilder = new MeshTxBuilder({
+  fetcher: provider,
+  verbose: true,
+});
+
+const utxos = await wallet.getUtxos();
+const changeAddress = await wallet.getChangeAddress();
+const rewardAddresses = await wallet.getRewardAddresses();
+const rewardAddress = rewardAddresses[0]!;
+
+txBuilder
+  .proposal(
+    {
+      kind: "NoConfidenceAction",
+      action: {
+        govActionId: {
+          transactionId: "previousNoConfidenceTxHash...",
+          govActionIndex: 0,
+        },
+      },
+    },
+    {
+      anchorUrl: "https://example.com/no-confidence.jsonld",
+      anchorDataHash: "a1b1c2d3e4f5...",
+    },
+    rewardAddress
+  )
+  .changeAddress(changeAddress)
+  .selectUtxosFrom(utxos);
+
+const unsignedTx = await txBuilder.complete();
+const signedTx = await wallet.signTx(unsignedTx);
+const txHash = await wallet.submitTx(signedTx);
+
+console.log(`No confidence action submitted: ${txHash}`);
+```
+
 ## Complete Example
 
 This example demonstrates a complete DRep lifecycle:
@@ -705,12 +970,23 @@ async function main() {
 - Ensure the voter type matches your role (DRep, SPO, or CC)
 - Use the correct identifier format for each type
 
+<<<<<<< HEAD
 ## References
 
 - [CIP-1694: Cardano On-Chain Governance](https://github.com/cardano-foundation/CIPs/blob/master/CIP-1694/README.md) - The governance specification that defines DReps, voting, and governance actions
 - [CIP-95: Web-Wallet Bridge for Conway Governance](https://cips.cardano.org/cip/CIP-0095) - The standard for wallet-dApp governance interaction
 - [CIP-119: DRep Metadata Standard](https://github.com/cardano-foundation/CIPs/blob/master/CIP-0119/README.md) - Metadata standard for DRep registration
 - [Cardano Developer Portal](https://developers.cardano.org) - Official Cardano development resources
+=======
+### "Insufficient deposit" for proposal
+- Governance action proposals require a large deposit (check `govActionDeposit` in protocol parameters)
+- The deposit is returned when the governance action is resolved (enacted, expired, or dropped)
+- Ensure wallet has enough ADA for deposit + fees
+
+### "Missing proposal script information" error
+- When using `proposalScript()` or `proposalTxInReference()`, ensure the script source is provided before calling `.complete()`
+- For Plutus script proposals, a redeemer must also be provided via `proposalRedeemerValue()`
+>>>>>>> d777cda (add submit gov action to tx builder docs)
 
 ## Related
 
