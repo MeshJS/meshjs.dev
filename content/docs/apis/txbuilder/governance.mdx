@@ -970,14 +970,6 @@ async function main() {
 - Ensure the voter type matches your role (DRep, SPO, or CC)
 - Use the correct identifier format for each type
 
-<<<<<<< HEAD
-## References
-
-- [CIP-1694: Cardano On-Chain Governance](https://github.com/cardano-foundation/CIPs/blob/master/CIP-1694/README.md) - The governance specification that defines DReps, voting, and governance actions
-- [CIP-95: Web-Wallet Bridge for Conway Governance](https://cips.cardano.org/cip/CIP-0095) - The standard for wallet-dApp governance interaction
-- [CIP-119: DRep Metadata Standard](https://github.com/cardano-foundation/CIPs/blob/master/CIP-0119/README.md) - Metadata standard for DRep registration
-- [Cardano Developer Portal](https://developers.cardano.org) - Official Cardano development resources
-=======
 ### "Insufficient deposit" for proposal
 - Governance action proposals require a large deposit (check `govActionDeposit` in protocol parameters)
 - The deposit is returned when the governance action is resolved (enacted, expired, or dropped)
@@ -986,7 +978,13 @@ async function main() {
 ### "Missing proposal script information" error
 - When using `proposalScript()` or `proposalTxInReference()`, ensure the script source is provided before calling `.complete()`
 - For Plutus script proposals, a redeemer must also be provided via `proposalRedeemerValue()`
->>>>>>> d777cda (add submit gov action to tx builder docs)
+
+## References
+
+- [CIP-1694: Cardano On-Chain Governance](https://github.com/cardano-foundation/CIPs/blob/master/CIP-1694/README.md) - The governance specification that defines DReps, voting, and governance actions
+- [CIP-95: Web-Wallet Bridge for Conway Governance](https://cips.cardano.org/cip/CIP-0095) - The standard for wallet-dApp governance interaction
+- [CIP-119: DRep Metadata Standard](https://github.com/cardano-foundation/CIPs/blob/master/CIP-0119/README.md) - Metadata standard for DRep registration
+- [Cardano Developer Portal](https://developers.cardano.org) - Official Cardano development resources
 
 ## Related
 
