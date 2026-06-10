@@ -1,5 +1,5 @@
 {
   "title": "Providers",
   "icon": "CloudIcon",
-  "pages": ["blockfrost", "hydra", "koios", "maestro", "ogmios", "utxorpc", "yaci", "offline-fetcher", "offline-evaluator"]
+  "pages": ["blockfrost", "hydra", "koios", "maestro", "ogmios", "utxorpc", "yaci", "offline-fetcher", "offline-evaluator", "bitcoin-blockstream", "bitcoin-maestro"]
 }
