@@ -1,4 +1,8 @@
-import { WalletIcon } from "@heroicons/react/24/solid";
+import {
+  BanknotesIcon,
+  CurrencyDollarIcon,
+  WalletIcon,
+} from "@heroicons/react/24/solid";
 
 export const metaAppwallet = {
   link: `/apis/wallets/appwallet`,
@@ -16,7 +20,26 @@ export const metaMeshwallet = {
   desc: "Mesh Wallet provides a set of APIs to interact with the blockchain. This wallet is compatible with Mesh transaction builders.",
 };
 
-export const linksWallets = [metaBrowserwallet, metaMeshwallet];
+export const metaBitcoinBrowserWallet = {
+  link: `/apis/wallets/bitcoin/browser-wallet`,
+  title: "Bitcoin Browser Wallet",
+  desc: "Connect to Xverse and other Bitcoin browser extensions via a unified Sats Connect API.",
+  icon: BanknotesIcon,
+};
+
+export const metaBitcoinHeadlessWallet = {
+  link: `/apis/wallets/bitcoin/headless-wallet`,
+  title: "Bitcoin Headless Wallet",
+  desc: "Self-custodial BIP-39 HD wallet for Node.js and browser — derives addresses, signs and broadcasts without any extension.",
+  icon: CurrencyDollarIcon,
+};
+
+export const linksWallets = [
+  metaBrowserwallet,
+  metaMeshwallet,
+  metaBitcoinBrowserWallet,
+  metaBitcoinHeadlessWallet,
+];
 
 export const metaWallets = {
   title: "Wallets",

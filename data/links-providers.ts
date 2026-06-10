@@ -63,6 +63,20 @@ export const metaOfflineEvaluator = {
   thumbnail: "/logo-mesh/mesh.png",
 };
 
+export const metaBitcoinBlockstream = {
+  title: "Blockstream Bitcoin Provider",
+  link: "/providers/bitcoin-blockstream",
+  desc: "Fetch Bitcoin chain data and submit transactions via the public Blockstream Esplora API — no API key required.",
+  thumbnail: "/logo-mesh/mesh.png",
+};
+
+export const metaBitcoinMaestro = {
+  title: "Maestro Bitcoin Provider",
+  link: "/providers/bitcoin-maestro",
+  desc: "Enterprise-grade Bitcoin chain data and transaction submission via Maestro's Esplora-compatible API.",
+  thumbnail: "/providers/maestro.png",
+};
+
 export const linksProviders = [
   metaBlockfrost,
   metaHydraProvider,
@@ -73,6 +87,8 @@ export const linksProviders = [
   metaYaci,
   metaOfflineFetcher,
   metaOfflineEvaluator,
+  metaBitcoinBlockstream,
+  metaBitcoinMaestro,
 ];
 
 export const metaProviders = {
