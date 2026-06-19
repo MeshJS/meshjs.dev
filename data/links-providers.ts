@@ -67,6 +67,7 @@ export const metaScalusEmulator = {
   title: "Scalus Emulator",
   link: "/providers/scalus-emulator",
   desc: "A Scalus-based emulator for testing and validation.",
+  icon: "icons/scalus-logo-vertical-dark.png",
   thumbnail: "/logo-mesh/mesh.png",
 };
 

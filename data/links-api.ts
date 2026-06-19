@@ -1,7 +1,7 @@
 import { metaAiken } from "./links-aiken";
 import { metaHydra } from "./links-hydra";
 import { metaMidnight } from "./links-midnight";
-import { metaProviders } from "./links-providers";
+import { metaProviders, metaScalusEmulator } from "./links-providers";
 import { metaReact } from "./links-react";
 import { metaSmartContract } from "./links-smart-contracts";
 // import { metaSvelte } from "./links-svelte";
@@ -39,6 +39,7 @@ export const linksApi = [
   metaTxbuilder,
   metaTxParser,
   metaProviders,
+  metaScalusEmulator,
   metaUtilities,
   metaReact,
   // metaSvelte,
