@@ -160,3 +160,22 @@ const tokenOutput = mintedUtxos.find((u) =>
 );
 expect(tokenOutput).toBeDefined();
 ```
+
+With the correct slotConfig and time setup, we can also test that expired transactions get rejected.
+
+```typescript
+const currentSlot = unixTimeToEnclosingSlot(Date.now(), slotConfig);
+const expiredSlot = currentSlot - 100;
+
+const utxos = await provider.fetchAddressUTxOs(address);
+
+const txHex = await newTxBuilder()
+  .txOut(address, [{ unit: "lovelace", quantity: "2000000" }])
+  .invalidHereafter(expiredSlot)
+  .changeAddress(address)
+  .selectUtxosFrom(utxos)
+  .complete();
+
+const signedTx = await wallet.signTx(txHex);
+await expect(provider.submitTx(signedTx)).rejects.toThrow();
+```
