@@ -1,5 +1,18 @@
 {
   "title": "Providers",
   "icon": "CloudIcon",
-  "pages": ["blockfrost", "hydra", "koios", "maestro", "ogmios", "utxorpc", "yaci", "offline-fetcher", "offline-evaluator", "bitcoin-blockstream", "bitcoin-maestro"]
+  "pages": [
+    "blockfrost",
+    "hydra",
+    "koios",
+    "maestro",
+    "ogmios",
+    "utxorpc",
+    "yaci",
+    "offline-fetcher",
+    "offline-evaluator",
+    "scalus-emulator",
+    "bitcoin-blockstream",
+    "bitcoin-maestro"
+  ]
 }
