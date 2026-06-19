@@ -63,6 +63,13 @@ export const metaOfflineEvaluator = {
   thumbnail: "/logo-mesh/mesh.png",
 };
 
+export const metaScalusEmulator = {
+  title: "Scalus Emulator",
+  link: "/providers/scalus-emulator",
+  desc: "A Scalus-based emulator for testing and validation.",
+  thumbnail: "/logo-mesh/mesh.png",
+};
+
 export const metaBitcoinBlockstream = {
   title: "Blockstream Bitcoin Provider",
   link: "/providers/bitcoin-blockstream",
@@ -87,6 +94,7 @@ export const linksProviders = [
   metaYaci,
   metaOfflineFetcher,
   metaOfflineEvaluator,
+  metaScalusEmulator,
   metaBitcoinBlockstream,
   metaBitcoinMaestro,
 ];
