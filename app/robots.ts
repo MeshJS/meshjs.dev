@@ -22,7 +22,7 @@ export default function robots(): MetadataRoute.Robots {
                     'cohere-ai',        // Cohere AI
                 ],
                 allow: '/',
-                disallow: ['/api/', '/docs-og/'],
+                disallow: ['/api/'],
                 crawlDelay: 1,
             },
             // Search Engine Crawlers - Full access
@@ -36,7 +36,7 @@ export default function robots(): MetadataRoute.Robots {
                     'Google-InspectionTool',
                 ],
                 allow: '/',
-                disallow: ['/api/', '/docs-og/'],
+                disallow: ['/api/'],
                 crawlDelay: 0,
             },
             {
@@ -47,7 +47,7 @@ export default function robots(): MetadataRoute.Robots {
                     'msnbot-media',
                 ],
                 allow: '/',
-                disallow: ['/api/', '/docs-og/'],
+                disallow: ['/api/'],
             },
             // Other Search Engines
             {
@@ -60,7 +60,7 @@ export default function robots(): MetadataRoute.Robots {
                     'ia_archiver',      // Alexa
                 ],
                 allow: '/',
-                disallow: ['/api/', '/docs-og/'],
+                disallow: ['/api/'],
             },
             // Social Media Crawlers
             {
@@ -74,7 +74,7 @@ export default function robots(): MetadataRoute.Robots {
                     'facebookexternalhit',
                 ],
                 allow: '/',
-                disallow: ['/api/', '/docs-og/'],
+                disallow: ['/api/'],
             },
             // Developer Tools & Validators
             {
@@ -85,14 +85,14 @@ export default function robots(): MetadataRoute.Robots {
                     'DotBot',
                 ],
                 allow: '/',
-                disallow: ['/api/', '/docs-og/'],
+                disallow: ['/api/'],
                 crawlDelay: 10,
             },
             // Default rule for all other bots
             {
                 userAgent: '*',
                 allow: '/',
-                disallow: ['/api/', '/docs-og/'],
+                disallow: ['/api/'],
             },
         ],
         sitemap: 'https://meshjs.dev/sitemap.xml',

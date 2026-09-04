@@ -27,7 +27,7 @@ export const metadata: Metadata = {
     default: 'MeshJS - Cardano TypeScript SDK for dApp Development',
     template: '%s | Mesh SDK',
   },
-  description: 'MeshJS is the leading Cardano TypeScript SDK. Build dApps with transaction builder, React components, NFT minting, and smart contracts. 1M+ npm downloads.',
+  description: 'MeshJS is the leading Cardano TypeScript SDK. Build dApps with transaction builder, React components, NFT minting, and smart contracts.',
   keywords: [
     'Cardano',
     'TypeScript SDK',
@@ -100,7 +100,7 @@ export const metadata: Metadata = {
     url: 'https://meshjs.dev',
     siteName: 'Mesh SDK',
     title: 'MeshJS - Cardano TypeScript SDK for dApp Development',
-    description: 'MeshJS is the leading Cardano TypeScript SDK. Build dApps with transaction builder, React components, NFT minting, and smart contracts. 1M+ npm downloads.',
+    description: 'MeshJS is the leading Cardano TypeScript SDK. Build dApps with transaction builder, React components, NFT minting, and smart contracts.',
     images: [
       {
         url: 'https://meshjs.dev/logo-mesh/mesh.png',
@@ -116,7 +116,7 @@ export const metadata: Metadata = {
     site: '@meshsdk',
     creator: '@meshsdk',
     title: 'MeshJS - Cardano TypeScript SDK for dApp Development',
-    description: 'MeshJS is the leading Cardano TypeScript SDK. Build dApps with transaction builder, React components, NFT minting, and smart contracts. 1M+ npm downloads.',
+    description: 'MeshJS is the leading Cardano TypeScript SDK. Build dApps with transaction builder, React components, NFT minting, and smart contracts.',
     images: ['https://meshjs.dev/logo-mesh/mesh.png'],
   },
   icons: {
@@ -201,7 +201,7 @@ const structuredData = {
         url: 'https://meshjs.dev',
       },
       description: 'Open-source TypeScript SDK for building Cardano dApps with transaction builders, wallet connectors, and smart contract tools',
-      foundingDate: '2021',
+      foundingDate: '2022',
       keywords: 'Cardano SDK, TypeScript, Web3, Blockchain Development, dApp, NFT minting, CIP-30, Aiken',
     },
     {
@@ -234,16 +234,8 @@ const structuredData = {
         price: '0',
         priceCurrency: 'USD',
       },
-      aggregateRating: {
-        '@type': 'AggregateRating',
-        ratingValue: '4.8',
-        ratingCount: '150',
-        bestRating: '5',
-      },
       downloadUrl: 'https://www.npmjs.com/package/@meshsdk/core',
-      softwareVersion: 'latest',
       description: 'TypeScript SDK for Cardano dApp development with React wallet components, transaction builders, NFT minting, and smart contract tools',
-      releaseNotes: 'Production-ready Cardano SDK with 1M+ npm downloads',
     },
     {
       '@type': 'BreadcrumbList',
