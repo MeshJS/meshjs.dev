@@ -1,13 +1,18 @@
 import { source } from '@/lib/source';
+import { getContentDate } from '@/lib/content-dates';
 
 export async function GET() {
   const baseUrl = 'https://meshjs.dev';
-  const currentDate = new Date().toUTCString();
 
-  const pages = source.getPages();
+  const pages = source
+    .getPages()
+    .map((page) => ({ page, published: getContentDate(page.absolutePath) }))
+    .sort((a, b) => b.published.getTime() - a.published.getTime());
+
+  const lastBuildDate = (pages[0]?.published ?? new Date()).toUTCString();
 
   const items = pages
-    .map((page) => {
+    .map(({ page, published }) => {
       const title = page.data.title || 'Untitled';
       const description = page.data.description || '';
       const url = `${baseUrl}${page.url}`;
@@ -18,7 +23,7 @@ export async function GET() {
       <link>${url}</link>
       <guid isPermaLink="true">${url}</guid>
       <description><![CDATA[${description}]]></description>
-      <pubDate>${currentDate}</pubDate>
+      <pubDate>${published.toUTCString()}</pubDate>
     </item>`;
     })
     .join('');
@@ -30,7 +35,7 @@ export async function GET() {
     <link>${baseUrl}</link>
     <description>Open-source TypeScript SDK for Cardano blockchain development. Build dApps faster with React components, wallet integrations, and transaction builders.</description>
     <language>en-US</language>
-    <lastBuildDate>${currentDate}</lastBuildDate>
+    <lastBuildDate>${lastBuildDate}</lastBuildDate>
     <atom:link href="${baseUrl}/rss.xml" rel="self" type="application/rss+xml"/>
     ${items}
   </channel>

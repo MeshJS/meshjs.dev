@@ -94,6 +94,17 @@ const config = {
   // Trailing slash preference for consistency
   trailingSlash: false,
 
+  // Serve any docs page as plain markdown by appending .md to its URL,
+  // which is the address AI tooling and the in-page copy button both expect.
+  async rewrites() {
+    return [
+      {
+        source: '/:path(.*)\\.md',
+        destination: '/llms.mdx/:path',
+      },
+    ];
+  },
+
   // Redirect root favicon requests to the correct location
   async redirects() {
     return [
