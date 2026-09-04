@@ -9,6 +9,34 @@ import { notFound } from 'next/navigation';
 import { createRelativeLink } from 'fumadocs-ui/mdx';
 import { getMDXComponents } from '@/mdx-components';
 import { LLMCopyButton, ViewOptions } from '@/components/ai/page-actions';
+import { sectionTitle } from '@/lib/sections';
+
+const BASE_URL = 'https://meshjs.dev';
+
+function generateBreadcrumbSchema(url: string, title: string) {
+  const segments = url.split('/').filter(Boolean);
+  let path = '';
+
+  const trail = [{ name: 'Home', item: BASE_URL }];
+  segments.forEach((segment, i) => {
+    path += `/${segment}`;
+    trail.push({
+      name: i === segments.length - 1 ? title : sectionTitle(segment),
+      item: `${BASE_URL}${path}`,
+    });
+  });
+
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: trail.map((entry, i) => ({
+      '@type': 'ListItem',
+      position: i + 1,
+      name: entry.name,
+      item: entry.item,
+    })),
+  };
+}
 
 function generateArticleSchema(title: string, description: string, url: string) {
   return {
@@ -48,24 +76,21 @@ export default async function Page(props: {
 
   const MDXContent = page.data.body;
   const markdownUrl = `/llms.mdx${page.url}`;
-  const isGuidePage = page.url.startsWith('/guides');
+
+  // Emitted for every documentation page. This was previously gated to
+  // /guides, leaving the API, React, provider and resource pages — the
+  // large majority of the site — with no article schema at all.
+  const pageSchema = [
+    generateArticleSchema(page.data.title, page.data.description || '', page.url),
+    generateBreadcrumbSchema(page.url, page.data.title),
+  ];
 
   return (
     <>
-      {isGuidePage && (
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{
-            __html: JSON.stringify(
-              generateArticleSchema(
-                page.data.title,
-                page.data.description || '',
-                page.url
-              )
-            ),
-          }}
-        />
-      )}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(pageSchema) }}
+      />
       <DocsPage toc={page.data.toc} full={page.data.full}>
         <DocsTitle>{page.data.title}</DocsTitle>
         <DocsDescription className="!mb-2">

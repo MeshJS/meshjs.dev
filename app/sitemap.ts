@@ -1,15 +1,6 @@
 import { MetadataRoute } from 'next';
 import { source } from '@/lib/source';
-import fs from 'fs';
-
-function getFileModifiedDate(absolutePath: string): Date {
-  try {
-    const stats = fs.statSync(absolutePath);
-    return stats.mtime;
-  } catch {
-    return new Date();
-  }
-}
+import { getContentDate } from '@/lib/content-dates';
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const baseUrl = 'https://meshjs.dev';
@@ -39,7 +30,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     }
 
     // Get actual file modification date
-    const lastModified = page.absolutePath ? getFileModifiedDate(page.absolutePath) : currentDate;
+    const lastModified = getContentDate(page.absolutePath);
 
     return {
       url: `${baseUrl}${page.url}`,

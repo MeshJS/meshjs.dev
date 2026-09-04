@@ -237,36 +237,6 @@ const structuredData = {
       downloadUrl: 'https://www.npmjs.com/package/@meshsdk/core',
       description: 'TypeScript SDK for Cardano dApp development with React wallet components, transaction builders, NFT minting, and smart contract tools',
     },
-    {
-      '@type': 'BreadcrumbList',
-      '@id': 'https://meshjs.dev/#breadcrumb',
-      itemListElement: [
-        {
-          '@type': 'ListItem',
-          position: 1,
-          name: 'Home',
-          item: 'https://meshjs.dev',
-        },
-        {
-          '@type': 'ListItem',
-          position: 2,
-          name: 'Guides',
-          item: 'https://meshjs.dev/guides',
-        },
-        {
-          '@type': 'ListItem',
-          position: 3,
-          name: 'APIs',
-          item: 'https://meshjs.dev/apis',
-        },
-        {
-          '@type': 'ListItem',
-          position: 4,
-          name: 'React',
-          item: 'https://meshjs.dev/react',
-        },
-      ],
-    },
   ],
 };
 
