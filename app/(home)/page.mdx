@@ -9,14 +9,9 @@ import {
   Blocks,
   Sparkles,
   Rocket,
-  Globe,
   Users,
-  Star,
-  ChevronRight,
   Github,
-  Copy,
   Terminal,
-  Check,
   FileCode,
   Lock,
   ShoppingCart,
@@ -28,6 +23,7 @@ import {
 import { cn } from "@/lib/cn";
 import { buttonVariants } from "@/components/ui/button";
 import { iconResolver } from "@/lib/iconResolver";
+import { FeatureSplit } from "@/components/home/FeatureSplit";
 import { Cards } from "fumadocs-ui/components/card";
 import {
   Card,
@@ -40,14 +36,11 @@ import {
   PaintBrushIcon,
   RocketLaunchIcon,
   WalletIcon,
-  BanknotesIcon,
-  MagnifyingGlassIcon,
   WrenchScrewdriverIcon,
   ComputerDesktopIcon,
   DocumentCheckIcon,
   CloudIcon,
 } from "@heroicons/react/24/solid";
-import * as heroIcons from '@heroicons/react/24/solid';
 import {linksApi} from "@/data/links-api";
 
 <main className="min-h-screen">
@@ -135,7 +128,7 @@ import {linksApi} from "@/data/links-api";
             <Card className="h-full hover:border-foreground/20 transition-colors duration-150 px-4 py-8">
               <CardHeader>
               <div className="w-12 h-12 bg-muted rounded-lg flex items-center justify-center mb-4">
-                {typeof item.icon === typeof heroIcons ? (
+                {typeof item.icon !== 'string' ? (
                   <item.icon className="w-6 h-6" />
                   ) :
                   <div>
@@ -198,251 +191,117 @@ import {linksApi} from "@/data/links-api";
   </section>
 
   {/* ═══════════════ AI AGENT SKILLS ═══════════════ */}
-  <section className="py-20 lg:py-28">
-    <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-      <div className="grid lg:grid-cols-2 gap-12 items-center">
-        <div>
-          <div className="inline-flex items-center mb-4 px-3 py-1 rounded-full border border-border text-sm font-medium">
-            <Sparkles className="w-4 h-4 mr-1" />
-            Agent Skills
-          </div>
+  <FeatureSplit
+    eyebrowIcon={<Sparkles className="w-4 h-4 mr-1" />}
+    eyebrow="Agent Skills"
+    title="AI-Powered Development"
+    description="Give your AI coding assistant deep knowledge of Mesh SDK. Agent Skills work with Claude Code, Cursor, Codex, and 37+ tools so your AI already knows the API, patterns, and common errors."
+    links={[
+      { icon: BoltIcon, text: "Transaction building patterns", link: "https://github.com/MeshJS/skills/tree/main/mesh-transaction" },
+      { icon: WalletIcon, text: "Wallet integration recipes", link: "https://github.com/MeshJS/skills/tree/main/mesh-wallet" },
+      { icon: WrenchScrewdriverIcon, text: "Low-level utilities & troubleshooting", link: "https://github.com/MeshJS/skills/tree/main/mesh-core-cst" },
+    ]}
+    footerLink={{ href: "https://github.com/MeshJS/skills", text: "Browse on GitHub" }}
+    codeLabel="terminal"
+  >
+    ```bash
+      # Install all Mesh skills
+      npx skills add MeshJS/skills
 
-          <h2 className="font-heading font-bold text-3xl lg:text-4xl mb-6">
-            AI-Powered Development
-          </h2>
-          <div className="text-lg mb-6 text-muted-foreground">
-            Give your AI coding assistant deep knowledge of Mesh SDK. Agent Skills work with Claude Code, Cursor, Codex, and 37+ tools so your AI already knows the API, patterns, and common errors.
-          </div>
-          <div className="space-y-3">
-            {[
-              { icon: BoltIcon, text: "Transaction building patterns", link: "https://github.com/MeshJS/skills/tree/main/mesh-transaction" },
-              { icon: WalletIcon, text: "Wallet integration recipes", link: "https://github.com/MeshJS/skills/tree/main/mesh-wallet" },
-              { icon: WrenchScrewdriverIcon, text: "Low-level utilities & troubleshooting", link: "https://github.com/MeshJS/skills/tree/main/mesh-core-cst" },
-            ].map((item, index) => (
-              <Link
-                key={index}
-                className="flex items-center space-x-3 text-muted-foreground hover:text-foreground transition-colors duration-150"
-                href={item.link}
-              >
-                <item.icon className="w-4 h-4" />
-                <span>{item.text}</span>
-              </Link>
-            ))}
-          </div>
-          <div className="mt-6">
-            <Link
-              href="https://github.com/MeshJS/skills"
-              className="text-sm text-muted-foreground hover:text-foreground transition-colors duration-150 inline-flex items-center gap-1"
-            >
-              <span>Browse on GitHub</span> <ArrowRight className="w-3 h-3" />
-            </Link>
-          </div>
-        </div>
-
-        <Card className="hover:border-foreground/20 transition-colors duration-150">
-          <CardHeader>
-            <div className="text-xs font-mono text-muted-foreground bg-muted rounded-md px-3 py-1.5 w-fit mb-4">
-              terminal
-            </div>
-            <CardDescription>
-              ```bash
-                # Install all Mesh skills
-                npx skills add MeshJS/skills
-
-                # Install for a specific agent
-                npx skills add MeshJS/skills -a claude-code
-                npx skills add MeshJS/skills -a cursor
-                npx skills add MeshJS/skills -a codex
-              ```
-            </CardDescription>
-          </CardHeader>
-        </Card>
-      </div>
-    </div>
-  </section>
-
+      # Install for a specific agent
+      npx skills add MeshJS/skills -a claude-code
+      npx skills add MeshJS/skills -a cursor
+      npx skills add MeshJS/skills -a codex
+    ```
+  </FeatureSplit>
   {/* ═══════════════ TRANSACTION BUILDER (text left, code right) ═══════════════ */}
-  <section className="py-20 lg:py-28">
-    <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-      <div className="grid lg:grid-cols-2 gap-12 items-center">
-        <div>
-          <div className="inline-flex items-center mb-4 px-3 py-1 rounded-full border border-border text-sm font-medium">
-            <Blocks className="w-4 h-4 mr-1" />
-            Transaction Builder
-          </div>
+  <FeatureSplit
+    eyebrowIcon={<Blocks className="w-4 h-4 mr-1" />}
+    eyebrow="Transaction Builder"
+    title="Cardano Transaction Builder in TypeScript"
+    description="MeshTxBuilder is a chainable API for constructing any Cardano transaction. Build simple ADA transfers, Plutus script interactions, token minting, governance votes, and staking operations with automatic UTXO selection and fee calculation."
+    links={[
+      { icon: BoltIcon, text: "Send ADA, tokens & mint NFTs", link: "/apis/txbuilder/basics" },
+      { icon: DocumentCheckIcon, text: "Plutus V1/V2/V3 script spending", link: "/apis/txbuilder/smart-contracts" },
+      { icon: CloudIcon, text: "Governance, staking & pool ops", link: "/apis/txbuilder/staking" },
+    ]}
+    codeLabel="sendAda.ts"
+  >
+    ```typescript
+      import { MeshTxBuilder } from '@meshsdk/transaction';
 
-          <h2 className="font-heading font-bold text-3xl lg:text-4xl mb-6">
-            Cardano Transaction Builder in TypeScript
-          </h2>
-          <div className="text-lg mb-6 text-muted-foreground">
-            MeshTxBuilder is a chainable API for constructing any Cardano transaction. Build simple ADA transfers, Plutus script interactions, token minting, governance votes, and staking operations with automatic UTXO selection and fee calculation.
-          </div>
-          <div className="space-y-3">
-            {[
-              { icon: BoltIcon, text: "Send ADA, tokens & mint NFTs", link: "/apis/txbuilder/basics" },
-              { icon: DocumentCheckIcon, text: "Plutus V1/V2/V3 script spending", link: "/apis/txbuilder/smart-contracts" },
-              { icon: CloudIcon, text: "Governance, staking & pool ops", link: "/apis/txbuilder/staking" },
-            ].map((item, index) => (
-              <Link
-                key={index}
-                className="flex items-center space-x-3 text-muted-foreground hover:text-foreground transition-colors duration-150"
-                href={item.link}
-              >
-                <item.icon className="w-4 h-4" />
-                <span>{item.text}</span>
-              </Link>
-            ))}
-          </div>
-        </div>
+      const txBuilder = new MeshTxBuilder();
 
-        <Card className="hover:border-foreground/20 transition-colors duration-150">
-          <CardHeader>
-            <div className="text-xs font-mono text-muted-foreground bg-muted rounded-md px-3 py-1.5 w-fit mb-4">
-              sendAda.ts
-            </div>
-            <CardDescription>
-              ```typescript
-                import { MeshTxBuilder } from '@meshsdk/transaction';
-
-                const txBuilder = new MeshTxBuilder();
-
-                const unsignedTx = await txBuilder
-                  .txIn(txHash, txIndex)
-                  .txOut(recipientAddress, [
-                    { unit: 'lovelace', quantity: '5000000' },
-                  ])
-                  .changeAddress(senderAddress)
-                  .selectUtxosFrom(utxos)
-                  .complete();
-              ```
-            </CardDescription>
-          </CardHeader>
-        </Card>
-      </div>
-    </div>
-  </section>
+      const unsignedTx = await txBuilder
+        .txIn(txHash, txIndex)
+        .txOut(recipientAddress, [
+          { unit: 'lovelace', quantity: '5000000' },
+        ])
+        .changeAddress(senderAddress)
+        .selectUtxosFrom(utxos)
+        .complete();
+    ```
+  </FeatureSplit>
 
   {/* ═══════════════ REACT COMPONENTS (code LEFT, text RIGHT - alternated) ═══════════════ */}
-  <section className="py-20 lg:py-28">
-    <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-      <div className="grid lg:grid-cols-2 gap-12 items-center">
-        <Card className="hover:border-foreground/20 transition-colors duration-150 order-2 lg:order-1">
-          <CardHeader>
-            <div className="text-xs font-mono text-muted-foreground bg-muted rounded-md px-3 py-1.5 w-fit mb-4">
-              connectWallet.tsx
-            </div>
-            <CardDescription>
-              ```tsx
-                import { CardanoWallet } from '@meshsdk/react';
+  <FeatureSplit
+    reverse
+    eyebrowIcon={<img className="w-4 h-4 mr-1" src="/icons/react.svg" alt="react-logo" />}
+    eyebrow="React Components"
+    title="Cardano React Components and Wallet Hooks"
+    description="Drop in pre-built React components for Cardano wallet connections and use hooks to read balances, addresses, and assets. Works with Next.js, Vite, and any React setup."
+    links={[
+      { icon: RocketLaunchIcon, text: "Getting Started with React", link: "/react/getting-started" },
+      { icon: PaintBrushIcon, text: "UI Components", link: "/react/ui-components" },
+      { icon: BoltIcon, text: "Wallet Hooks", link: "/react/wallet-hooks" },
+    ]}
+    codeLabel="connectWallet.tsx"
+  >
+    ```tsx
+      import { CardanoWallet } from '@meshsdk/react';
 
-                export default function Page() {
-                  return (
-                    <>
-                      <CardanoWallet
-                        label={"Connect a Wallet"}
-                        persist={true}
-                        onConnected={()=>{console.log('on connected')}}
-                      />
-                    </>
-                  );
-                }
-              ```
-            </CardDescription>
-          </CardHeader>
-        </Card>
-
-        <div className="order-1 lg:order-2">
-          <div className="inline-flex items-center mb-4 px-3 py-1 rounded-full border border-border text-sm font-medium">
-            <img className="w-4 h-4 mr-1" src="icons/react.svg" alt="react-logo" />
-            React Components
-          </div>
-
-          <h2 className="font-heading font-bold text-3xl lg:text-4xl mb-6">
-            Cardano React Components and Wallet Hooks
-          </h2>
-          <div className="text-lg mb-6 text-muted-foreground">
-            Drop in pre-built React components for Cardano wallet connections and use hooks to read balances, addresses, and assets. Works with Next.js, Vite, and any React setup.
-          </div>
-          <div className="space-y-3">
-            {[
-              { icon: RocketLaunchIcon, text: "Getting Started with React", link: "/react/getting-started" },
-              { icon: PaintBrushIcon, text: "UI Components", link: "/react/ui-components" },
-              { icon: BoltIcon, text: "Wallet Hooks", link: "/react/wallet-hooks" },
-            ].map((item, index) => (
-              <Link
-                key={index}
-                className="flex items-center space-x-3 text-muted-foreground hover:text-foreground transition-colors duration-150"
-                href={item.link}
-              >
-                <item.icon className="w-4 h-4" />
-                <span>{item.text}</span>
-              </Link>
-            ))}
-          </div>
-        </div>
-      </div>
-    </div>
-  </section>
+      export default function Page() {
+        return (
+          <>
+            <CardanoWallet
+              label={"Connect a Wallet"}
+              persist={true}
+              onConnected={()=>{console.log('on connected')}}
+            />
+          </>
+        );
+      }
+    ```
+  </FeatureSplit>
 
   {/* ═══════════════ WALLET INTEGRATION (text left, code right + sub-links) ═══════════════ */}
-  <section className="py-20 lg:py-28">
-    <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-      <div className="grid lg:grid-cols-2 gap-12 items-center">
-        <div>
-          <div className="inline-flex items-center mb-4 px-3 py-1 rounded-full border border-border text-sm font-medium">
-            <WalletIcon className="w-4 h-4 mr-1" />
-            Wallet Integration
-          </div>
+  <FeatureSplit
+    eyebrowIcon={<WalletIcon className="w-4 h-4 mr-1" />}
+    eyebrow="Wallet Integration"
+    title="Cardano Wallet Integration for Browser and Server"
+    description="Connect CIP-30 browser wallets like Nami, Eternl, and Lace, or create server-side wallets with seed phrases and private keys. Build multi-signature apps, minting backends, and automated scripts with one unified API."
+    links={[
+      { icon: ComputerDesktopIcon, text: "Browser Wallet (CIP-30)", link: "/apis/wallets/browserwallet" },
+      { icon: WrenchScrewdriverIcon, text: "Headless Wallet (Server-Side)", link: "/apis/wallets/meshwallet" },
+      { icon: BoltIcon, text: "Prove Wallet Ownership", link: "/guides/prove-wallet-ownership" },
+    ]}
+    codeLabel="meshWallet.tsx"
+    codeClassName="wrap-anywhere"
+  >
+    ```tsx
+      import { MeshWallet } from '@meshsdk/core';
 
-          <h2 className="font-heading font-bold text-3xl lg:text-4xl mb-6">
-            Cardano Wallet Integration for Browser and Server
-          </h2>
-          <div className="text-lg mb-6 text-muted-foreground">
-            Connect CIP-30 browser wallets like Nami, Eternl, and Lace, or create server-side wallets with seed phrases and private keys. Build multi-signature apps, minting backends, and automated scripts with one unified API.
-          </div>
-          <div className="space-y-3">
-            {[
-              { icon: ComputerDesktopIcon, text: "Browser Wallet (CIP-30)", link: "/apis/wallets/browserwallet" },
-              { icon: WrenchScrewdriverIcon, text: "Headless Wallet (Server-Side)", link: "/apis/wallets/meshwallet" },
-              { icon: BoltIcon, text: "Prove Wallet Ownership", link: "/guides/prove-wallet-ownership" },
-            ].map((item, index) => (
-              <Link
-                key={index}
-                className="flex items-center space-x-3 text-muted-foreground hover:text-foreground transition-colors duration-150"
-                href={item.link}
-              >
-                <item.icon className="w-4 h-4" />
-                <span>{item.text}</span>
-              </Link>
-            ))}
-          </div>
-        </div>
-
-        <Card className="hover:border-foreground/20 transition-colors duration-150">
-          <CardHeader>
-            <div className="text-xs font-mono text-muted-foreground bg-muted rounded-md px-3 py-1.5 w-fit mb-4">
-              meshWallet.tsx
-            </div>
-            <CardDescription className="wrap-anywhere">
-              ```tsx
-                import { MeshWallet } from '@meshsdk/core';
-
-                const wallet = new MeshWallet({
-                  networkId: 0, // 0: testnet, 1: mainnet
-                  fetcher: provider,
-                  submitter: provider,
-                  key: {
-                    type: 'mnemonic',
-                    words: ["solution","solution",...,"solution"],
-                  },
-                });
-              ```
-            </CardDescription>
-          </CardHeader>
-        </Card>
-      </div>
-    </div>
-  </section>
+      const wallet = new MeshWallet({
+        networkId: 0, // 0: testnet, 1: mainnet
+        fetcher: provider,
+        submitter: provider,
+        key: {
+          type: 'mnemonic',
+          words: ["solution","solution",...,"solution"],
+        },
+      });
+    ```
+  </FeatureSplit>
 
   {/* ═══════════════ SMART CONTRACTS (code LEFT, text RIGHT - alternated) ═══════════════ */}
   <section className="py-20 lg:py-28">
