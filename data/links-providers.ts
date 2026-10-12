@@ -7,6 +7,13 @@ export const metaKoios = {
   thumbnail: "/providers/koios.png",
 };
 
+export const metaNexus = {
+  title: "Nexus Provider",
+  link: "/providers/nexus",
+  desc: "Gero's Cardano REST API for chain queries, transaction submission, and script evaluation",
+  thumbnail: "/logo-mesh/mesh.png",
+};
+
 export const metaBlockfrost = {
   title: "Blockfrost Provider",
   link: "/providers/blockfrost",
@@ -74,7 +81,7 @@ export const metaBitcoinBlockstream = {
 export const metaBitcoinBlockstreamEnterprise = {
   title: "Blockstream Enterprise Bitcoin Provider",
   link: "/providers/bitcoin-blockstream-enterprise",
-  desc: "Authenticated Bitcoin Esplora API via Blockstream Explorer Enterprise OAuth client credentials, production rate limits.",
+  desc: "Authenticated Bitcoin Esplora API via Blockstream Explorer Enterprise. OAuth client credentials against the enterprise hosts.",
   thumbnail: "/logo-mesh/mesh.png",
 };
 
@@ -82,6 +89,7 @@ export const linksProviders = [
   metaBlockfrost,
   metaHydraProvider,
   metaKoios,
+  metaNexus,
   metaOgmios,
   metaU5c,
   metaYaci,
@@ -94,7 +102,7 @@ export const linksProviders = [
 
 export const metaProviders = {
   title: "Providers",
-  desc: "Connect to Cardano via Blockfrost, Koios, Ogmios, or UTxO RPC, and to Bitcoin via Blockstream, with a unified API.",
+  desc: "Connect to Cardano via Blockfrost, Koios, Nexus, Ogmios, or UTxO RPC, and to Bitcoin via Blockstream, with a unified API.",
   link: "/providers",
   icon: CloudIcon,
   items: linksProviders,

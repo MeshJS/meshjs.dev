@@ -355,7 +355,7 @@ const balance = await wallet.getBalance();
 
 ### Blockstream Enterprise (API key required)
 
-Uses [Blockstream Explorer Enterprise](https://help.blockstream.com/blockstream-explorer-api/use-explorer-api/make-a-rest-api-request-with-your-api-keys) — authenticated Esplora hosts, OAuth client credentials, production rate limits.
+Uses [Blockstream Explorer Enterprise](https://help.blockstream.com/blockstream-explorer-api/use-explorer-api/make-a-rest-api-request-with-your-api-keys). Same Esplora methods as the public provider, with OAuth client credentials against `https://enterprise.blockstream.info`.
 
 ```ts
 import { BitcoinHeadlessWallet } from "@meshsdk/wallet";

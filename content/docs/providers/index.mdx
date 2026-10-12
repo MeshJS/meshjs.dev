@@ -1,6 +1,6 @@
 ---
 title: "Blockchain Providers"
-description: "Connect to Cardano with Blockfrost, Koios, Ogmios, UTxO RPC, and Bitcoin with Blockstream. Unified provider interface for data fetching and transaction submission."
+description: "Connect to Cardano with Blockfrost, Koios, Nexus, Ogmios, UTxO RPC, and Bitcoin with Blockstream. Unified provider interface for data fetching and transaction submission."
 icon: CloudIcon
 ---
 
@@ -24,6 +24,7 @@ MeshJS supports multiple blockchain data providers, each with different strength
 |----------|----------|--------------|
 | [Blockfrost](/providers/blockfrost) | Production apps | 100+ APIs, reliable infrastructure |
 | [Koios](/providers/koios) | Open-source projects | Free tier, distributed architecture |
+| [Nexus](/providers/nexus) | Hosted or self-hosted Cardano API | REST queries, submit, and script evaluation |
 | [UTxORPC](/providers/utxorpc) | High performance | gRPC protocol, minimal overhead |
 | [Ogmios](/providers/ogmios) | Self-hosted nodes | WebSocket API, local deployment |
 | [Yaci](/providers/yaci) | Local development | Custom devnets, fast iteration |
@@ -98,7 +99,7 @@ interface IEvaluator {
 ## Choosing a Provider
 
 **For production applications:**
-- Use [Blockfrost](/providers/blockfrost) for reliable, managed infrastructure
+- Use [Blockfrost](/providers/blockfrost) or [Nexus](/providers/nexus) for reliable, managed infrastructure
 - Consider [UTxORPC](/providers/utxorpc) if you need maximum performance
 
 **For development and testing:**
@@ -114,7 +115,7 @@ interface IEvaluator {
 
 **For Bitcoin applications:**
 - Use [Blockstream](/providers/bitcoin-blockstream) for free, zero-config access to mainnet and testnet
-- Use [Blockstream Enterprise](/providers/bitcoin-blockstream-enterprise) for authenticated production access and higher rate limits
+- Use [Blockstream Enterprise](/providers/bitcoin-blockstream-enterprise) when you have Explorer API credentials and want the enterprise Esplora hosts
 
 ## Available Providers
 

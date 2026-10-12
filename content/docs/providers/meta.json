@@ -5,6 +5,7 @@
     "blockfrost",
     "hydra",
     "koios",
+    "nexus",
     "ogmios",
     "utxorpc",
     "yaci",

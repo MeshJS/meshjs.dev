@@ -10,9 +10,9 @@ import Link from "fumadocs-core/link";
 <Link href="https://help.blockstream.com/blockstream-explorer-api/use-explorer-api/make-a-rest-api-request-with-your-api-keys">Blockstream Explorer Enterprise</Link> is the authenticated Esplora API for production Bitcoin workloads. `BlockstreamEnterpriseBitcoinProvider` implements `IBitcoinProvider` and uses the same REST methods as <Link href="/providers/bitcoin-blockstream">`BlockstreamBitcoinProvider`</Link> — it adds OAuth2 client-credentials auth and talks to the enterprise hosts.
 
 **When to use Blockstream Enterprise:**
-- Production applications that need higher rate limits than the public API
-- Workloads that require authenticated, SLA-backed Blockstream Explorer access
-- Drop-in replacement for the public provider same `IBitcoinProvider` surface
+- You have a Blockstream Explorer API key pair (`client_id` and `client_secret`)
+- You want the same `IBitcoinProvider` methods against the enterprise Esplora hosts
+- You want Bearer-token auth handled by the provider, including refresh and one retry on `401`
 
 Both providers share an internal Esplora HTTP client (`EsploraBitcoinClient`, not part of the public package surface). You can swap `BlockstreamBitcoinProvider` for `BlockstreamEnterpriseBitcoinProvider` without changing wallet or query code.
 
@@ -67,7 +67,7 @@ The provider fetches a Bearer token from Blockstream's OpenID token endpoint usi
 POST https://login.blockstream.com/realms/blockstream-public/protocol/openid-connect/token
 ```
 
-Tokens are cached in memory and refreshed about 60 seconds before expiry. Concurrent requests share a single in-flight token fetch. If a request returns `401`, the cached token is invalidated and retried once with a fresh token.
+Tokens are cached in memory and refreshed 60 seconds before `expires_in` (that field defaults to 300 seconds when the token response omits it). Concurrent calls share one in-flight token request. A `401` clears the cache and the same request is retried once.
 
 You do not set the `Authorization` header yourself — `getHeaders` on the shared Esplora client injects `Authorization: Bearer <token>` on every request, including `submitTx`.
 
@@ -138,8 +138,8 @@ The `network` passed to `BlockstreamEnterpriseBitcoinProvider` must match the wa
 | `"testnet"` | `"Testnet4"` |
 | `"mainnet"` | `"Mainnet"` |
 
-### Rate limits on the public API
-If you are still hitting 429s, confirm you constructed `BlockstreamEnterpriseBitcoinProvider` (enterprise hosts) and not `BlockstreamBitcoinProvider` (public `blockstream.info` hosts).
+### Requests still go to the public API
+`BlockstreamBitcoinProvider` uses `https://blockstream.info`. `BlockstreamEnterpriseBitcoinProvider` uses `https://enterprise.blockstream.info`. The class you construct selects the host.
 
 ## References
 
