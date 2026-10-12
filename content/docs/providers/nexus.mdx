@@ -223,7 +223,6 @@ Reference scripts are normalised to Mesh `scriptRef` CBOR. When the output only 
 
 ### fetchGovernanceProposal
 
-A governance action. The provider requests `governance/proposals/{txHash}%23{certIndex}`.
 
 ```ts
 await provider.fetchGovernanceProposal(
@@ -239,10 +238,6 @@ await provider.fetchGovernanceProposal(
 
 ```ts
 await provider.fetchHandleAddress(handle: string): Promise<string>
-```
-
-```ts
-const address = await provider.fetchHandleAddress("meshsdk");
 ```
 
 ### fetchHandle
