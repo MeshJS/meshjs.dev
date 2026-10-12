@@ -128,10 +128,6 @@ await provider.fetchAddressTxs(
 ### fetchAccountInfo
 
 ```ts
-await provider.fetchAccountInfo(address: string): Promise<AccountInfo>
-```
-
-```ts
 const account = await provider.fetchAccountInfo(" ");
 
 console.log(account.poolId);
@@ -312,35 +308,9 @@ await provider.submitTx(tx: string): Promise<string>
 Polls every 5 seconds. Calls `callback` when `fetchBlockInfo` reports `confirmations > 0`. `limit` (default `100`) counts failed `fetchTxInfo` or `fetchBlockInfo` calls only. A transaction that exists but is not yet confirmed does not advance the counter, so polling continues until it confirms or a request fails `limit` times.
 
 ```ts
-provider.onTxConfirmed(txHash: string, callback: () => void, limit?: number): void
-```
-
-```ts
 provider.onTxConfirmed(txHash, () => {
   console.log("Transaction confirmed");
 });
-```
-
----
-
-### get
-
-GET any Nexus path. The API key and `network` query param from construction are applied automatically.
-
-```ts
-await provider.get(url: string): Promise<any>
-```
-
-### post
-
-POST any Nexus path. Default content type is `application/json`.
-
-```ts
-await provider.post(
-  url: string,
-  body: any,
-  headers?: { "Content-Type": string },
-): Promise<any>
 ```
 
 ## Complete Example
