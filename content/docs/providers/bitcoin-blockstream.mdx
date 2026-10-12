@@ -14,6 +14,8 @@ import Link from "fumadocs-core/link";
 - Low-to-medium volume production applications
 - Testnet development before deploying to mainnet
 
+For authenticated production access, use [`BlockstreamEnterpriseBitcoinProvider`](/providers/bitcoin-blockstream-enterprise). Both providers share the same Esplora REST methods via an internal HTTP client.
+
 ## Quick Start
 
 ```bash
@@ -361,6 +363,6 @@ async function sendBitcoin() {
 
 ## Related
 
-- <Link href="/providers/bitcoin-maestro">Maestro Bitcoin Provider</Link> - Enterprise-grade alternative with an API key
+- <Link href="/providers/bitcoin-blockstream-enterprise">Blockstream Enterprise Bitcoin Provider</Link> - Authenticated Esplora API with OAuth client credentials
 - <Link href="/apis/wallets/bitcoin/headless-wallet">Bitcoin Headless Wallet</Link> - Use this provider with a self-custodial HD wallet
 - <Link href="/providers">All Providers</Link> - Compare with Cardano providers

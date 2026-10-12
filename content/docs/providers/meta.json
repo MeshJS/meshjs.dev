@@ -5,7 +5,6 @@
     "blockfrost",
     "hydra",
     "koios",
-    "maestro",
     "ogmios",
     "utxorpc",
     "yaci",
@@ -13,6 +12,6 @@
     "offline-evaluator",
     "scalus-emulator",
     "bitcoin-blockstream",
-    "bitcoin-maestro"
+    "bitcoin-blockstream-enterprise"
   ]
 }

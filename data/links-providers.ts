@@ -1,12 +1,5 @@
 import { CloudIcon } from "@heroicons/react/24/solid";
 
-export const metaMaestro = {
-  title: "Maestro Provider",
-  link: "/providers/maestro",
-  desc: "Advanced UTxO-indexing data layer to supercharge Defi on Bitcoin, Cardano & Dogecoin",
-  thumbnail: "/providers/maestro.png",
-};
-
 export const metaKoios = {
   title: "Koios Provider",
   link: "/providers/koios",
@@ -74,22 +67,21 @@ export const metaScalusEmulator = {
 export const metaBitcoinBlockstream = {
   title: "Blockstream Bitcoin Provider",
   link: "/providers/bitcoin-blockstream",
-  desc: "Fetch Bitcoin chain data and submit transactions via the public Blockstream Esplora API — no API key required.",
+  desc: "Fetch Bitcoin chain data and submit transactions via the public Blockstream Esplora API, no API key required.",
   thumbnail: "/logo-mesh/mesh.png",
 };
 
-export const metaBitcoinMaestro = {
-  title: "Maestro Bitcoin Provider",
-  link: "/providers/bitcoin-maestro",
-  desc: "Enterprise-grade Bitcoin chain data and transaction submission via Maestro's Esplora-compatible API.",
-  thumbnail: "/providers/maestro.png",
+export const metaBitcoinBlockstreamEnterprise = {
+  title: "Blockstream Enterprise Bitcoin Provider",
+  link: "/providers/bitcoin-blockstream-enterprise",
+  desc: "Authenticated Bitcoin Esplora API via Blockstream Explorer Enterprise OAuth client credentials, production rate limits.",
+  thumbnail: "/logo-mesh/mesh.png",
 };
 
 export const linksProviders = [
   metaBlockfrost,
   metaHydraProvider,
   metaKoios,
-  metaMaestro,
   metaOgmios,
   metaU5c,
   metaYaci,
@@ -97,12 +89,12 @@ export const linksProviders = [
   metaOfflineEvaluator,
   metaScalusEmulator,
   metaBitcoinBlockstream,
-  metaBitcoinMaestro,
+  metaBitcoinBlockstreamEnterprise,
 ];
 
 export const metaProviders = {
   title: "Providers",
-  desc: "Connect to Cardano via Blockfrost, Koios, Ogmios, Maestro, or UTxO RPC with a unified API.",
+  desc: "Connect to Cardano via Blockfrost, Koios, Ogmios, or UTxO RPC, and to Bitcoin via Blockstream, with a unified API.",
   link: "/providers",
   icon: CloudIcon,
   items: linksProviders,
