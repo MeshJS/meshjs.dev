@@ -49,6 +49,13 @@ export const metaHydraProvider = {
   thumbnail: "/providers/hydra.svg",
 };
 
+export const metaIagonInsight = {
+  title: "Iagon Insight Provider",
+  link: "/providers/iagon-insight",
+  desc: "Cardano mainnet data, submission and script evaluation behind one key that also works with Blockfrost and Koios clients",
+  thumbnail: "/providers/iagon-insight.svg",
+};
+
 export const metaOfflineFetcher = {
   title: "Offline Fetcher",
   link: "/providers/offline-fetcher",
@@ -88,6 +95,7 @@ export const metaBitcoinBlockstreamEnterprise = {
 export const linksProviders = [
   metaBlockfrost,
   metaHydraProvider,
+  metaIagonInsight,
   metaKoios,
   metaNexus,
   metaOgmios,
