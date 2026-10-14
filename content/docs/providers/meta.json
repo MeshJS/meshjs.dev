@@ -2,9 +2,9 @@
   "title": "Providers",
   "icon": "CloudIcon",
   "pages": [
-    "iagon-insight",
     "blockfrost",
     "hydra",
+    "iagon-insight",
     "koios",
     "maestro",
     "ogmios",
