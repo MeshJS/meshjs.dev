@@ -1,0 +1,5 @@
+{
+  "title": "x402 Payments",
+  "icon": "CreditCardIcon",
+  "pages": ["client", "server", "facilitator", "masumi"]
+}
