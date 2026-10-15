@@ -6,8 +6,8 @@ description: "Put a price on a route with buildXOffer and createPaywall."
 Your server does three things: say what it costs, remember what it offered, and release the content once the facilitator confirms payment. `createPaywall` does all three.
 
 ```ts
-import { Hono } from "hono";
 import { buildDefaultOffer, createFacilitatorClient, createPaywall } from "@meshsdk/x402";
+import { createMeshHttpApp, serveMeshHttp } from "@meshsdk/x402/http";
 
 const paywall = createPaywall({
   network: "cardano:preprod",
@@ -17,9 +17,25 @@ const paywall = createPaywall({
   serve: () => Response.json({ city: "Lagos", tempC: 31 }),
 });
 
-const app = new Hono();
+const app = createMeshHttpApp();
 app.get("/weather", (c) => paywall(c.req.raw));
+
+serveMeshHttp(app, { port: 3000 });
 ```
+
+## HTTP helpers
+
+`@meshsdk/x402` wraps the HTTP layer (Node only), so you do not install or import Hono yourself.
+
+| Export | Use |
+| --- | --- |
+| `createMeshHttpApp()` | An empty app. Add routes with `app.get`, `app.post`, `app.use`, `app.route`. |
+| `serveMeshHttp(app, { port, hostname }, onListen?)` | Start the app on Node. |
+| `meshServeStatic(root)` | Middleware that serves a folder: `app.use("/*", meshServeStatic("./public"))`. |
+| `meshStreamSSE(c, handler)` | Server-sent events: `meshStreamSSE(c, async (stream) => { await stream.writeSSE({ data: "hi" }) })`. |
+| `MeshHttpApp`, `MeshHttpContext` | Types for the app and route context. |
+
+`createFacilitatorApp` returns a `MeshHttpApp`, so you can mount it under a parent app with `app.route("/facilitator", facilitator)`.
 
 An unpaid request gets a `402` with the price. A paid one is verified, settled, and answered with the content plus a `PAYMENT-RESPONSE` header. If the payment fails, the client gets a `402` with the reason.
 
@@ -49,7 +65,7 @@ const { requirements, termsDigest } = await buildMasumiOffer({
 });
 ```
 
-Charge in a native token with `asset: "policyId.assetNameHex"`. The datum is not checked by x402: if your contract expects a specific one, you own getting it right.
+Charge in a native token with `asset: "policyId.assetNameHex"`. x402 checks that the datum you declared is attached to the payment, not that it is right for your contract: that part is yours.
 
 ## Which offers the server trusts
 

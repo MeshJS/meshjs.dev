@@ -9,6 +9,7 @@ import { metaTxbuilder } from "./links-txbuilders";
 import { metaTxParser } from "./links-txparser";
 import { metaUtilities } from "./links-utilities";
 import { metaWallets } from "./links-wallets";
+import { metaX402 } from "./links-x402";
 import { metaYaci } from "./links-yaci";
 
 export const metaWeb3Wallet = {
@@ -41,6 +42,7 @@ export const linksApi = [
   metaProviders,
   metaScalusEmulator,
   metaUtilities,
+  metaX402,
   metaReact,
   // metaSvelte,
   metaSmartContract,

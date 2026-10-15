@@ -6,9 +6,9 @@ description: "Verify and settle payments with createFacilitatorApp."
 The facilitator is the part that checks a signed transaction, submits it once, and reports when it is confirmed. It holds no keys and needs no funds, only a Cardano provider.
 
 ```ts
-import { serve } from "@hono/node-server";
 import { BlockfrostProvider } from "@meshsdk/provider";
 import { chainStateFrom, createFacilitatorApp, InMemorySettlementStore } from "@meshsdk/x402";
+import { serveMeshHttp } from "@meshsdk/x402/http";
 
 const provider = new BlockfrostProvider("<BLOCKFROST_PREPROD_KEY>");
 
@@ -20,10 +20,10 @@ const app = createFacilitatorApp({
   resolveChainState: chainStateFrom(provider), // protocol parameters + current slot
 });
 
-serve({ fetch: app.fetch, port: 8787 });
+serveMeshHttp(app, { port: 8787 });
 ```
 
-It is a [Hono](https://hono.dev) app with three routes:
+`serveMeshHttp` comes from `@meshsdk/x402/http`, which ships with the package, so you install nothing else. The app has three routes:
 
 ```bash
 curl localhost:8787/supported                    # what it can settle
@@ -56,7 +56,7 @@ createFacilitatorApp({
 | The transaction expiry is in the future but not past `maxTimeoutSeconds` | `TTL_EXPIRED`, `TTL_TOO_FAR` |
 | The output meets the minimum ADA | `BELOW_MIN_UTXO` |
 
-`script` offers also check that `payTo` is the declared script's address. `masumi` offers run the escrow checks described on the [Masumi page](/apis/x402/masumi).
+`script` offers also check that `payTo` is the declared script's address, and that a declared `datum` is the one attached to the output (`SCRIPT_DATUM_NOT_INLINE`, `SCRIPT_DATUM_MISMATCH`). Whether the datum is *right* for your contract is up to you. `masumi` offers run the escrow checks described on the [Masumi page](/apis/x402/masumi).
 
 ## Settling
 

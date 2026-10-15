@@ -14,7 +14,7 @@ npm install @meshsdk/x402
 
 ## How is this different from a normal Cardano payment?
 
-Normally you build a transaction, submit it, then tell the server "I paid, here is the hash" and the server has to find it, match it and make sure nobody reuses it.
+Normally you build a transaction, submit it, then tell the server "I paid, here is the hash" and the server has to query and match it against the blockchain.
 
 With x402 the payment is part of the request:
 
@@ -52,9 +52,9 @@ The client never broadcasts. It signs and attaches the transaction to the retry 
 **Facilitator** checks and submits payments. It needs no wallet.
 
 ```ts
-import { serve } from "@hono/node-server";
 import { BlockfrostProvider } from "@meshsdk/provider";
 import { chainStateFrom, createFacilitatorApp } from "@meshsdk/x402";
+import { serveMeshHttp } from "@meshsdk/x402/http";
 
 const provider = new BlockfrostProvider("<BLOCKFROST_PREPROD_KEY>");
 
@@ -64,7 +64,7 @@ const facilitator = createFacilitatorApp({
   supportedNetworks: ["cardano:preprod"],
   resolveChainState: chainStateFrom(provider),
 });
-serve({ fetch: facilitator.fetch, port: 8787 });
+serveMeshHttp(facilitator, { port: 8787 });
 ```
 
 **Server** puts a price on a route.
@@ -80,7 +80,7 @@ const paywall = createPaywall({
   serve: () => Response.json({ city: "Lagos", tempC: 31 }),
 });
 
-// Hono, but any framework that gives you a Request works
+// createMeshHttpApp() from "@meshsdk/x402/http", but any framework that gives you a Request works
 app.get("/weather", (c) => paywall(c.req.raw));
 ```
 
@@ -98,7 +98,7 @@ const { response, paymentResponse } = await fetchWithPayment(
   { fetcher: provider, protocol, currentSlot },
 );
 
-console.log(await response.json());      // { city: "Lagos", tempC: 31 }
+console.log(await response.json());      // { city: "Singapore", tempC: 18 }
 console.log(paymentResponse?.transaction); // the Cardano tx hash
 ```
 
