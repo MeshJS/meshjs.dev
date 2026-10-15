@@ -1,0 +1,76 @@
+---
+title: "x402 Client"
+description: "Pay for x402 resources on Cardano with fetchWithPayment."
+---
+
+## fetchWithPayment
+
+Wraps `fetch`. On a `402` it reads the challenge, builds and signs a payment for one `accepts[]` entry, and retries with `PAYMENT-SIGNATURE`.
+
+```ts
+import { MeshWallet } from "@meshsdk/wallet";
+import { BlockfrostProvider } from "@meshsdk/provider";
+import { chainStateFrom, fetchWithPayment } from "@meshsdk/x402";
+
+const provider = new BlockfrostProvider("<BLOCKFROST_PREPROD_KEY>");
+const wallet = new MeshWallet({
+  networkId: 0,
+  fetcher: provider,
+  submitter: provider,
+  key: { type: "mnemonic", words: ["..."] },
+});
+await wallet.init();
+
+const { protocol, currentSlot } = await chainStateFrom(provider)();
+
+const { response, paymentResponse } = await fetchWithPayment(
+  "https://api.example.com/premium-data",
+  undefined,
+  wallet,
+  { fetcher: provider, protocol, currentSlot },
+);
+```
+
+Signature: `fetchWithPayment(input, init, wallet, chain, options?)`.
+
+| `chain` (`ChainContext`) | |
+|---|---|
+| `fetcher` | `IFetcher` used for transaction building |
+| `protocol` | Live protocol parameters |
+| `currentSlot` | Current tip slot, used to set the transaction TTL |
+| `allowMasumiDeployment?` | Approval hook for non-default Masumi deployments (see below) |
+
+| `options` | |
+|---|---|
+| `fetch?` | Custom `fetch` |
+| `selectRequirement?` | Choose an `accepts[]` entry. Default: first `exact` entry on the wallet's network. |
+| `onChallenge?` | Called with the decoded `PaymentRequired` |
+| `onSigned?` | Called with the signed `PaymentPayload` before it is sent |
+
+Returns `{ response, paymentResponse? }`; `paymentResponse` is the decoded `PAYMENT-RESPONSE` header.
+
+Fetch a fresh `currentSlot` for every call: the TTL is `currentSlot` plus 90% of `maxTimeoutSeconds` (converted with the network's slot length), and for Masumi it is also capped at `pay_by_time`.
+
+## What the client enforces
+
+- The challenge is read from the `PAYMENT-REQUIRED` header (a JSON body is accepted as a fallback).
+- `amount` must be a positive canonical decimal; the network must be a Cardano network.
+- `script`: the requirement must declare `script` or `scriptHash`, `payTo` must be that script's address, and a Plutus V1 script with an inline datum is refused (it would strand the funds).
+- `masumi`: the whole requirements object is verified before signing: closed-object schema, commitment digests, the seller's COSE signature over `termsDigest`, the derived escrow address, `blockchainIdentifier`, and deadline ordering. The client computes `collateral_return_lovelace` itself.
+- A non-default Masumi deployment is refused unless `allowMasumiDeployment` approves it. The seller's signature is not approval. Show the user `masumiAdminWeights(deployment)`, the effective weight per distinct admin key, never the raw key count.
+
+## Lower level
+
+```ts
+import { buildPaymentPayload, signPayment, encodePaymentSignatureHeader } from "@meshsdk/x402";
+
+const built = await buildPaymentPayload(requirement, wallet, { url }, chain);
+const signed = await signPayment(wallet, built); // transaction becomes base64
+const header = encodePaymentSignatureHeader(signed);
+```
+
+If the server answers with `settlement_pending` as HTTP 402, resend the **same** `PAYMENT-SIGNATURE`. Do not build another transaction.
+
+## Errors
+
+Failures throw `X402Error` with a `code`, for example `NO_ACCEPTABLE_REQUIREMENT`, `INVALID_AMOUNT`, `INSUFFICIENT_UTXOS`, `SCRIPT_*` and `MASUMI_*`.

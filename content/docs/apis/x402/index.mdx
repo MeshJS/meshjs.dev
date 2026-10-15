@@ -1,0 +1,69 @@
+---
+title: "x402 Payments on Cardano"
+description: "Pay for HTTP resources with Cardano using the x402 protocol: client, resource server and facilitator implementing the `exact` scheme."
+icon: CreditCardIcon
+---
+
+`@meshsdk/x402` implements the Cardano `exact` scheme of [x402](https://github.com/x402-foundation/x402) (protocol version 2), following the [scheme specification](https://github.com/x402-foundation/x402/blob/main/specs/schemes/exact/scheme_exact_cardano.md).
+
+```bash
+npm install @meshsdk/x402
+```
+
+## Roles
+
+| Role | What it does | Package API |
+|---|---|---|
+| **Client** | Requests a resource, builds and signs a payment transaction, retries with it. Never broadcasts. | [`fetchWithPayment`](/apis/x402/client) |
+| **Resource server** | Answers `402` with its terms, stores what it offered, asks the facilitator to verify and settle, then serves the resource. | [`buildXOffer`, `createPaywall`](/apis/x402/server) |
+| **Facilitator** | Verifies the signed transaction against the spec rules, broadcasts it once, reports confirmation. Needs no funded wallet. | [`createFacilitatorApp`](/apis/x402/facilitator) |
+
+Submitting a transaction yourself needs a wallet and a known recipient. x402 adds the HTTP layer around it: the server states the price in a machine-readable `402`, the payment is bound to exactly those terms, and the facilitator checks, submits and deduplicates it. The money still settles as an ordinary Cardano transaction.
+
+## Flow
+
+1. Client sends the request. Server replies `402` with a base64 `PaymentRequired` object in the `PAYMENT-REQUIRED` header.
+2. Client picks an `accepts[]` entry, builds and signs the transaction (unbroadcast), and retries with the `PAYMENT-SIGNATURE` header.
+3. Server calls the facilitator's `POST /verify`, then `POST /settle` with its **own stored** requirements.
+4. Facilitator broadcasts, waits for the required confirmations, and returns the result. Below the threshold it returns `settlement_pending`; the server retries `/settle` with the same payload.
+5. Server returns `200` with a `PAYMENT-RESPONSE` header.
+
+## Headers
+
+| Header | Direction | Content |
+|---|---|---|
+| `PAYMENT-REQUIRED` | server → client | base64 JSON `{ x402Version: 2, resource, accepts[] }` |
+| `PAYMENT-SIGNATURE` | client → server | base64 JSON `{ x402Version, resource, accepted, payload: { transaction, nonce } }` |
+| `PAYMENT-RESPONSE` | server → client | base64 JSON `{ success, network, transaction, extra: { status, confirmations }, errorReason? }` |
+
+`payload.transaction` is the base64 signed transaction. `payload.nonce` is `txHash#index`, an input of that transaction; it is the replay guard.
+
+## Networks
+
+`cardano:mainnet`, `cardano:preprod`, `cardano:preview`. The CIP-34 forms (`cip34:1-764824073`, `cip34:0-1`, `cip34:0-2`) are accepted as aliases and normalized.
+
+## Asset transfer methods
+
+Selected by `extra.assetTransferMethod` (default `default`).
+
+| Method | `payTo` | Use for |
+|---|---|---|
+| `default` | any address | Direct address-to-address payment |
+| `script` | address of a server-defined script | Locking funds into your own contract, optional inline datum and script parameters. The datum is attached verbatim and **not** validated. |
+| `masumi` | Masumi `vested_pay` escrow address | Agent payments with refund and dispute paths. x402 performs only the lock; see [Masumi escrow](/apis/x402/masumi). |
+
+`asset` is `lovelace` or `policyId.assetNameHex`. `amount` is a positive decimal string in atomic units.
+
+## Confirmation policy
+
+`extra.confirmationPolicy.l1Confirmations` (optional, default `1`) is the minimum evidence before the resource is released.
+
+| Value | Meaning |
+|---|---|
+| `-1` | Facilitator's own broadcast was accepted (mempool). Discouraged for anything of value. |
+| `0` | Included in a block |
+| `1`–`20` | At least that many newer blocks |
+
+## Fees
+
+The client builds the full transaction and pays the network fee. Fee sponsorship is not supported; `areFeesSponsored` is `false` or absent.
