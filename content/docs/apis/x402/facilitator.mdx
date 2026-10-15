@@ -1,11 +1,9 @@
 ---
 title: "x402 Facilitator"
-description: "Verify and settle Cardano x402 payments with createFacilitatorApp."
+description: "Verify and settle payments with createFacilitatorApp."
 ---
 
-## createFacilitatorApp
-
-Returns a [Hono](https://hono.dev) app exposing `GET /supported`, `POST /verify`, `POST /settle`. It holds no keys; it needs a provider for UTxO and slot queries and for broadcasting.
+The facilitator is the part that checks a signed transaction, submits it once, and reports when it is confirmed. It holds no keys and needs no funds, only a Cardano provider.
 
 ```ts
 import { serve } from "@hono/node-server";
@@ -13,90 +11,69 @@ import { BlockfrostProvider } from "@meshsdk/provider";
 import { chainStateFrom, createFacilitatorApp, InMemorySettlementStore } from "@meshsdk/x402";
 
 const provider = new BlockfrostProvider("<BLOCKFROST_PREPROD_KEY>");
-const readChain = chainStateFrom(provider);
 
 const app = createFacilitatorApp({
   fetcher: provider,
   submitter: provider,
   store: new InMemorySettlementStore(),
   supportedNetworks: ["cardano:preprod"],
-  resolveChainState: () => readChain(), // { protocol, currentSlot }
+  resolveChainState: chainStateFrom(provider), // protocol parameters + current slot
 });
+
 serve({ fetch: app.fetch, port: 8787 });
 ```
 
-| Config | |
+It is a [Hono](https://hono.dev) app with three routes:
+
+```bash
+curl localhost:8787/supported                    # what it can settle
+curl -X POST localhost:8787/verify -d '{ "paymentPayload": ..., "paymentRequirements": ... }'
+curl -X POST localhost:8787/settle -d '{ "paymentPayload": ..., "paymentRequirements": ... }'
+```
+
+`paymentRequirements` must be your server's own record of the offer. The facilitator refuses a payload whose `accepted` differs (`REQUIREMENTS_MISMATCH`).
+
+## Options
+
+```ts
+createFacilitatorApp({
+  // ...
+  l1Confirmations: { minimum: 0, maximum: 20 },        // confirmation levels you will settle; -1 (mempool) is opt-in
+  allowMasumiDeployment: (deployment) => false,         // non-default Masumi escrow: deny unless you approve
+  validateRegistryClaim: async (claim) => lookup(claim), // registered Masumi agent: refused unless this returns true
+});
+```
+
+## What it checks
+
+| Check | Error |
 |---|---|
-| `fetcher`, `submitter` | Mesh `IFetcher` and `ISubmitter` |
-| `supportedNetworks` | Networks served |
-| `resolveChainState(network)` | Live protocol parameters and tip slot |
-| `store?` | `SettlementStore`. Default: in memory. |
-| `supportedMethods?` | Default `["default", "masumi", "script"]` |
-| `l1Confirmations?` | Range settled, advertised in `/supported`. Default `{ minimum: 0, maximum: 20 }`; `-1` is opt-in. |
-| `allowMasumiDeployment?` | Approval hook for non-default Masumi deployments. Default: deny. |
+| The payload matches the offer you issued | `REQUIREMENTS_MISMATCH` |
+| Right network, right recipient, right asset, enough amount | `INVALID_NETWORK`, `PAYTO_NOT_FOUND` |
+| The declared `nonce` is an input, and every input is still unspent | `NONCE_NOT_IN_INPUTS`, `NONCE_NOT_UNSPENT`, `INPUT_NOT_UNSPENT` |
+| No minting, withdrawals, certificates or governance actions | `UNSUPPORTED_TX_FEATURE` |
+| Inputs equal outputs plus fee, and the fee is high enough | `VALUE_NOT_CONSERVED` |
+| The transaction expiry is in the future but not past `maxTimeoutSeconds` | `TTL_EXPIRED`, `TTL_TOO_FAR` |
+| The output meets the minimum ADA | `BELOW_MIN_UTXO` |
 
-## Endpoints
+`script` offers also check that `payTo` is the declared script's address. `masumi` offers run the escrow checks described on the [Masumi page](/apis/x402/masumi).
 
-`POST /verify` and `POST /settle` take `{ paymentPayload, paymentRequirements }`. `paymentRequirements` must be the resource server's stored offer. Malformed bodies return `400 INVALID_PAYLOAD`.
+## Settling
 
-`GET /supported` returns, per network, `extra: { assetTransferMethods, areFeesSponsored: false, l1Confirmations: { minimum, maximum } }`.
+`/settle` claims the transaction by its id, submits it once, and watches for confirmations.
 
-`/verify` returns `{ isValid: true }` or `{ isValid: false, invalidReason }`. `/settle` returns a `PaymentResponse`.
-
-## Verification rules
-
-| # | Rule | Error code |
-|---|---|---|
-| – | `accepted` equals the stored offer | `REQUIREMENTS_MISMATCH` |
-| 1 | Every output address and the body `network_id` match the network | `INVALID_NETWORK` |
-| 2–4 | An output pays `payTo` at least `amount` of exactly `asset` | `PAYTO_NOT_FOUND` |
-| 5 | `nonce` is an input of the transaction | `NONCE_NOT_IN_INPUTS` |
-| 5 | The nonce input and every other input are unspent | `NONCE_NOT_UNSPENT`, `INPUT_NOT_UNSPENT` |
-| 6 | No mint, withdrawals, certificates, governance actions or donations | `UNSUPPORTED_TX_FEATURE` |
-| 6 | Inputs = outputs + fee for lovelace and every asset; fee ≥ `minFeeA × size + minFeeB` | `VALUE_NOT_CONSERVED` |
-| 7 | TTL is set, not passed, and not beyond `maxTimeoutSeconds` (slot-length aware) | `TTL_EXPIRED`, `TTL_TOO_FAR` |
-| 8 | The `payTo` output meets min-UTxO | `BELOW_MIN_UTXO` |
-| 9 | Confirmation threshold met (checked in `/settle`) | `settlement_pending` |
-
-`extra.confirmationPolicy` outside -1..20 or outside the facilitator's range returns `INVALID_CONFIRMATION_POLICY`. `areFeesSponsored: true` is rejected.
-
-**`script`**: `payTo` must carry the script credential derived from `script` plus `parameters`, or from `scriptHash` (`SCRIPT_ADDRESS_MISMATCH`). A Plutus V1 script with a datum is rejected (`SCRIPT_V1_WITH_DATUM`). The datum is not validated.
-
-**`masumi`**: in addition, the facilitator enforces
-- closed-object schema, `paymentType = Web3CardanoV2`, commitment digests, `terms.inputHash = inputCommitment.digest`;
-- `termsDigest` recomputed and the seller's COSE signature verified, including `Blake2b-224(publicKey)` equal to the seller's payment-key credential;
-- the escrow address derived from the canonical (or approved) deployment equals `payTo`, `signedTerms.contractAddress` and the address in `blockchainIdentifier`; exactly one output pays it;
-- an inline datum in the 19-field `masumi.vested_pay.v2` layout with `FundsLocked`, empty `result_hash`, both cooldowns `0`, and no reference script; datum fields match the signed terms;
-- the datum `buyer` controls the nonce input and its valid witness is in the transaction; `buyer`, `seller` and return addresses are key-credential addresses and the two payout targets differ;
-- `lockedLovelace = requestedLovelace + collateral_return_lovelace`, collateral is `0` or at least 1,435,230, and the output clears min-UTxO after `SubmitResult`; the output holds exactly the requested asset;
-- TTL on or before `pay_by_time`; the four deadlines keep the minimum intervals.
-
-All Masumi failures use `MASUMI_*` codes.
-
-## Settlement
-
-`/settle` claims the transaction by its **canonical transaction id**, atomically, before broadcasting, then broadcasts once and observes the evidence.
-
-| Situation | Response |
+| Result | Meaning |
 |---|---|
-| Threshold met | `success: true`, `extra.status: "confirmed"`, actual `confirmations` |
-| Policy `-1`, node accepted the broadcast | `success: true`, `extra.status: "mempool"`, `confirmations: -1` |
-| Below threshold | `settlement_pending` with `transaction`; retry with the same payload resumes observing and never rebroadcasts |
-| Same transaction already in flight or settled | `duplicate_settlement` |
-| Validity window closed without the ledger recording it | `EXPIRED` (terminal) |
-| Definitive ledger rejection | `submission_rejected: …`; the claim is released |
-| Timeout or unknown node result | claim kept; reconciled by transaction id |
-| Masumi: a different transaction for an already-claimed `termsDigest` | `MASUMI_TERMS_ALREADY_CLAIMED` |
+| `success: true`, `status: "confirmed"` | Enough confirmations. Release the content. |
+| `settlement_pending` | Submitted, not confirmed yet. Call `/settle` again with the same payload; it keeps watching and never resubmits. |
+| `duplicate_settlement` | That transaction is already being settled or was settled. |
+| `EXPIRED` | The transaction ran out of time without landing. Final. |
+| `submission_rejected: ...` | The network refused it. The claim is released so a fixed payment can retry. |
 
-A resumed retry must still carry the requirements the payment was made for (`REQUIREMENTS_MISMATCH` otherwise).
+`createPaywall` handles the pending retries for you.
 
-## SettlementStore
+## Going to production
 
-The default `InMemorySettlementStore` is not durable and does not evict. A multi-instance facilitator must implement `SettlementStore` on shared storage: `claim` must be an atomic insert-if-absent, and `bindTermsDigest` must atomically bind a digest to the first transaction id.
-
-## Limits
-
-- TTL and deadline conversion use the network's static slot configuration, not a live era summary.
-- Phase-1 checks are the spec minimum (conservation, fee floor, unexplained-value rejection), not a full ledger validator.
-- A non-empty Masumi `agentIdentifier` is checked only for the Masumi V2 registry policy prefix (`67ab0c92…bd0b`). The registry asset, seller authorization, metadata, endpoint and price are **not** validated on-chain. Use an empty `agentIdentifier` (unregistered seller) unless you validate these yourself.
-- No limits on transaction size, datum size or commitment parts are enforced.
+- Swap `InMemorySettlementStore` for your own `SettlementStore` on shared storage if you run more than one instance. `claim` must be an atomic insert-if-absent.
+- Convert times to slots with the network's slot settings (done for you). It is a static configuration, not a live era summary.
+- It runs the spec's minimum checks, not a full ledger validator: the network is the final judge.

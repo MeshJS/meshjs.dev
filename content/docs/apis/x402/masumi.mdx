@@ -1,86 +1,107 @@
 ---
 title: "Masumi Escrow"
-description: "Lock x402 payments into the Masumi vested_pay escrow and drive its lifecycle."
+description: "Lock x402 payments into the Masumi escrow, with refunds and disputes."
 ---
 
-The `masumi` method locks one asset into the Masumi V2 `vested_pay` contract. **x402 ends at the `FundsLocked` output**: a settled payment means the funds are escrowed under terms both parties signed, not delivered to the seller. Releasing, refunding or disputing them happens in later transactions governed by the contract. Only Masumi V2 is supported, with one asset per payment.
+With the `masumi` method the money is not paid to the seller. It is **locked in the Masumi `vested_pay` escrow contract**, under terms the seller signed. The seller gets it later by delivering a result, the buyer can ask for a refund, and admins settle disputes. x402 only covers the lock; releasing the funds happens in later transactions.
 
-## Requirements (`extra`)
+Use it for agent-to-agent jobs where "pay first, trust later" is not good enough.
 
-All of `extra`, `inputCommitment`, each part, `terms`, `confirmationPolicy` and `deployment` are closed objects; an unknown field is a rejection.
+## Selling with escrow
 
-| Field | Content |
-|---|---|
-| `assetTransferMethod` | `"masumi"` |
-| `inputCommitment` | Ordered `parts` (`name`, `canonicalization` `jcs` or `raw`, `mediaType?`, `content`, `digest`) plus the top-level `digest` |
-| `terms` | `version: "1"`, `paymentType: "Web3CardanoV2"`, `sellerAddress`, `sellerReturnAddress?`, `sellerNonce` (32 random bytes), `buyerNonce` (empty or 7–13 bytes), `agentIdentifier?`, `inputHash`, `payByTime`, `submitResultTime`, `unlockTime`, `externalDisputeUnlockTime` |
-| `referenceKey`, `referenceSignature` | Seller's CIP-8 `COSE_Key` and `COSE_Sign1` over `termsDigest`, lowercase hex |
-| `blockchainIdentifier` | LZString-compressed compatibility identifier, hex |
-| `deployment?` | `requiredAdmins`, `adminVkeys`, `cooldownPeriod` (ms), omitted for the canonical deployment |
+```ts
+import { buildMasumiOffer, createPaywall, createFacilitatorClient } from "@meshsdk/x402";
 
-`inputHash = SHA-256("masumi:x402:input:v1\n" ‖ JCS(manifest))`, where the manifest is the commitment without each part's `content` and the top-level `digest`.
+const paywall = createPaywall({
+  network: "cardano:preprod",
+  facilitator: createFacilitatorClient("http://localhost:8787"),
+  issue: async (req) => {
+    const { requirements } = await buildMasumiOffer({
+      network: "cardano:preprod",
+      amount: "5000000",
+      sellerWallet,                       // signs the terms
+      sellerAddress,
+      jobInput: { task: "summarize-market-report" }, // committed to in the offer
+    });
+    return requirements;
+  },
+  serve: () => Response.json({ status: "payment locked, job can start" }),
+});
+```
 
-`termsDigest = SHA-256("masumi:x402:terms:v1\n" ‖ JCS(signedTerms))`, with `signedTerms = { ...terms, scheme, assetTransferMethod, network, contractAddress: payTo, amount, asset, maxTimeoutSeconds }`.
+What `buildMasumiOffer` gives you:
 
-Deadlines must keep these gaps: `payByTime + 5 min ≤ submitResultTime`, `+15 min ≤ unlockTime`, `+15 min ≤ externalDisputeUnlockTime`. The lock's TTL must be on or before `payByTime`.
+- a fresh random seller nonce every time (never reuse an offer)
+- the job input hashed into the offer, so a dispute can point at what was bought
+- deadlines for paying, delivering, unlocking and disputing
+- the seller's signature over all of it
 
-## Deployment
+The client checks every one of these before it signs, and so does the facilitator.
 
-The escrow address is derived from the canonical `vested_pay` blueprint with `requiredAdmins`, `adminVkeys` and `cooldownPeriod` applied; `payTo` must equal it.
+## Paying with escrow
 
-| Default | Value |
-|---|---|
-| `requiredAdmins` | `2` |
-| `adminVkeys` | `fc16a1fc…8e75`, `7f781613…ada6`, `89eef9ea…5aa6` (ordered) |
-| `cooldownPeriod` | `420000` ms |
+The client code does not change. Same `fetchWithPayment`, the offer says `masumi`:
 
-`cardano:preview` has no default and requires `extra.deployment`. A non-default deployment is a different set of dispute arbitrators and is refused by client and facilitator unless the application opts in (`allowMasumiDeployment`). Duplicate admin keys count once per occurrence: `requiredAdmins: 2` over `[x, x, y]` means `x` alone can settle. Display `masumiAdminWeights(deployment)`, not the array length.
+```ts
+const { response, paymentResponse } = await fetchWithPayment(url, undefined, wallet, {
+  fetcher: provider, protocol, currentSlot,
+});
+```
 
-## Lock transaction
+A successful response means the funds are **locked in escrow**, not delivered to the seller. Paying twice for one offer is blocked: the first transaction to claim an offer wins.
 
-The client builds the escrow output with an inline 19-field `Constr 0` datum (`masumi.vested_pay.v2`):
+## Registered agents
 
-| # | Field | At lock |
-|---|---|---|
-| 0 | `buyer` | key address controlling the `nonce` input |
-| 1 | `buyer_return_address` | `None` or buyer-chosen; not matched against `extra` |
-| 2–3 | `seller`, `seller_return_address` | from `terms` |
-| 4–8 | `reference_key`, `reference_signature`, `seller_nonce`, `buyer_nonce`, `agent_identifier` | from `extra`/`terms` |
-| 9 | `collateral_return_lovelace` | client-computed |
-| 10 | `input_hash` | `terms.inputHash` |
-| 11 | `result_hash` | empty |
-| 12–15 | `pay_by_time`, `submit_result_time`, `unlock_time`, `external_dispute_unlock_time` | from `terms` |
-| 16–17 | `seller_cooldown_time`, `buyer_cooldown_time` | `0` |
-| 18 | `state` | `FundsLocked` |
+An offer can name a registered Masumi agent with `agentIdentifier`. Anyone can copy someone else's id into their own offer, so the package refuses it unless **you** prove it is real:
 
-`lockedLovelace = requestedLovelace + collateral_return_lovelace`. `requestedLovelace` is `amount` for lovelace and `0` for a native token. Collateral is `0` or at least 1,435,230 lovelace, and large enough that the output still meets min-UTxO after `SubmitResult`. The output carries exactly the requested asset and no reference script.
+```ts
+const validateRegistryClaim = async ({ agentIdentifier, sellerAddress, network, amount, asset, resource }) => {
+  // true only if: the agent exists on this network, sellerAddress is authorized for it,
+  // its endpoint covers resource.url, and its registered price is exactly amount of asset
+  return await myRegistryLookup(agentIdentifier, { sellerAddress, network, amount, asset, url: resource.url });
+};
 
-## Lifecycle builders
+createFacilitatorApp({ /* ... */ validateRegistryClaim });                         // facilitator
+fetchWithPayment(url, init, wallet, { fetcher, protocol, currentSlot, validateRegistryClaim }); // client
+```
 
-These are not part of the x402 flow. They build the later transactions against a locked escrow.
+No validator, or a validator that returns anything but `true` or throws, means the payment is refused. Sellers without an `agentIdentifier` need none.
+
+## Custom escrow deployments
+
+The default deployment uses Masumi's standard admin keys. A different one (`deployment` in the offer) means different people settle disputes, so it is refused unless your app approves it:
+
+```ts
+import { masumiAdminWeights } from "@meshsdk/x402";
+
+const allowMasumiDeployment = (deployment, { weights }) => {
+  // weights shows who really holds the power: a key listed twice counts twice
+  return askUser(masumiAdminWeights(deployment));
+};
+```
+
+On `cardano:preview` there is no default, so an offer must include its `deployment`.
+
+## After the lock
+
+These build the later transactions against a locked escrow. They are separate from the x402 flow.
 
 ```ts
 import { parseMasumiLockDatum, buildSubmitResultTx, buildWithdrawTx } from "@meshsdk/x402";
 
-const datum = parseMasumiLockDatum(inlineDatumCbor);
-const ctx = { fetcher, evaluator, currentSlot }; // an evaluator is required to estimate script execution units
+const datum = parseMasumiLockDatum(inlineDatumCbor)!; // null if it is not a valid escrow datum
+const ctx = { fetcher, evaluator, currentSlot }; // evaluator estimates script costs
 
 const submit = await buildSubmitResultTx(escrowUtxo, datum, resultHashHex, sellerWallet, deployment, ctx);
 const withdraw = await buildWithdrawTx(escrowUtxo, datum, sellerWallet, deployment, ctx);
 ```
 
-| Builder | Actor | Effect |
+| Builder | Who | What it does |
 |---|---|---|
-| `buildSubmitResultTx` | seller | Writes `result_hash`; `ResultSubmitted`, or `Disputed` if a refund was requested |
-| `buildWithdrawTx` | seller | Takes the funds from `WithdrawAuthorized`, or from `ResultSubmitted` after `unlock_time` |
-| `buildAuthorizeRefundTx` | seller | Forfeits the claim; `RefundAuthorized` |
-| `buildSetRefundRequestedTx` | buyer | `RefundRequested`, or `Disputed` if a result exists |
-| `buildAuthorizeWithdrawalTx` | buyer | From `Disputed`: lets the seller withdraw |
-| `buildWithdrawRefundTx` | buyer | Takes the refund when no result exists |
-| `buildWithdrawDisputedTx` | anyone | Settles a `Disputed` escrow after `external_dispute_unlock_time` with an M-of-N admin quorum |
-
-Admins sign with `signAdminIntent`; check each signature with `verifyAdminSignature`, then pass the collected set to `buildWithdrawDisputedTx`. The signed `buyerValue` and `sellerValue` are minimum payouts; any residual goes to whoever submits the transaction.
-
-## Preventing double payment
-
-Every different transaction built from one `402` is valid on its own, so transaction-id deduplication is not enough. `termsDigest` is the logical replay key: the first transaction to claim a digest wins, and a different transaction for it is rejected with `MASUMI_TERMS_ALREADY_CLAIMED`. A failed payment needs a new offer with a fresh `sellerNonce`.
+| `buildSubmitResultTx` | seller | Records the delivered result |
+| `buildWithdrawTx` | seller | Takes the funds (after the unlock time, or once the buyer authorizes) |
+| `buildAuthorizeRefundTx` | seller | Gives up the claim so the buyer can refund |
+| `buildSetRefundRequestedTx` | buyer | Asks for a refund; becomes a dispute if a result exists |
+| `buildAuthorizeWithdrawalTx` | buyer | In a dispute, lets the seller withdraw |
+| `buildWithdrawRefundTx` | buyer | Takes the refund |
+| `buildWithdrawDisputedTx` | anyone | Settles a dispute with the admins' signatures (`signAdminIntent`, `verifyAdminSignature`) |

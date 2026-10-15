@@ -1,78 +1,86 @@
 ---
 title: "x402 Resource Server"
-description: "Issue 402 offers and protect a route with createPaywall."
+description: "Put a price on a route with buildXOffer and createPaywall."
 ---
 
-The resource server issues the offer, **stores it**, and later gives the facilitator its own stored copy, never the client's. The facilitator rejects a payload whose `accepted` differs from that copy (`REQUIREMENTS_MISMATCH`).
-
-## Offers
-
-All builders return `PaymentRequirements` with `scheme: "exact"`, default `maxTimeoutSeconds: 600` and `asset: "lovelace"`.
-
-Common parameters: `network`, `amount`, `asset?`, `confirmations?` (-1 to 20, default 1), `maxTimeoutSeconds?`.
+Your server does three things: say what it costs, remember what it offered, and release the content once the facilitator confirms payment. `createPaywall` does all three.
 
 ```ts
-import { buildDefaultOffer, buildScriptOffer, buildMasumiOffer } from "@meshsdk/x402";
-
-// default: pay an address
-const offer = buildDefaultOffer({ network: "cardano:preprod", amount: "2000000", payTo: "addr_test1..." });
-
-// script: payTo is derived from the script and parameters
-const scriptOffer = buildScriptOffer({
-  network: "cardano:preprod",
-  amount: "2000000",
-  script: { type: "plutusV3", code: "<hex>" },
-  parameters: { owner: { type: "bytes", value: "<hex>" } },
-  datum: "d8799f182aff", // optional CBOR hex, attached inline and not validated
-});
-
-// masumi: seller-signed terms
-const { requirements, termsDigest } = await buildMasumiOffer({
-  network: "cardano:preprod",
-  amount: "5000000",
-  sellerWallet,           // signs termsDigest (CIP-8)
-  sellerAddress,          // key-credential address
-  jobInput: { days: 3 },  // committed to via inputCommitment
-});
-```
-
-Script parameter `type` is one of `bytes` (lowercase hex), `string` (UTF-8), `bigint`/`integer`, `boolean`. Give `script`, `scriptHash`, or both (they must agree). A Plutus V1 script must not be combined with a `datum`.
-
-`buildMasumiOffer` generates a fresh 32-byte `sellerNonce` per call, chooses the four deadlines (`payByTime` defaults to one hour ahead, then the spec's minimum gaps plus margin), signs `termsDigest`, and derives `blockchainIdentifier`. Optional: `agentIdentifier`, `deployment`, `payByOffsetMs`. Issue a new offer for every request and never reuse one across buyers.
-
-## createPaywall
-
-A framework-neutral `(Request) => Response` handler.
-
-```ts
-import { createPaywall, createFacilitatorClient } from "@meshsdk/x402";
+import { Hono } from "hono";
+import { buildDefaultOffer, createFacilitatorClient, createPaywall } from "@meshsdk/x402";
 
 const paywall = createPaywall({
   network: "cardano:preprod",
   facilitator: createFacilitatorClient("https://facilitator.example.com"),
-  issue: () => buildDefaultOffer({ network: "cardano:preprod", amount: "2000000", payTo }),
-  serve: () => Response.json({ data: "paid content" }),
+  issue: () =>
+    buildDefaultOffer({ network: "cardano:preprod", amount: "2000000", payTo: "addr_test1..." }),
+  serve: () => Response.json({ city: "Lagos", tempC: 31 }),
+});
+
+const app = new Hono();
+app.get("/weather", (c) => paywall(c.req.raw));
+```
+
+An unpaid request gets a `402` with the price. A paid one is verified, settled, and answered with the content plus a `PAYMENT-RESPONSE` header. If the payment fails, the client gets a `402` with the reason.
+
+## Offers
+
+One builder per payment method. All take `network`, `amount`, and optionally `asset`, `confirmations` and `maxTimeoutSeconds`.
+
+```ts
+// default: pay an address
+buildDefaultOffer({ network, amount: "2000000", payTo: "addr_test1..." });
+
+// script: payTo is worked out from the script
+buildScriptOffer({
+  network,
+  amount: "2000000",
+  script: { type: "plutusV3", code: "<hex>" },
+  datum: "d8799fff", // optional inline datum (CBOR hex), attached as is
+});
+
+// masumi: seller-signed escrow terms (see the Masumi page)
+const { requirements, termsDigest } = await buildMasumiOffer({
+  network,
+  amount: "5000000",
+  sellerWallet,
+  sellerAddress,
+  jobInput: { task: "summarize" },
 });
 ```
 
-| Option | |
-|---|---|
-| `issue(req)` | Builds the offer for an unpaid request; recorded automatically |
-| `serve(req, paid)` | Produces the content once settlement succeeded |
-| `facilitator` | A `FacilitatorClient`, or a per-request factory |
-| `trusted?(req, payload)` | Override the trusted-requirements lookup. Never return the client's own copy. |
-| `book?` | `OfferBook` holding issued offers. Default: in-memory. |
-| `resource?`, `pollMs?`, `timeoutMs?`, `hooks?` | Resource info, settle polling interval (5 s) and limit (8 min), observers |
+Charge in a native token with `asset: "policyId.assetNameHex"`. The datum is not checked by x402: if your contract expects a specific one, you own getting it right.
 
-Behaviour: without `PAYMENT-SIGNATURE` it replies `402` with the `PAYMENT-REQUIRED` header. With it, it looks up the stored offer (`UNKNOWN_OFFER` if none), calls `verify`, then `settle` (retrying while `settlement_pending`), then serves the content with a `PAYMENT-RESPONSE` header. Failures reply `402` with `PAYMENT-RESPONSE` carrying `errorReason`.
+## Which offers the server trusts
 
-Offers are keyed by `termsDigest` for Masumi and by `network|payTo|amount|asset|method` otherwise. The default `OfferBook` is in memory and unbounded; use a durable bounded store in production.
+When a payment comes back, the facilitator checks it against **your** record of the offer, never the client's copy. That is what stops someone paying 1 lovelace for a 2 ADA resource.
 
-## Masumi issuer duties
+By default `createPaywall` remembers what it issued (in memory, last 10,000). For default and script offers you can also just rebuild the offer on demand, which is what works across several server instances:
 
-The facilitator checks the cryptography; these stay with the issuer:
+```ts
+const paywall = createPaywall({
+  network, facilitator,
+  issue: (req) => buildDefaultOffer({ network, amount: priceFor(req), payTo }),
+  trusted: (req) => buildDefaultOffer({ network, amount: priceFor(req), payTo }), // rebuilt, never read from the payload
+  serve: () => Response.json({ ok: true }),
+});
+```
 
-- Store the complete requirements keyed by `termsDigest` and reuse them on the paid retry. Never regenerate the nonce, deadlines or commitment.
-- Bind each `termsDigest` to the first transaction that claims it. `createFacilitatorApp` does this too as an advisory check (`MASUMI_TERMS_ALREADY_CLAIMED`).
-- Present issuer-originated commitment content to the user for approval; clients check digests but not meaning.
-- Keep the `PAYMENT-REQUIRED` header within your transport limit. Do not truncate commitment content or log payment headers.
+Masumi offers are random per request, so keep them in the default book, or in a shared store keyed by `termsDigest`.
+
+## Hooks and timing
+
+```ts
+createPaywall({
+  // ...
+  hooks: {
+    onChallenge: (req, challenge) => log("offered", challenge.accepts[0]),
+    onPaid: (req, paid) => log("paid", paid.transaction),
+    onRejected: (req, reason) => log("refused", reason),
+  },
+  pollMs: 5000,       // how often to re-check a pending settlement
+  timeoutMs: 480000,  // give up waiting after 8 minutes
+});
+```
+
+If the facilitator is down, the client gets a `402` with `FACILITATOR_UNAVAILABLE`.
