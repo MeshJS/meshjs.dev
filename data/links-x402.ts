@@ -24,11 +24,18 @@ export const metaX402Masumi = {
   link: "/apis/x402/masumi",
 };
 
+export const metaX402Withdrawal = {
+  title: "Withdrawal",
+  desc: "How funds leave after an x402 payment, for each transfer method.",
+  link: "/apis/x402/withdrawal",
+};
+
 export const linksX402 = [
   metaX402Client,
   metaX402Server,
   metaX402Facilitator,
   metaX402Masumi,
+  metaX402Withdrawal,
 ];
 
 export const metaX402 = {
