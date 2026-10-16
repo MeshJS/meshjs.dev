@@ -84,7 +84,9 @@ On `cardano:preview` there is no default, so an offer must include its `deployme
 
 ## After the lock
 
-These build the later transactions against a locked escrow. They are separate from the x402 flow.
+x402 stops at the lock. Releasing the funds is a later spend — [Withdrawal](/apis/x402/withdrawal) covers the clock, the happy path, and the errors you get if you act too early or too late.
+
+These build those later transactions:
 
 ```ts
 import { parseMasumiLockDatum, buildSubmitResultTx, buildWithdrawTx } from "@meshsdk/x402";

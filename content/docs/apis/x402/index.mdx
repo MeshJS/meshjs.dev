@@ -102,7 +102,7 @@ console.log(await response.json());      // { city: "Singapore", tempC: 18 }
 console.log(paymentResponse?.transaction); // the Cardano tx hash
 ```
 
-That is the whole loop. Details: [client](/apis/x402/client), [server](/apis/x402/server), [facilitator](/apis/x402/facilitator).
+That is the whole loop. Details: [client](/apis/x402/client), [server](/apis/x402/server), [facilitator](/apis/x402/facilitator), [withdrawal](/apis/x402/withdrawal).
 
 ## Three ways to get paid
 
@@ -114,7 +114,7 @@ Pick one per offer with `extra.assetTransferMethod`.
 | `script` | A script address you choose, with an optional datum | Locking payments into your own contract |
 | `masumi` | The Masumi escrow contract | Agent jobs with refunds and disputes ([details](/apis/x402/masumi)) |
 
-You can charge in `lovelace` or any native token (`policyId.assetNameHex`).
+You can charge in `lovelace` or any native token (`policyId.assetNameHex`). Getting the money out afterwards depends on the method: [withdrawal](/apis/x402/withdrawal).
 
 ## Waiting for confirmations
 
