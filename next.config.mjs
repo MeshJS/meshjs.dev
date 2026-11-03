@@ -2,6 +2,9 @@ import { createMDX } from 'fumadocs-mdx/next';
 import bundleAnalyzer from '@next/bundle-analyzer';
 
 const withMDX = createMDX();
+
+const ACCEPTS_MARKDOWN = { type: 'header', key: 'accept', value: '.*text/markdown.*' };
+const NOT_A_PAGE = '(?!api/|_next/|llms|docs-og/|rss\\.xml|sitemap\\.xml|robots\\.txt|favicon/)';
 const withBundleAnalyzer = bundleAnalyzer({
   enabled: process.env.ANALYZE === 'true',
 });
@@ -53,6 +56,11 @@ const config = {
             key: 'X-Robots-Tag',
             value: 'index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1'
           },
+          // Agent discovery (RFC 8288): point to the machine-readable indexes
+          {
+            key: 'Link',
+            value: '</llms.txt>; rel="describedby"; type="text/plain", </llms-full.txt>; rel="describedby"; type="text/plain"'
+          },
         ],
       },
       // Allow AI crawlers and search engines to access all content
@@ -94,15 +102,33 @@ const config = {
   // Trailing slash preference for consistency
   trailingSlash: false,
 
-  // Serve any docs page as plain markdown by appending .md to its URL,
-  // which is the address AI tooling and the in-page copy button both expect.
   async rewrites() {
-    return [
-      {
-        source: '/:path(.*)\\.md',
-        destination: '/llms.mdx/:path',
-      },
-    ];
+    return {
+      // Agents that send `Accept: text/markdown` get the markdown version of
+      // the page at its own URL; browsers never send it and keep the HTML.
+      // beforeFiles, because the HTML page would otherwise match first.
+      // Routes that are not pages (api, assets, the llms files) are left alone.
+      beforeFiles: [
+        {
+          source: '/',
+          has: [ACCEPTS_MARKDOWN],
+          destination: '/llms.mdx',
+        },
+        {
+          source: `/:path(${NOT_A_PAGE}.+)`,
+          has: [ACCEPTS_MARKDOWN],
+          destination: '/llms.mdx/:path',
+        },
+      ],
+      // Serve any docs page as plain markdown by appending .md to its URL,
+      // which is the address AI tooling and the in-page copy button both expect.
+      afterFiles: [
+        {
+          source: '/:path(.*)\\.md',
+          destination: '/llms.mdx/:path',
+        },
+      ],
+    };
   },
 
   // Redirect root favicon requests to the correct location
