@@ -29,9 +29,9 @@ export const linksSolutions = [
     icon: UserGroupIcon,
   },
   {
-    link: `https://cloud.meshjs.dev/cquisitor`,
+    link: `https://cardananium.github.io/cquisitor/`,
     title: "Cquisitor",
-    desc: "Debug, validate and inspect any CBOR and Cardano objects",
+    desc: "Debug, validate and inspect any CBOR and Cardano objects. Cquisitor has returned to its original home and is maintained by its original author, Evgenii Lisitskii",
     icon: MagnifyingGlassIcon,
   },
 ];
