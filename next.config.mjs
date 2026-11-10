@@ -4,7 +4,7 @@ import bundleAnalyzer from '@next/bundle-analyzer';
 const withMDX = createMDX();
 
 const ACCEPTS_MARKDOWN = { type: 'header', key: 'accept', value: '.*text/markdown.*' };
-const NOT_A_PAGE = '(?!api/|_next/|llms|docs-og/|rss\\.xml|sitemap\\.xml|robots\\.txt|favicon/)';
+const NOT_A_PAGE = '(?!api/|_next/|llms|docs-og/|rss\\.xml|sitemap\\.xml|robots\\.txt|favicon/|\\.well-known/)';
 const withBundleAnalyzer = bundleAnalyzer({
   enabled: process.env.ANALYZE === 'true',
 });
