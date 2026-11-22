@@ -90,7 +90,7 @@ const built = await builder.build(
 | Option | What it does | Default |
 |--------|--------------|---------|
 | `id` | Your id for the plan, shown as `plan.id`. Required on a builder with a `store` | none |
-| `consolidate` | `true`: when a step's inputs do not fit one transaction, the plan adds consolidation steps before it. `{ maxSteps }` limits them (1 to 31). `false`: that step is `TX_TOO_LARGE` | `true`, up to 4 steps |
+| `consolidate` | `true`: when a step's inputs do not fit one transaction, the plan adds [consolidation steps](/apis/txbuilder/plans#consolidation-steps) before it. `{ maxSteps }` limits them (1 to 31). `false`: that step is `TX_TOO_LARGE` | `true`, up to 4 steps |
 | `ttlMs` | How long a step is valid when its parts set no `validity({ until })`, and the time left to sign it | `600_000` (10 minutes) |
 | `expiryMarginMs` | The wait after a step's end of validity before the plan calls it `expired` | `600_000` (10 minutes) |
 | `confirmations` | Blocks on top of a step's block before it is `final` | `30` |

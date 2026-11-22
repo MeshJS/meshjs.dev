@@ -118,18 +118,7 @@ for (const tx of [first, second]) {
 
 ## Spend Many Small UTxOs with a Plan
 
-A wallet with many small UTxOs may need more inputs than one transaction holds (`TX_TOO_LARGE`). A [plan](/apis/txbuilder/plans#make-and-run-a-plan) then adds consolidation steps before the step: transactions that merge the payer's UTxOs. `plan.steps` and `plan.fee` show them before anyone signs. There are at most 4 by default. `consolidate: { maxSteps }` (1 to 31) changes that, and `consolidate: false` keeps `TX_TOO_LARGE`. A plan needs a provider with block heights: see [Providers and Networks](/apis/txbuilder/networks#use-blockfrost-for-plans).
-
-```tsx
-import { output } from "@meshsdk/core";
-
-const plan = await builder.plan(
-  output({ address: recipient, value: { lovelace: 500_000_000n } }),
-  { payer: wallet, consolidate: { maxSteps: 6 } },
-);
-console.log(plan.steps.map((step) => `${step.name}: ${step.kind}`), plan.fee);
-await plan.run(); // consolidation steps first, then the payment
-```
+A wallet with many small UTxOs may need more inputs than one transaction holds, and `build()` throws `TX_TOO_LARGE`. Give the same parts to a [plan](/apis/txbuilder/plans). It puts consolidation steps before the payment, which merge the payer's UTxOs. Each costs a fee and a block of waiting. A step with `sendAllTo` is never consolidated. A plan needs a provider with block heights: see [Providers and Networks](/apis/txbuilder/networks#use-blockfrost-for-plans). [Consolidation Steps](/apis/txbuilder/plans#consolidation-steps) shows the steps and their fees before anything is signed, and how many a plan makes.
 
 ## Send Everything
 

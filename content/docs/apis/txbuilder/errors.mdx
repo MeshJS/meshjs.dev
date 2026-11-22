@@ -138,7 +138,7 @@ A part builder checks its arguments at once, so the error points at the line tha
 | `INVALID_COLLATERAL` | Collateral inputs cannot cover the total, or with `collateralReturn: false` one holds a token. Give inputs with lovelace only |
 | `OUTPUT_BELOW_MIN_COIN` | An output holds less lovelace than the ledger requires (`details.coin`, `details.minCoin`). Add lovelace, or leave `lovelace` out |
 | `VALUE_TOO_LARGE` | An output's value is larger than `maxValSize`. Spread the assets over several outputs |
-| `TX_TOO_LARGE` | Over `maxTxSize`. `details.cause` is `parts`, `selection` or `referenceScripts`. Split it into the steps of a plan |
+| `TX_TOO_LARGE` | Over `maxTxSize`. For `details.cause` `parts` or `referenceScripts`, split it into the steps of a plan. For `selection` (many small UTxOs), give the same parts to `builder.plan()`: it puts [consolidation steps](/apis/txbuilder/plans#consolidation-steps) before the step, unless the step has `sendAllTo` or the plan has `consolidate: false` |
 | `FEE_TOO_LOW` | The `fee` you gave is below the minimum (`details.minFee`). Drop it, or give a higher one |
 | `FEE_NOT_CONVERGED` | Balancing did not settle on a fee within its rounds. This is rare |
 
@@ -202,6 +202,8 @@ A warning does not stop a build. `built.warnings` lists them, each with a `code`
 | `COLLATERAL_RETURN_ELSEWHERE` | Only from `fromCbor`: a collateral input belongs to another payment credential than the one the return pays, and that holder loses if a script fails |
 | `FEE_ABOVE_MINIMUM` | The `fee` you gave is above the minimum |
 | `NEVER_EXPIRES` | Only on a step of a plan that was given built: it has no end of validity |
+
+A plan also tells a [`trace`](/apis/txbuilder/options#control) callback about events of its own, such as `{ type: "warning", code: "CONSOLIDATION_STEPS", steps, fee }`, sent when it puts in consolidation steps: see [Consolidation Steps](/apis/txbuilder/plans#consolidation-steps).
 
 The lists of codes, reasons and warnings can grow, so keep a default branch when you switch on them.
 

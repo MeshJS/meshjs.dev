@@ -130,6 +130,45 @@ await plan.add({
 if (plan.status === "pending") await plan.run();
 ```
 
+## Consolidation Steps
+
+A payer with many small UTxOs may need more inputs than one transaction holds. Then `build()` throws `TX_TOO_LARGE` with `details.cause` `"selection"`. Give the same parts to `builder.plan()`. It puts consolidation steps before the payment by itself, because `consolidate` is on by default. `plan.add()` and `plan.replan()` do the same for the steps they build. A plan needs a provider that returns block heights and the validity flag: see [Providers and Networks](/apis/txbuilder/networks#use-blockfrost-for-plans).
+
+Each consolidation step:
+
+- is named `consolidate-1`, `consolidate-2` and so on, with `kind` `"consolidation"`;
+- spends as many of the payer's UTxOs as fit one transaction, and sends everything back to the payer;
+- sets tokens the payment does not need aside in outputs of their own, and passes the rest on as change that the next step spends;
+- is signed, sent and recorded like any step, and has its own [status](#read-the-statuses). [`plan.rest`](#handle-a-step-that-does-not-go-through) never lists it.
+
+```tsx
+import { output } from "@meshsdk/core";
+
+const plan = await builder.plan(
+  output({ address: recipient, value: { lovelace: 500_000_000n } }),
+  { payer: wallet }, // consolidation is on by default
+); // built, consolidation steps first; nothing is signed or sent
+
+const extra = plan.steps.filter((step) => step.kind === "consolidation");
+console.log(extra.map((step) => step.name)); // ["consolidate-1", "consolidate-2"]
+console.log(extra.reduce((sum, step) => sum + step.fee, 0n)); // what they cost, in lovelace
+console.log(plan.fee); // every step, the payment included
+await plan.run(); // consolidate-1, a block, consolidate-2, a block, then main
+```
+
+Nothing is signed or sent until `run()`, so read `plan.steps` first. A [`trace`](/apis/txbuilder/options#control) callback is also told `{ type: "warning", code: "CONSOLIDATION_STEPS", steps, fee }`: how many steps the call put in, and their fees together.
+
+What it costs:
+
+- Fees: each step pays its own fee from the payer's funds. If the wallet holds little more than the payment, the fees can make the plan `INSUFFICIENT_FUNDS`. The message says how many steps and what their fees come to.
+- Time: `run()` waits for a block after each step, so the payment lands one block later for each. A wallet that asks you to approve each transaction asks once per step.
+- One deadline: all steps end `ttlMs` (10 minutes by default) after the plan is built. Signing and landing all of them must fit: see [Set Deadlines and Waiting](#set-deadlines-and-waiting).
+- Not atomic: if the plan stops after a consolidation step landed, the payer's UTxOs are merged and the payment is not made. Only the fees are spent. `plan.replan()` pays what is left: see [Handle a Step That Does Not Go Through](#handle-a-step-that-does-not-go-through).
+
+By default a plan makes at most 4 consolidation steps, those of `plan.add` counted. `consolidate: { maxSteps }` sets the limit from 1 to 31, and `consolidate: false` keeps `TX_TOO_LARGE`. Consolidation steps count toward the 32 steps of a plan. `TX_TOO_LARGE` is also thrown when the limit is reached, when the plan has no room for another step, or when a consolidation step cannot be built. An abort or a provider failure is thrown as it is. A step with `sendAllTo` is never consolidated.
+
+A token set aside by a consolidation step stays with the payer. A later step that needs it may spend that output. A later step of the same payer with `sendAllTo` takes the outputs of consolidation steps that are not `final` yet without asking `canSelect`. Once a consolidation step is `final`, its outputs are ordinary UTxOs of the payer, and a sweep takes them only where `canSelect` allows. The [package README](https://github.com/MeshJS/mesh/tree/main/packages/mesh-transaction) has the rules.
+
 ## Use a Transaction Built Elsewhere
 
 A step may be a transaction another party built: give it as a `BuiltTx` or as CBOR hex. A plan signs it as it signs its own steps: with the call's `signers`, or, when the call names none, with the plan's payer if it can sign. It keeps the witnesses the transaction came with. Read it first with [`builder.fromCbor()`](/apis/txbuilder/offline#read-a-transaction-built-elsewhere), which shows its outputs, fee and missing keys. Keep any key you do not want used on it out of the call's signers, and out of the payer when the call names none.
@@ -158,7 +197,7 @@ Three deadlines belong to the plan. They are taken from the plan's options, else
 | `expiryMarginMs` | how long after its end of validity a step waits before it is `expired` |
 | `confirmations` | blocks on top of a step's block before it is `final` |
 
-A step whose parts give `validity({ until })` keeps that end. A step that runs a Plutus script may not end past the network's horizon (36 hours on mainnet and preprod), else `INVALID_STATE`. `0` for `expiryMarginMs` and `confirmations` is for tests only.
+Every step whose parts give no `validity({ until })` ends at the same time, `ttlMs` after the plan is built. A step whose parts give `validity({ until })` keeps that end. A step that runs a Plutus script may not end past the network's horizon (36 hours on mainnet and preprod), else `INVALID_STATE`. `0` for `expiryMarginMs` and `confirmations` is for tests only.
 
 The waiting options belong to one call of `run()` and are never recorded:
 
@@ -218,6 +257,6 @@ if (plan.steps.some((step) => step.status === "failed")) {
 - [Servers and Storage](/apis/txbuilder/servers) - record plans so a server can restart and resume
 - [Errors](/apis/txbuilder/errors#errors-from-waiting-and-plans) - the codes a plan throws
 - [Options](/apis/txbuilder/options#plan-options) - every plan option with its default
-- [UTxOs and Inputs](/apis/txbuilder/utxos#spend-many-small-utxos-with-a-plan) - consolidation steps for a wallet with many small UTxOs
+- [UTxOs and Inputs](/apis/txbuilder/utxos) - give UTxOs, limit what the builder picks, build on a transaction not yet on chain
 - [Providers and Networks](/apis/txbuilder/networks#use-blockfrost-for-plans) - a provider that plans can use
 - [Package README](https://github.com/MeshJS/mesh/tree/main/packages/mesh-transaction) - every plan option, status and error
