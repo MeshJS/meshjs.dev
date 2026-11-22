@@ -201,7 +201,7 @@ const built = await offline.build(
 );
 ```
 
-- Without a `provider`, give `params`, and `costModels` for a Plutus script, or the builder throws `MISSING_PARAMETER`.
+- Without a `provider`, give `params`, and `costModels` for a Plutus script, or `build()` throws `MISSING_PARAMETER`.
 - `params` must be a whole `Protocol`. The old builder filled missing fields with built-in values, and a partial object is `INVALID_OPTION`.
 - `JSON.stringify(built)` saves the transaction, and `await builder.restore(JSON.parse(saved))` brings it back in another process.
 

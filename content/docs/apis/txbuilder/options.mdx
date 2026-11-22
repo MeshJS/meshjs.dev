@@ -11,13 +11,13 @@ Examples use the names of [Transaction Basics](/apis/txbuilder/basics): `provide
 
 ## Builder Options
 
-Give these to `new TxBuilder({...})`. Only `network` is required. With neither a `provider` nor `params`, the constructor throws `MISSING_PARAMETER`: there are no built-in parameter values.
+Give these to `new TxBuilder({...})`. Only `network` is required, and a builder with a `network` alone is made. With neither a `provider` nor `params`, it reads and signs only: `build()`, `plan()`, `chain()` and a plan's `add` and `replan` throw `MISSING_PARAMETER` at the call, since there are no built-in parameter values. See [A Builder with a Network Alone](/apis/txbuilder/offline#a-builder-with-a-network-alone).
 
 | Option | What it does | Default |
 |--------|--------------|---------|
 | `network` | `"mainnet"`, `"preprod"`, `"preview"` or `customNetwork(...)` for a devnet. Every address, wallet and provider is checked against it | required |
 | `provider` | Reads the chain: outputs, parameters, cost models, the payer's UTxOs. Plans also read the tip | none |
-| `params` | Protocol parameters (a `Protocol`), used instead of reading them | read from the provider |
+| `params` | Protocol parameters (a `Protocol`), used instead of reading them | read from the provider; with no provider either, `MISSING_PARAMETER` at the call that needs them |
 | `costModels` | Cost models by Plutus language, V1 first (`number[][]`), used instead of reading them | read from the provider |
 | `deposits` | `drepDeposit` and `govActionDeposit`, which `Protocol` does not carry | none |
 | `submitter` | Sends transactions in place of the provider | the provider |

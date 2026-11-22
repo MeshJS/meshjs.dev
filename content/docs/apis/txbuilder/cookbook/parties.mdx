@@ -5,7 +5,7 @@ description: "Share a wallet with a native script, check a swap another party bu
 
 ## Overview
 
-Three recipes for transactions that more than one party touches: a wallet two keys share, a swap you check before you sign, and a key that signs on a cold machine. Whenever a transaction comes from someone else, you read it before you sign it. Names as in [Before you start](/apis/txbuilder/cookbook#before-you-start), plus `sharedUtxo`, `partnerTx`, `coldAddress` and `coldKey`.
+Three recipes for transactions that more than one party touches: a wallet two keys share, a swap you check before you sign, and a key that signs on a cold machine. Whenever a transaction comes from someone else, you read it before you sign it. Names as in [Before you start](/apis/txbuilder/cookbook#before-you-start), plus `sharedUtxo`, `partnerTx`, `coldAddress`, `coldKey` and `coldTx`.
 
 ## Share a Wallet with a Native Script
 
@@ -137,16 +137,11 @@ const named = [
   ...built.referenceInputs,
   ...(built.collateral?.inputs ?? []),
 ];
-const { params } = await builder.chain(); // the cold machine needs the parameters
-const toCold = JSON.stringify({
-  tx: built.tx,
-  utxos: named.map(toMeshUtxo),
-  params,
-});
+const toCold = JSON.stringify({ tx: built.tx, utxos: named.map(toMeshUtxo) });
 
-// On the cold machine: no provider, no network
+// On the cold machine: no provider, no parameters, only the network
 const sent = JSON.parse(toCold);
-const cold = new TxBuilder({ network: "preprod", params: sent.params });
+const cold = new TxBuilder({ network: "preprod" });
 const received = await cold.fromCbor(sent.tx, { knownUtxos: sent.utxos });
 console.log(received.outputs, received.fee, received.missing); // read what you sign
 await received.sign({ signers: keySigner(coldKey) });
@@ -158,9 +153,20 @@ await built.submit();
 await built.awaitInclusion();
 ```
 
-- With no provider, `knownUtxos` must hold every UTxO the transaction names, and the cold builder needs the full `params`: see [With Mesh on the Cold Machine](/apis/txbuilder/signing#with-mesh-on-the-cold-machine).
+- The cold builder needs its network alone. With no provider, `knownUtxos` must hold every UTxO the transaction names: see [With Mesh on the Cold Machine](/apis/txbuilder/signing#with-mesh-on-the-cold-machine).
 - The key signs the body whatever you were told: read `outputs`, `fee` and `missing` first: see [Read a Transaction Built Elsewhere](/apis/txbuilder/offline#read-a-transaction-built-elsewhere).
-- For a signing device, or a machine with no builder, see [Sign on a Cold Machine](/apis/txbuilder/signing#sign-on-a-cold-machine).
+- For the JSON of the build, a signing device, or a machine with no builder, see [Sign on a Cold Machine](/apis/txbuilder/signing#sign-on-a-cold-machine).
+
+If the cold machine gets only the transaction, `coldTx` (`built.tx`), it can sign without looking. It shows `outputs` and `fee` and nothing of the inputs, and it keeps every witness that verifies, so a key the fee was not priced for can make the node refuse the transaction: see [Sign Without Looking](/apis/txbuilder/signing#sign-without-looking).
+
+```tsx
+import { keySigner, TxBuilder } from "@meshsdk/core";
+
+const cold = new TxBuilder({ network: "preprod" });
+const unseen = await cold.fromCbor(coldTx, { blind: true }); // no UTxOs, no provider
+await unseen.sign({ signers: keySigner(coldKey) });
+const signed = unseen.partialTx; // carry it back: built.addWitnesses(signed)
+```
 
 ## Related
 

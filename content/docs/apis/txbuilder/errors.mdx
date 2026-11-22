@@ -106,7 +106,7 @@ A part builder checks its arguments at once, so the error points at the line tha
 | Code | What happened and what to do |
 |------|------------------------------|
 | `MISSING_PAYER` | There is no payer. Pass `{ payer }` |
-| `MISSING_PARAMETER` | Parameters, cost models or deposits are not known. `details.parameter` says which. Give a `provider`, or `params`, `costModels` or `deposits` |
+| `MISSING_PARAMETER` | Parameters, cost models or deposits are not known. The call that needs them throws, not the constructor. `details.parameter` says which: `"params"`, `"costModels"` or `"deposits"`. Give a `provider`, or `params`, `costModels` or `deposits` |
 | `MISSING_FETCHER` | Something has to be read and there is no provider. Give a `provider`, or pass UTxOs in full |
 | `MISSING_EVALUATOR` | Execution units are needed and there is no evaluator. Give an `evaluator` |
 | `NETWORK_MISMATCH` | An address, wallet, provider or transaction is on another network than `network`. `details.expected` and `details.found` say where. Use one network |
@@ -117,6 +117,13 @@ A part builder checks its arguments at once, so the error points at the line tha
 | `INVALID_SELECTION` | `coinSelection` returned an out ref that is not a candidate. Return candidates only |
 | `UNKNOWN_LABEL` | `outputOf` asked for a label no output has. `details.labels` lists them |
 | `NOT_SERIALIZABLE` | A part holds a [redeemer function](/apis/txbuilder/smart-contracts#spend-from-a-script), so `toJSON()` and a plan on a builder with a store refuse it. Give the redeemer as data |
+
+`MISSING_PARAMETER` comes from these places:
+
+- A builder given its `network` alone is made without error and reads and signs. `build()`, `plan()`, `chain()` and a plan's `add` and `replan` throw it at the call, with `details.parameter` `"params"`. Give the builder a `provider` or `params`: see [A Builder with a Network Alone](/apis/txbuilder/offline#a-builder-with-a-network-alone).
+- The provider's protocol parameters could not be read, came back empty or lack a field a build reads (`"params"`). When the read failed, `error.cause` holds the provider's error.
+- A build that runs a Plutus script, or `chain()`, has no cost models: there are none, or the provider could not read them, and then `error.cause` holds why (`"costModels"`).
+- A deposit is not known. A governance deposit is not given (`"deposits"`). Or the parameters lack the field that gives the amount (`"params"`, and the message names the field): `keyDeposit` for a stake registration or deregistration that states no amount and for a legacy stake certificate (`legacyStakeRegistration`, `legacyStakeDeregistration`), `poolDeposit` for a first `poolRegistration`. These throw before anything is selected. See [Deposits](/apis/txbuilder/certificates#deposits).
 
 ### Parts and Inputs
 
