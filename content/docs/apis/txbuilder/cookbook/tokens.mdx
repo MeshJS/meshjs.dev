@@ -1,0 +1,144 @@
+---
+title: "Tokens and NFTs"
+description: "Mint an NFT collection with CIP-25 metadata, mint a CIP-68 token and burn tokens."
+---
+
+## Overview
+
+Three token recipes: an NFT collection under a policy that closes, a CIP-68 token with a reference token for its metadata, and a burn. Names as in [Before you start](/apis/txbuilder/cookbook#before-you-start), plus `items`, `policyCode` and `referenceAddress`.
+
+## Mint an NFT Collection
+
+Use this to mint a fixed set of NFTs with CIP-25 metadata, under a policy that needs your signature and works only before a slot, so after that slot nobody can mint under it again, you included. `items` is your own list, each `{ name, image }`, and the NFTs go to your wallet.
+
+```tsx
+import {
+  deserializeAddress,
+  metadata,
+  mint,
+  resolveNativeScriptHash,
+  stringToHex,
+  validity,
+} from "@meshsdk/core";
+import type { NativeScript } from "@meshsdk/core";
+
+const { pubKeyHash } = deserializeAddress(changeAddress);
+const closes = builder.slotAt(Date.now() + 3_600_000); // the policy closes in an hour
+const policy: NativeScript = {
+  type: "all",
+  scripts: [
+    { type: "sig", keyHash: pubKeyHash },
+    { type: "before", slot: closes.toString() },
+  ],
+};
+const policyId = resolveNativeScriptHash(policy);
+
+const plan = await builder.plan(
+  [
+    mint.native({
+      script: policy,
+      assets: Object.fromEntries(items.map(({ name }) => [stringToHex(name), 1n])),
+    }),
+    metadata({
+      metadataLabel: 721n,
+      value: {
+        [policyId]: Object.fromEntries(
+          items.map(({ name, image }) => [
+            name,
+            { name: `Mesh ${name}`, image, mediaType: "image/png" },
+          ]),
+        ),
+      },
+    }),
+    validity({ invalidHereafter: closes }), // lands before the policy closes
+  ],
+  { payer: wallet },
+); // built; nothing is signed or sent
+await plan.run();
+```
+
+- The policy has two rules: your key signs, and the slot has not passed. Once `closes` is past no transaction can mint under it, so the supply is fixed: see [Mint with a Time-Locked Policy](/apis/txbuilder/minting#mint-with-a-time-locked-policy).
+- CIP-25 metadata sits under label 721, by policy id and then asset name. Each text is at most 64 bytes: see [Add NFT Metadata](/apis/txbuilder/minting#add-nft-metadata).
+- While the policy is open, a second build mints the same names again. A collection too large for one transaction (`TX_TOO_LARGE`) is one step per batch, each with the same `validity`: see [Mint Several Assets](/apis/txbuilder/minting#mint-several-assets).
+
+## Mint a CIP-68 Token
+
+Use this for a token whose metadata you can change later: CIP-68 keeps it in the inline datum of a reference token held at `referenceAddress`, while the user token goes to `recipient`. `policyCode` is your Plutus minting policy, one that accepts the redeemer below and lets both tokens be minted in one transaction.
+
+```tsx
+import {
+  CIP68_100,
+  CIP68_222,
+  mConStr0,
+  metadataToCip68,
+  mint,
+  output,
+  resolveScriptHash,
+  stringToHex,
+} from "@meshsdk/core";
+
+const nameHex = stringToHex("MyToken");
+const policyId = resolveScriptHash(policyCode, "V3");
+
+const plan = await builder.plan(
+  [
+    mint.plutus({
+      script: { code: policyCode, version: "V3" },
+      redeemer: { data: mConStr0([]) },
+      assets: { [CIP68_100(nameHex)]: 1n, [CIP68_222(nameHex)]: 1n },
+    }),
+    output({
+      address: referenceAddress,
+      value: { [policyId + CIP68_100(nameHex)]: 1n }, // the reference token
+      datum: {
+        type: "inline",
+        data: metadataToCip68({
+          name: "MyToken",
+          image: "ipfs://QmRzicpReutwCkM6aotuKjErFCUD213DpwPq6ByuzMJaua",
+        }),
+      },
+    }),
+    output({
+      address: recipient,
+      value: { [policyId + CIP68_222(nameHex)]: 1n }, // the user token
+    }),
+  ],
+  { payer: wallet },
+);
+await plan.run();
+```
+
+- Both tokens belong to one policy, so they are one `mint` part. `CIP68_100` and `CIP68_222` add the label to the name: see [Mint CIP-68 Tokens](/apis/txbuilder/minting#mint-cip-68-tokens).
+- Keep the reference token at a script address whose validator lets your key update it. To change the metadata, spend it with `spend.plutus` and send it back with a new datum: see [Spend from a Script](/apis/txbuilder/smart-contracts#spend-from-a-script). At a key address of yours, keep it out of every later build with `canSelect`.
+- The policy runs while the plan is built. A policy that refuses fails with `EVALUATION_FAILED` and nothing is sent: see [Test That a Script Refuses](/apis/txbuilder/testing#test-that-a-script-refuses).
+
+## Burn Tokens
+
+Use this to burn five of the tokens of `unit`, which your wallet holds. A burn is a mint with a negative quantity, under the policy that minted them.
+
+```tsx
+import { ForgeScript, mint, resolveScriptHash } from "@meshsdk/core";
+
+const forgingScript = ForgeScript.withOneSignature(changeAddress); // the policy that minted them
+const policyId = resolveScriptHash(forgingScript);
+if (!unit.startsWith(policyId)) throw new Error("not a token of this policy");
+
+const plan = await builder.plan(
+  mint.native({
+    script: forgingScript,
+    assets: { [unit.slice(policyId.length)]: -5n }, // negative: burn
+  }),
+  { payer: wallet },
+);
+await plan.run();
+```
+
+- The tokens must be in the payer's wallet, else `INSUFFICIENT_FUNDS`: see [Burn Assets](/apis/txbuilder/minting#burn-assets).
+- A burn runs the policy too. Your key must sign, and the time-locked policy of the collection above cannot burn after its slot: see [Mint with a Time-Locked Policy](/apis/txbuilder/minting#mint-with-a-time-locked-policy).
+- A Plutus policy burns the same way, with a negative quantity and a redeemer: see [Mint with a Plutus Script](/apis/txbuilder/minting#mint-with-a-plutus-script).
+
+## Related
+
+- [Mint and Burn Assets](/apis/txbuilder/minting) - native and Plutus policies, metadata and reference scripts
+- [Plans](/apis/txbuilder/plans) - steps, statuses and deadlines
+- [Time and Validity](/apis/txbuilder/time) - slots and the end of validity

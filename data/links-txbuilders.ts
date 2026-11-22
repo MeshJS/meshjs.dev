@@ -55,6 +55,11 @@ export const metaTxbuilderServers = {
   title: "Servers and Storage",
   desc: "Record plans so a server can restart and resume",
 };
+export const metaTxbuilderCookbook = {
+  link: `/apis/txbuilder/cookbook`,
+  title: "Cookbook",
+  desc: "Complete recipes to copy: pay, mint, lock, co-sign, run a server",
+};
 export const metaTxbuilderOffline = {
   link: `/apis/txbuilder/offline`,
   title: "Offline and CBOR",
@@ -98,6 +103,7 @@ export const linksTxbuilder = [
   metaTxbuilderGovernance,
   metaTxbuilderPlans,
   metaTxbuilderServers,
+  metaTxbuilderCookbook,
   metaTxbuilderOffline,
   metaTxbuilderTesting,
   metaTxbuilderNetworks,

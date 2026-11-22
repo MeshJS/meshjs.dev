@@ -1,0 +1,169 @@
+---
+title: "Several Parties"
+description: "Share a wallet with a native script, check a swap another party built before you sign it, and sign on a cold machine."
+---
+
+## Overview
+
+Three recipes for transactions that more than one party touches: a wallet two keys share, a swap you check before you sign, and a key that signs on a cold machine. Whenever a transaction comes from someone else, you read it before you sign it. Names as in [Before you start](/apis/txbuilder/cookbook#before-you-start), plus `sharedUtxo`, `partnerTx`, `coldAddress` and `coldKey`.
+
+## Share a Wallet with a Native Script
+
+Use this for funds that need two keys, such as a joint account: one party builds the spend and signs its part, and the other checks it, signs and sends it. `partnerWallet` is the other party's wallet, `partner` its address, and `sharedUtxo` an output at the shared address.
+
+```tsx
+import { deserializeAddress, guard, output, spend } from "@meshsdk/core";
+import type { NativeScript } from "@meshsdk/core";
+
+const keyOf = (address: string) => deserializeAddress(address).pubKeyHash;
+// 2 of 2: both keys must sign. For 2 of 3, use { type: "atLeast", required: 2, scripts }
+const shared: NativeScript = {
+  type: "all",
+  scripts: [
+    { type: "sig", keyHash: keyOf(changeAddress) },
+    { type: "sig", keyHash: keyOf(partner) },
+  ],
+};
+const sharedAddress = builder.scriptAddress(shared);
+
+// Party one builds the spend and signs its part
+const built = await builder.build(
+  [
+    spend.native({ utxo: sharedUtxo, script: shared }),
+    output({ address: recipient, value: { lovelace: 20_000_000n } }),
+    guard.pubKey({ address: partner }), // so that `missing` lists the other key
+  ],
+  { payer: sharedAddress }, // the change goes back to the shared address
+);
+await built.sign({ signers: wallet });
+const forPartner = built.partialTx; // any channel carries it
+
+// Party two reads it and signs only the agreed spend
+const received = await builder.fromCbor(forPartner); // its inputs come from the provider
+const sum = (list: { address: string; value: Record<string, bigint> }[]) => {
+  const total = new Map<string, bigint>();
+  for (const { address, value } of list)
+    if (address === sharedAddress)
+      for (const [name, quantity] of Object.entries(value))
+        total.set(name, (total.get(name) ?? 0n) + quantity);
+  return total;
+};
+const [taken, back] = [sum(received.inputs), sum(received.outputs)];
+const lost = (name: string) => (taken.get(name) ?? 0n) - (back.get(name) ?? 0n);
+const agreed =
+  // nothing goes elsewhere
+  received.outputs.every(
+    ({ address }) => address === sharedAddress || address === recipient,
+  ) &&
+  lost("lovelace") <= 21_000_000n && // the 20 ada, and at most 1 ada of fee
+  // no token leaves
+  [...taken.keys()].every((name) => name === "lovelace" || lost(name) <= 0n) &&
+  received.collateral === undefined && // no script runs, so nothing is forfeited
+  received.missing.every(({ keyHash }) => keyHash === keyOf(partner)); // only your key is left
+if (!agreed) throw new Error("not the agreed spend: do not sign");
+
+await received.sign({ signers: partnerWallet });
+await received.submit();
+await received.awaitInclusion();
+```
+
+- In a 2-of-2 account the second signature is the only control, so party two checks where the funds go and what they cost before signing: see [Read a Transaction Built Elsewhere](/apis/txbuilder/offline#read-a-transaction-built-elsewhere).
+- `missing` never lists a native script's keys: the script decides. `guard.pubKey` names the other party, so `missing` lists its key and `submit()` refuses until it has signed: see [Sign in Turns](/apis/txbuilder/signing#sign-in-turns).
+- `spend.native` needs no redeemer and no collateral. For 2 of 3, guard the partner you agreed to sign with: see [Spend from a Native Script](/apis/txbuilder/smart-contracts#spend-from-a-native-script).
+
+## Check a Partner's Swap Before You Sign
+
+Use this when a partner builds a transaction and you only sign it: you read what it takes from you and gives to you, and sign only when it is the deal. `partnerTx` is the partner's transaction as CBOR hex, and `unit` the token you are to receive for at most 20 ada.
+
+```tsx
+import { deserializeAddress } from "@meshsdk/core";
+
+const mine = deserializeAddress(changeAddress).pubKeyHash;
+const received = await builder.fromCbor(partnerTx); // its inputs come from your provider
+
+// What the transaction gives to your key, less what it takes from it, per unit.
+// Every address of your key counts, not only the change address
+const ours = ({ address }: { address: string }) => {
+  try {
+    return deserializeAddress(address).pubKeyHash === mine;
+  } catch {
+    return false; // not a key address
+  }
+};
+const net = new Map<string, bigint>();
+const count = (
+  list: { address: string; value: Record<string, bigint> }[],
+  sign: bigint,
+) => {
+  for (const { value } of list.filter(ours))
+    for (const [name, quantity] of Object.entries(value))
+      net.set(name, (net.get(name) ?? 0n) + sign * quantity);
+};
+count(received.outputs, 1n);
+count(received.inputs, -1n);
+
+const agreed =
+  net.get(unit) === 1n && // 1: you receive the token
+  (net.get("lovelace") ?? 0n) >= -20_000_000n && // 2: and give at most 20 ada
+  [...net].every(([name, n]) => name === "lovelace" || n >= 0n) && // 3: no other token leaves
+  received.missing.every(({ keyHash }) => keyHash === mine) && // 4: only your key is left
+  received.collateral === undefined && // 5: no script runs, so nothing is forfeited
+  received.warnings.length === 0; // 6: nothing unusual
+if (!agreed) throw new Error("not the agreed swap: do not sign");
+
+await received.sign({ signers: wallet }); // a transaction read from CBOR has no payer
+await received.submit();
+await received.awaitInclusion();
+```
+
+- `fromCbor` builds nothing, so you sign the body byte for byte. The check counts every unit at every address of your key, so a swap that takes a token, or spends an output at another address of your key, fails it: see [Read a Transaction Built Elsewhere](/apis/txbuilder/offline#read-a-transaction-built-elsewhere).
+- Its inputs come from your provider. With `knownUtxos` give only your own data, never what the partner says: see [Name Outputs the Provider Does Not Know](/apis/txbuilder/utxos#name-outputs-the-provider-does-not-know).
+- To send it with a payment of your own, make it a step of a plan: `builder.plan({ swap: received, pay }, { payer: wallet })`. See [Use a Transaction Built Elsewhere](/apis/txbuilder/plans#use-a-transaction-built-elsewhere).
+
+## Build Online, Sign on a Cold Machine
+
+Use this when the key lives on a machine with no network: the online machine builds, the cold machine reads and signs, and the signed transaction comes back to be sent. `coldAddress` is the address the cold key controls, and `coldKey` is that key, which never leaves the cold machine.
+
+```tsx
+import { keySigner, output, toMeshUtxo, TxBuilder } from "@meshsdk/core";
+
+// On the online machine: build with the cold address as the payer. Nothing is signed
+const built = await builder.build(
+  output({ address: recipient, value: { lovelace: 5_000_000n } }),
+  { payer: coldAddress },
+);
+const named = [
+  ...built.inputs,
+  ...built.referenceInputs,
+  ...(built.collateral?.inputs ?? []),
+];
+const { params } = await builder.chain(); // the cold machine needs the parameters
+const toCold = JSON.stringify({
+  tx: built.tx,
+  utxos: named.map(toMeshUtxo),
+  params,
+});
+
+// On the cold machine: no provider, no network
+const sent = JSON.parse(toCold);
+const cold = new TxBuilder({ network: "preprod", params: sent.params });
+const received = await cold.fromCbor(sent.tx, { knownUtxos: sent.utxos });
+console.log(received.outputs, received.fee, received.missing); // read what you sign
+await received.sign({ signers: keySigner(coldKey) });
+const signed = received.partialTx; // carry it back
+
+// Back on the online machine
+await built.addWitnesses(signed);
+await built.submit();
+await built.awaitInclusion();
+```
+
+- With no provider, `knownUtxos` must hold every UTxO the transaction names, and the cold builder needs the full `params`: see [With Mesh on the Cold Machine](/apis/txbuilder/signing#with-mesh-on-the-cold-machine).
+- The key signs the body whatever you were told: read `outputs`, `fee` and `missing` first: see [Read a Transaction Built Elsewhere](/apis/txbuilder/offline#read-a-transaction-built-elsewhere).
+- For a signing device, or a machine with no builder, see [Sign on a Cold Machine](/apis/txbuilder/signing#sign-on-a-cold-machine).
+
+## Related
+
+- [Signing and Submitting](/apis/txbuilder/signing) - signers, signing in turns and the cold machine
+- [Offline and CBOR](/apis/txbuilder/offline) - read a transaction built elsewhere, save and restore
+- [Smart Contracts](/apis/txbuilder/smart-contracts) - spend from a native script

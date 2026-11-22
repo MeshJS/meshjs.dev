@@ -1,0 +1,113 @@
+---
+title: "Staking and Governance"
+description: "Complete examples that delegate a stake key, withdraw its rewards and register a DRep who votes."
+---
+
+## Overview
+
+Four recipes for stake and vote: a stake key registered and delegated, the whole reward balance withdrawn, a stake key deregistered, and a DRep registered who votes. Names as in [Before you start](/apis/txbuilder/cookbook#before-you-start), plus `rewardAddress`, `poolId`, `drepId` and `actionTxHash`.
+
+## Register and Delegate in One Transaction
+
+Use this when a wallet stakes for the first time. One transaction registers its stake key `rewardAddress`, delegates it to the pool `poolId` and delegates its vote, which the ledger asks for before the key can withdraw rewards.
+
+```tsx
+import { certificate } from "@meshsdk/core";
+
+const built = await builder.build(
+  [
+    certificate.stakeRegistration({ stake: rewardAddress }), // pays the key deposit
+    certificate.stakeDelegation({ stake: rewardAddress, pool: poolId }),
+    certificate.voteDelegation({ stake: rewardAddress, drep: "alwaysAbstain" }),
+  ],
+  { payer: wallet },
+); // nothing is signed or sent yet
+await built.sign(); // the wallet signs with its payment and stake keys
+await built.submit();
+await built.awaitInclusion();
+```
+
+- The deposit is paid by the registration and counted in the balance, so you add no output: see [Deposits](/apis/txbuilder/certificates#deposits).
+- A `MeshWallet` signs with its stake key. If the wallet does not hold it, name another signer: see [Who Signs](/apis/txbuilder/certificates#who-signs).
+- After `SUBMIT_FAILED` or `CONFIRM_TIMEOUT` the outcome is unknown: repeat `submit()` or `awaitInclusion()` on the same `built`, and never build again: see [Retry Without Rebuilding](/apis/txbuilder/signing#retry-without-rebuilding).
+
+## Withdraw All Rewards
+
+Use this to collect the whole reward balance of `rewardAddress`. With `amount: "all"` the builder reads the balance through the provider and the rewards arrive as change, and reading it first skips a transaction when there is nothing to collect.
+
+```tsx
+import { withdrawal } from "@meshsdk/core";
+
+const { rewards } = await provider.fetchAccountInfo(rewardAddress);
+
+if (BigInt(rewards) > 0n) {
+  const built = await builder.build(
+    withdrawal.pubKey({ rewardAddress, amount: "all" }), // the balance is looked up
+    { payer: wallet },
+  );
+  await built.sign(); // the wallet signs, with the stake key the withdrawal needs
+  await built.submit();
+  await built.awaitInclusion();
+}
+```
+
+- A stated amount must equal the whole balance, which is why `"all"` is the safe way: see [Withdraw Rewards](/apis/txbuilder/staking#withdraw-rewards).
+- The ledger refuses a withdrawal from a stake key that has delegated its vote to no DRep. Delegate it first, as the recipe above does: see [Delegate Your Vote](/apis/txbuilder/governance#delegate-your-vote).
+- With a zero balance `"all"` still builds, as a withdrawal of `0n`, and pays a fee, so the check above saves it: see [Withdraw Rewards](/apis/txbuilder/staking#withdraw-rewards).
+
+## Stop Staking and Take the Deposit Back
+
+Use this to deregister the stake key `rewardAddress` and get its key deposit back. The reward balance must be empty first, so the same transaction withdraws it.
+
+```tsx
+import { certificate, withdrawal } from "@meshsdk/core";
+
+const built = await builder.build(
+  [
+    withdrawal.pubKey({ rewardAddress, amount: "all" }), // the balance must be empty
+    certificate.stakeDeregistration({ stake: rewardAddress }), // refunds the key deposit
+  ],
+  { payer: wallet },
+);
+await built.sign(); // the wallet signs with the stake key both parts need
+await built.submit();
+await built.awaitInclusion();
+```
+
+- The refund is the `keyDeposit` parameter. If the key was registered with another deposit, give `refund` on the part: see [Deposits](/apis/txbuilder/certificates#deposits).
+- A reward balance that is not empty makes the ledger refuse the deregistration: see [Deregister a Stake Key](/apis/txbuilder/staking#deregister-a-stake-key).
+- To stake again, register and delegate the key anew: see [Register and Delegate](/apis/txbuilder/staking#register-and-delegate).
+
+## Become a DRep and Vote
+
+Use this to vote with your own DRep `drepId` on the governance action that the transaction `actionTxHash` proposed. A DRep must be registered before it votes, so the two transactions are the steps of one plan, which waits for the registration to be in a block and never builds either again.
+
+```tsx
+import { certificate, vote } from "@meshsdk/core";
+
+const plan = await builder.plan(
+  {
+    register: certificate.drepRegistration({
+      drep: drepId,
+      deposit: 500_000_000n, // the DRep deposit, returned when the DRep retires
+    }),
+    vote: vote({
+      voter: { drep: drepId },
+      votes: [{ action: { txHash: actionTxHash, index: 0 }, vote: "yes" }],
+    }),
+  },
+  { payer: wallet }, // the wallet holds the DRep key and signs both steps
+); // both are built; nothing is signed or sent
+await plan.run(); // register, a block, then vote
+console.log(plan.step("vote").status, plan.status);
+```
+
+- The `deposit` must equal the current DRep deposit. Pass it on the part, or give the builder `deposits: { drepDeposit }`: see [Deposits](/apis/txbuilder/certificates#deposits).
+- A plan is not atomic. A vote the ledger refuses makes `run()` throw `REJECTED`, the DRep stays registered, and `plan.landed` lists the step that landed: see [Handle a Step That Does Not Go Through](/apis/txbuilder/plans#handle-a-step-that-does-not-go-through).
+- A `MeshWallet` signs with its DRep key. A browser wallet must be connected with the CIP-95 extension: see [Who Signs](/apis/txbuilder/certificates#who-signs).
+
+## Related
+
+- [Staking Transactions](/apis/txbuilder/staking) - every staking part and who signs it
+- [Governance Transactions](/apis/txbuilder/governance) - DReps, votes and proposals
+- [Certificates](/apis/txbuilder/certificates) - every certificate, its deposit and its signer

@@ -1,0 +1,12 @@
+{
+  "title": "Cookbook",
+  "pages": [
+    "payments",
+    "tokens",
+    "scripts",
+    "parties",
+    "servers",
+    "staking-governance",
+    "testing"
+  ]
+}
