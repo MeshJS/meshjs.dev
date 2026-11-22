@@ -33,12 +33,17 @@ export const metaTxbuilderSmartContract = {
 export const metaTxbuilderStaking = {
   link: `/apis/txbuilder/staking`,
   title: "Staking Transactions",
-  desc: "Register, delegate, withdraw and manage a pool",
+  desc: "Register, delegate, withdraw rewards and run a pool",
 };
 export const metaTxbuilderGovernance = {
   link: `/apis/txbuilder/governance`,
   title: "Governance Transactions",
   desc: "Register as a DRep, vote and submit proposals",
+};
+export const metaTxbuilderCertificates = {
+  link: `/apis/txbuilder/certificates`,
+  title: "Certificates",
+  desc: "Every certificate: deposits, signers, scripts and legacy forms",
 };
 export const metaTxbuilderPlans = {
   link: `/apis/txbuilder/plans`,
@@ -90,6 +95,7 @@ export const linksTxbuilder = [
   metaTxbuilderSmartContract,
   metaTxbuilderStaking,
   metaTxbuilderGovernance,
+  metaTxbuilderCertificates,
   metaTxbuilderPlans,
   metaTxbuilderServers,
   metaTxbuilderOffline,

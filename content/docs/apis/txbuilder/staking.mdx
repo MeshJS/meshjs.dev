@@ -5,7 +5,14 @@ description: "Register a stake key, delegate to a pool, withdraw rewards and der
 
 ## Overview
 
-Staking uses certificates and withdrawals, passed as parts to `builder.build()`. Use this page to register a stake key, delegate, collect rewards or run a pool.
+Staking uses two kinds of part, passed to `builder.build()`:
+
+| Part | What it does |
+|------|--------------|
+| `withdrawal.*` | takes rewards out of a reward account |
+| `certificate.*` | changes what the chain records: a stake key, a delegation, a pool |
+
+Use this page to register a stake key, delegate, collect rewards or run a pool. Every certificate, its deposit and its signer are in [Certificates](/apis/txbuilder/certificates).
 
 Examples stop at `build()`: call `built.sign()` and `built.submit()` as in [Transaction Basics](/apis/txbuilder/basics#build-sign-and-submit). They use `builder` and `wallet` from there, and these names, which your application defines:
 
@@ -26,7 +33,7 @@ Examples stop at `build()`: call `built.sign()` and `built.submit()` as in [Tran
 
 ## Register and Delegate
 
-A stake key must be registered before it can delegate. List both certificates to do it in one transaction: they keep the order you give them. The deposit is the `keyDeposit` protocol parameter unless you pass `deposit`. `pool` is a bech32 pool id or the operator key hash.
+A stake key must be registered before it can delegate. List both certificates to do it in one transaction: they keep the order you give them. The deposit is `keyDeposit` from the protocol parameters, unless you pass `deposit`: see [Deposits](/apis/txbuilder/certificates#deposits). `pool` is a bech32 pool id or the operator key hash.
 
 ```tsx
 import { certificate } from "@meshsdk/core";
@@ -40,7 +47,7 @@ const built = await builder.build(
 );
 ```
 
-If the wallet does not hold the stake key, pass the key as a signer: `built.sign({ signers: [wallet, keySigner(<signing key>)] })`. `built.missing` lists the keys that have not signed yet. `certificate.stakeDelegation` alone changes the delegation of a registered key, and `certificate.stakeRegistrationAndDelegation` does both in one certificate.
+If the wallet does not hold the stake key, pass the key as a signer: `built.sign({ signers: [wallet, keySigner(<signing key>)] })`. `built.missing` lists the keys that have not signed yet: see [Who Signs](/apis/txbuilder/certificates#who-signs). `certificate.stakeDelegation` alone changes the delegation of a registered key, and `certificate.stakeRegistrationAndDelegation` does both in one certificate: see [Delegation](/apis/txbuilder/certificates#delegation).
 
 ## Withdraw Rewards
 
@@ -59,7 +66,7 @@ To state the amount yourself, write `amount: 5_000_000n`. It must equal the whol
 
 ## Deregister a Stake Key
 
-Deregistering refunds the deposit, which defaults to `keyDeposit`. Pass `refund` if the deposit paid was another amount. The reward balance must be empty, so withdraw it in the same transaction.
+Deregistering refunds `keyDeposit`: see [Deposits](/apis/txbuilder/certificates#deposits). The reward balance must be empty, so withdraw it in the same transaction.
 
 ```tsx
 import { certificate, withdrawal } from "@meshsdk/core";
@@ -79,7 +86,7 @@ A stake address can be held by a Plutus script:
 
 - Withdraw: use `withdrawal.plutus` with the script and a redeemer (the data you give the script). Leave out `rewardAddress` and the builder derives the script's own address.
 - Amounts: `0n` runs the script without taking rewards, and works only while the reward balance is zero. To run the script whatever the balance, use `amount: "all"`.
-- Certificate: a certificate of a script's stake address takes the script as its `witness`: `{ plutus, redeemer }`, which must be V3, or `{ native }`.
+- Certificate: a certificate of a script's stake address takes the script as its `witness`. The rules are in [Who Signs](/apis/txbuilder/certificates#who-signs).
 - Native script: withdraw with `withdrawal.native`.
 
 ```tsx
@@ -100,11 +107,11 @@ const built = await builder.build(
 );
 ```
 
-The script's stake address must be registered first, with `certificate.stakeRegistration` and the same `witness`.
+The script's stake address must be registered first, with `certificate.stakeRegistration` and the same `witness`, which must then be a V3 script.
 
 ## Register a Pool
 
-A stake pool operator registers a pool with `certificate.poolRegistration`. `pledge` and `cost` are lovelace as text. `margin` is `[numerator, denominator]`. The operator and owner keys sign, so pass the operator key as a signer. A first registration pays the pool deposit. To update a pool that is already registered, list its operator key hash in the `registeredPools` option of `build()`, and no deposit is owed.
+A stake pool operator registers a pool with `certificate.poolRegistration`. `pledge` and `cost` are lovelace as text. `margin` is `[numerator, denominator]`. The operator and owner keys sign, so pass the operator key as a signer, and any owner key the wallet does not hold. A first registration pays `poolDeposit` from the protocol parameters, an update pays none: see [Deposits](/apis/txbuilder/certificates#deposits). To update a pool that is already registered, list its operator key hash in the `registeredPools` option of `build()`.
 
 ```tsx
 import { certificate, keySigner } from "@meshsdk/core";
@@ -132,6 +139,7 @@ To retire the pool, use `certificate.poolRetirement({ pool: poolId, epoch })`. T
 
 ## Related
 
+- [Certificates](/apis/txbuilder/certificates) - every certificate, its deposit and its signer
 - [Transaction Basics](/apis/txbuilder/basics) - the builder, the payer and signing
 - [Smart Contracts](/apis/txbuilder/smart-contracts) - Plutus scripts that spend and mint
 - [Governance Transactions](/apis/txbuilder/governance) - DReps, voting and proposals

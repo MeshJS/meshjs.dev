@@ -5,7 +5,11 @@ description: "Register as a DRep, delegate your vote, vote on actions and submit
 
 ## Overview
 
-Governance uses certificates, votes and proposals, passed as parts to `builder.build()`. A DRep (delegated representative) votes on behalf of the stake delegated to it. The DRep and proposal deposits are not in the protocol parameters, so the builder takes them from its `deposits` option, or from `deposit` on a part. Without them the build throws `MISSING_PARAMETER` (see [Handle Errors](/apis/txbuilder/basics#handle-errors)). Use this page to act as a DRep, vote or propose.
+Governance uses certificates, votes and proposals, passed as parts to `builder.build()`. A DRep (delegated representative) votes on behalf of the stake delegated to it. Use this page to act as a DRep, vote or propose.
+
+A certificate changes what the chain records, such as a DRep's registration or a vote delegation. Every certificate is in [Certificates](/apis/txbuilder/certificates).
+
+The DRep and proposal deposits are protocol parameters that Mesh's `Protocol` type does not carry, so the builder takes them from its `deposits` option, or from `deposit` on a part. Without them the build throws `MISSING_PARAMETER` (see [Deposits](/apis/txbuilder/certificates#deposits)).
 
 Examples stop at `build()`: call `built.sign()` and `built.submit()` as in [Transaction Basics](/apis/txbuilder/basics#build-sign-and-submit). They use `wallet` and `provider` from there, and these names, which your application defines:
 
@@ -19,15 +23,17 @@ Examples stop at `build()`: call `built.sign()` and `built.submit()` as in [Tran
 |------|------|-----------|
 | Register, update or retire a DRep | `certificate.drepRegistration`, `drepUpdate`, `drepDeregistration` | the DRep key |
 | Delegate your vote | `certificate.voteDelegation` | the stake key |
+| Authorise a hot key or resign from the committee | `certificate.committeeHotAuth`, `committeeColdResign` | the cold key |
 | Vote on an action | `vote` | the voter's key |
 | Submit a proposal | `proposal.info`, `proposal.treasuryWithdrawals` and others | the payer |
 
 ## Manage a DRep
 
-- Register: `certificate.drepRegistration`. `anchor` is optional, and the deposit is `drepDeposit`.
+- Register: `certificate.drepRegistration`. `anchor` is optional.
 - Update: `certificate.drepUpdate`, with the `anchor` of the changed file. Leave `anchor` out to clear it.
-- Retire: `certificate.drepDeregistration`, which refunds `drepDeposit`. Pass `refund` if the deposit paid was another amount.
-- Signing: the DRep key signs. A `MeshWallet` does it in `sign()`, and a browser wallet must be connected with the CIP-95 extension.
+- Retire: `certificate.drepDeregistration`, which refunds the deposit.
+- Deposit: `drepDeposit` from the builder, or `deposit` and `refund` on the part. See [Deposits](/apis/txbuilder/certificates#deposits).
+- Signing: the DRep key signs, and a browser wallet must be connected with the CIP-95 extension. See [Who Signs](/apis/txbuilder/certificates#who-signs).
 
 ```tsx
 import { certificate } from "@meshsdk/core";
@@ -40,7 +46,7 @@ const built = await builder.build(
 
 ## Delegate Your Vote
 
-A registered stake key delegates its voting power with `certificate.voteDelegation`. `drep` is a DRep id, `"alwaysAbstain"` or `"alwaysNoConfidence"`. To delegate to a pool and a DRep together, use `certificate.stakeAndVoteDelegation`.
+A registered stake key delegates its voting power with `certificate.voteDelegation`. `drep` is a DRep id, `"alwaysAbstain"` or `"alwaysNoConfidence"`. To delegate to a pool and a DRep together, use `certificate.stakeAndVoteDelegation`. The combined builders are in [Delegation](/apis/txbuilder/certificates#delegation).
 
 ```tsx
 import { certificate } from "@meshsdk/core";
@@ -110,6 +116,7 @@ const built = await builder.build(
 
 ## Related
 
+- [Certificates](/apis/txbuilder/certificates) - every certificate, its deposit and its signer
 - [Staking Transactions](/apis/txbuilder/staking) - register a stake key, delegate and withdraw
 - [Transaction Basics](/apis/txbuilder/basics) - the builder, the payer and signing
 - [Signing and Submitting](/apis/txbuilder/signing) - sign with a DRep key or several signers
