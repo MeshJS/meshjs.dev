@@ -1,0 +1,166 @@
+---
+title: "Migrate Governance"
+description: "Move DRep registration, vote delegation, votes, proposals and deposits from MeshTxBuilder to TxBuilder."
+---
+
+## Overview
+
+Each governance call becomes a `certificate.*`, `vote` or `proposal.*` part. This page moves them from [Governance Transactions (MeshTxBuilder)](/apis/txbuilder/legacy/governance) to [Governance Transactions](/apis/txbuilder/governance). Names such as `wallet` and `builder` are explained in [Names in the Examples](/apis/txbuilder/migration#names-in-the-examples).
+
+## What Changes
+
+| Old | New |
+|-----|-----|
+| `{ dRepId }`, `{ alwaysAbstain: null }`, `{ alwaysNoConfidence: null }` | `drepId`, `"alwaysAbstain"`, `"alwaysNoConfidence"` |
+| `{ anchorUrl, anchorDataHash }` | `{ url, dataHash }` |
+| voter `{ type: "DRep", drepId }`, `{ type: "StakingPool", keyHash }`, `{ type: "ConstitutionalCommittee", hotCred }` | `{ drep: drepId }`, `{ pool: keyHash }`, `{ committee: { type: "KEY", value: keyHash } }` (or `"SCRIPT"`, or a reward address) |
+| credential `{ type: "KeyHash", keyHash }`, `{ type: "ScriptHash", scriptHash }` | `{ type: "KEY", value }`, `{ type: "SCRIPT", value }` |
+| `{ voteKind: "Yes" }`, `"No"`, `"Abstain"` | `vote: "yes"`, `"no"`, `"abstain"` |
+| governance action id `{ txHash, txIndex }` | `{ txHash, index }` |
+| `.votePlutusScriptV3().vote(...).voteScript(code).voteRedeemerValue(r)` | `vote({ ..., witness: { plutus: { code, version: "V3" }, redeemer: { data: r } } })`. No `txIn` or collateral call. |
+| `.drepUpdateCertificate(drepId, { anchorUrl, anchorDataHash })` | `certificate.drepUpdate({ drep: drepId, anchor })`. Leave out `anchor` to clear it. |
+| `.drepDeregistrationCertificate(drepId)` | `certificate.drepDeregistration({ drep: drepId })`. The refund is `drepDeposit`, or `refund` if the deposit paid was another amount. |
+
+The DRep key signs DRep certificates and votes: a `MeshWallet` does, and a browser wallet must be connected with CIP-95. The stake key signs a vote delegation. See [Sign with a Key or Several Signers](/apis/txbuilder/migration/basics#sign-with-a-key-or-several-signers).
+
+## Examples
+
+### Delegate Your Vote
+
+**Before:**
+
+```tsx
+const unsignedTx = await txBuilder
+  .voteDelegationCertificate({ dRepId: drepId }, rewardAddress)
+  .changeAddress(changeAddress).selectUtxosFrom(utxos).complete();
+```
+
+**After:**
+
+```tsx
+import { certificate } from "@meshsdk/core";
+
+const built = await builder.build(
+  certificate.voteDelegation({ stake: rewardAddress, drep: drepId }), // or "alwaysAbstain"
+  { payer: wallet },
+);
+```
+
+`drep` is a DRep id, `"alwaysAbstain"` or `"alwaysNoConfidence"`.
+
+### Register as a DRep
+
+**Before:**
+
+```tsx
+const unsignedTx = await txBuilder
+  .drepRegistrationCertificate(drepId, {
+    anchorUrl: anchor.url,
+    anchorDataHash: anchor.dataHash,
+  })
+  .changeAddress(changeAddress).selectUtxosFrom(utxos).complete();
+```
+
+**After:**
+
+```tsx
+import { certificate } from "@meshsdk/core";
+
+const built = await builder.build(
+  certificate.drepRegistration({ drep: drepId, anchor }), // the deposit is drepDeposit
+  { payer: wallet },
+);
+```
+
+`hashDrepAnchor` is unchanged. Updating and retiring a DRep are rows of [What Changes](#what-changes).
+
+### Set the Deposits
+
+**Before:**
+
+```tsx
+// Left out, the deposit was 500 ADA for a DRep and 100,000 ADA for a proposal
+txBuilder.drepRegistrationCertificate(drepId);
+```
+
+**After:**
+
+```tsx
+import { TxBuilder } from "@meshsdk/core";
+
+const builder = new TxBuilder({
+  network: "preprod",
+  provider,
+  deposits: { drepDeposit: 500_000_000n, govActionDeposit: 100_000_000_000n },
+});
+```
+
+The new parts have no default: without `deposits` on the builder or `deposit` on the part, the build throws `MISSING_PARAMETER`. Use the values of your network.
+
+### Vote on an Action
+
+**Before:**
+
+```tsx
+const unsignedTx = await txBuilder
+  .vote(
+    { type: "DRep", drepId },
+    { txHash: actionTx, txIndex: 0 },
+    { voteKind: "Yes" },
+  )
+  .changeAddress(changeAddress).selectUtxosFrom(utxos).complete();
+```
+
+**After:**
+
+```tsx
+import { vote } from "@meshsdk/core";
+
+const built = await builder.build(
+  vote({
+    voter: { drep: drepId },
+    votes: [{ action: { txHash: actionTx, index: 0 }, vote: "yes" }], // anchor: optional rationale
+  }),
+  { payer: wallet },
+);
+```
+
+One `vote` part holds all the votes of one voter.
+
+### Submit a Proposal
+
+**Before:**
+
+```tsx
+const unsignedTx = await txBuilder
+  .proposal(
+    { kind: "InfoAction", action: {} },
+    { anchorUrl: anchor.url, anchorDataHash: anchor.dataHash },
+    rewardAddress,
+  )
+  .changeAddress(changeAddress).selectUtxosFrom(utxos).complete();
+```
+
+**After:**
+
+```tsx
+import { proposal } from "@meshsdk/core";
+
+const built = await builder.build(
+  proposal.info({ rewardAccount: rewardAddress, anchor }),
+  { payer: wallet },
+);
+```
+
+The deposit is `govActionDeposit`, or `deposit` on the part, and goes back to `rewardAccount`. The other actions keep their data and change shape:
+
+| Old | New |
+|-----|-----|
+| `TreasuryWithdrawalsAction` with `withdrawals: { [rewardAddress]: "50000000000" }` | `proposal.treasuryWithdrawals({ rewardAccount, anchor, withdrawals: { [rewardAddress]: 50_000_000_000n } })` |
+| `NoConfidenceAction` with `govActionId: { transactionId, govActionIndex }` | `proposal.noConfidence({ rewardAccount, anchor, previous: { txHash, index } })` |
+| `ParameterChangeAction`, `UpdateCommitteeAction`, `NewConstitutionAction`, `HardForkInitiationAction` | `proposal.parameterChange`, `proposal.updateCommittee`, `proposal.newConstitution`, `proposal.hardForkInitiation`. The old `govActionId` is `previous`. `updates` of a parameter change uses the ledger's snake_case names. |
+
+## Related
+
+- [Migration Errors and Differences](/apis/txbuilder/migration/errors) - the next page: error codes and what changes if you keep `MeshTxBuilder`
+- [Migrating to TxBuilder](/apis/txbuilder/migration) - the four steps and the names

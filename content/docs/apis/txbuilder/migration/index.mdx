@@ -5,22 +5,23 @@ description: "Move code from the deprecated MeshTxBuilder chain to TxBuilder par
 
 ## Overview
 
-A transaction is now a list of parts, such as `output(...)` or `mint.native(...)`. Pass the list to `builder.build()`. The builder picks inputs, adds change and sets the fee. Then you sign and submit. `MeshTxBuilder` is deprecated but still works. All new names come from `@meshsdk/core`.
+A transaction is now a list of parts, such as `output(...)` or `mint.native(...)`. You give the list and a payer to `builder.build()`, and the builder picks inputs, adds change and sets the fee. `MeshTxBuilder` is deprecated but still works. Import the new names from `@meshsdk/core`, which re-exports `@meshsdk/transaction`.
 
-Even if you do not migrate, `MeshTxBuilder` now runs on `TxBuilder`, so it can throw `OUTPUT_BELOW_MIN_COIN`, `FEE_TOO_LOW`, `NETWORK_MISMATCH` and `DATUM_MISMATCH` where it used to return a transaction the ledger refused.
+`ForgeScript`, `mConStr0`, `resolveScriptHash` and the other Data and script helpers do not change. Before blocks use them without an import.
 
-To move a transaction:
+## The Four Steps
 
-1. Make one `TxBuilder`.
-2. Turn each chain into parts.
-3. Replace sign and submit.
-4. Check error codes.
+1. Make one `TxBuilder` with a `network` and a `provider`. See [Basics](/apis/txbuilder/migration/basics).
+2. Turn each chain into a list of parts, one area at a time:
+   - [Basics](/apis/txbuilder/migration/basics) - payer, outputs, metadata, validity, signers, signing and submitting
+   - [Minting](/apis/txbuilder/migration/minting) - mint and burn with native and Plutus scripts
+   - [Smart Contracts](/apis/txbuilder/migration/smart-contracts) - lock funds at a script and spend from it
+   - [Staking](/apis/txbuilder/migration/staking) - register, delegate and withdraw
+   - [Governance](/apis/txbuilder/migration/governance) - DRep certificates, votes and proposals
+3. Replace `signTx` and `submitTx` with `sign()` and `submit()`. See [Build, Sign and Submit](/apis/txbuilder/migration/basics#build-sign-and-submit).
+4. Check the error codes. See [Migration Errors and Differences](/apis/txbuilder/migration/errors).
 
-Examples assume `wallet`, `provider`, `utxos`, `changeAddress` and `recipient` exist.
-
-## What Changes
-
-### Before and After
+## A Payment, Before and After
 
 **Before:**
 
@@ -31,9 +32,7 @@ const txBuilder = new MeshTxBuilder({ fetcher: provider });
 
 const unsignedTx = await txBuilder
   .txOut(recipient, [{ unit: "lovelace", quantity: "5000000" }])
-  .changeAddress(changeAddress)
-  .selectUtxosFrom(utxos)
-  .complete();
+  .changeAddress(changeAddress).selectUtxosFrom(utxos).complete();
 const signedTx = await wallet.signTx(unsignedTx);
 const txHash = await wallet.submitTx(signedTx);
 ```
@@ -54,192 +53,42 @@ await built.submit();
 console.log(built.txHash);
 ```
 
-### Old to New
+Three rules hold on every page:
 
 | Old | New |
 |-----|-----|
-| `new MeshTxBuilder({ fetcher })`, one per transaction | `new TxBuilder({ network, provider })`. `network` is required. One builder serves every transaction. |
-| `.txOut()`, `.mint()`, `.txIn()` in a chain | One part per call, in a list: `output`, `mint.native`, `spend.plutus`, ... |
+| A chain: `.txOut()`, `.mint()`, `.txIn()` | A list of parts: `output`, `mint.native`, `spend.plutus`, ... |
 | `.changeAddress()` and `.selectUtxosFrom()` | `{ payer }`: a wallet, an address, or `{ changeAddress, utxos }` |
-| `.complete()` returns a CBOR string | `builder.build()` returns a `BuiltTx`. `built.tx` is the string. |
 | Amounts as strings: `"5000000"` | Amounts as `bigint`: `5_000_000n` |
-| `mintPlutusScriptV2()` and friends | Not needed. The version is in `script`. |
-| `txInInlineDatumPresent()`, `txInCollateral()`, execution units | Not needed. The builder reads the datum, picks collateral and evaluates units. |
-| `.mintPlutusScriptV2().mint(...).mintingScript(code).mintRedeemerValue(r)` | `mint.plutus({ script, redeemer: { data: r }, assets })` |
-| `.metadataValue(674, { msg: [...] })` | `message({ text })`. For another label: `metadata({ metadataLabel: 721n, value })` |
-| `.requiredSignerHash(hash)` | `guard.pubKey({ address })`, or `{ keyHash }` |
-| `.invalidHereafter(slot)` | `validity({ until: ms })`. It takes milliseconds, so `resolveSlotNo` is not needed. Slots still work with `invalidBefore` and `invalidHereafter`. |
-| `.voteDelegationCertificate(drep, address)` | `certificate.voteDelegation({ stake, drep })`. `drep` can be `"alwaysAbstain"`. |
-| `.drepRegistrationCertificate(id, anchor)` | `certificate.drepRegistration({ drep, anchor, deposit })`. The old call assumed the deposit. Now give `deposit`, or `deposits` to `new TxBuilder`. |
-| `wallet.signTx(tx)` and `wallet.signTx(tx, true)` | `built.sign()`. Signing is partial by default, so there is no flag. |
-| `.signingKey(skey)` and `.completeSigning()` | `built.sign({ signers: keySigner(skey) })` |
-| `wallet.submitTx(signedTx)` | `built.submit()`. The hash is `built.txHash`, known before signing. |
 
-## Examples
+## If You Keep MeshTxBuilder
 
-### Mint and Burn with a Native Script
+`MeshTxBuilder` now runs on `TxBuilder`, so it throws some errors where it used to return a transaction the ledger refused, such as `OUTPUT_BELOW_MIN_COIN` and `FEE_TOO_LOW`. See [If You Keep MeshTxBuilder](/apis/txbuilder/migration/errors#if-you-keep-meshtxbuilder).
 
-**Before:**
+## Names in the Examples
 
-```tsx
-const forgingScript = ForgeScript.withOneSignature(changeAddress);
-const policyId = resolveScriptHash(forgingScript);
+Your application defines these names. Every page of this guide uses them the same way.
 
-const unsignedTx = await txBuilder
-  .mint("1", policyId, stringToHex("MeshToken")) // burn: "-1"
-  .mintingScript(forgingScript)
-  .changeAddress(changeAddress)
-  .selectUtxosFrom(utxos)
-  .complete();
-```
-
-**After:**
-
-```tsx
-import { ForgeScript, mint, stringToHex } from "@meshsdk/core";
-
-const forgingScript = ForgeScript.withOneSignature(changeAddress);
-const tokenNameHex = stringToHex("MeshToken");
-
-const built = await builder.build(
-  mint.native({ script: forgingScript, assets: { [tokenNameHex]: 1n } }), // burn: -1n
-  { payer: wallet },
-);
-```
-
-The policy id comes from the script. Use one mint part per policy and put every asset name in its `assets`: a second part of the same policy is `DUPLICATE_PART`.
-
-### Spend from a Plutus Script with a Reference Script
-
-**Before:**
-
-```tsx
-const unsignedTx = await txBuilder
-  .spendingPlutusScriptV2()
-  .txIn(assetUtxo.input.txHash, assetUtxo.input.outputIndex)
-  .txInInlineDatumPresent()
-  .txInRedeemerValue(mConStr0([]))
-  .spendingTxInReference(refTxHash, 0) // the script sits in a reference output
-  .txInCollateral(
-    collateral.input.txHash,
-    collateral.input.outputIndex,
-    collateral.output.amount,
-    collateral.output.address,
-  )
-  .changeAddress(changeAddress)
-  .selectUtxosFrom(utxos)
-  .complete();
-```
-
-**After:**
-
-```tsx
-import { mConStr0, spend } from "@meshsdk/core";
-
-const built = await builder.build(
-  spend.plutus({
-    utxo: assetUtxo,
-    script: { reference: { txHash: refTxHash, outputIndex: 0 } },
-    redeemer: { data: mConStr0([]) },
-  }),
-  { payer: wallet },
-);
-```
-
-The builder reads the datum from the output, so `txInInlineDatumPresent()` is gone. For an output that holds a datum hash, add `datum: { data: myDatum }` where the old code called `txInDatumValue(myDatum)`.
-
-### Stake: Register, Delegate and Withdraw
-
-**Before:**
-
-```tsx
-const poolId = "pool1pu5jlj4q9w9jlxeu370a3c9myx47md5j5m2str0naunn2q3lkdy";
-
-const registerTx = await txBuilder
-  .registerStakeCertificate(rewardAddress)
-  .delegateStakeCertificate(rewardAddress, deserializePoolId(poolId))
-  .changeAddress(changeAddress)
-  .selectUtxosFrom(utxos)
-  .complete();
-
-txBuilder.reset(); // one chain per transaction
-const withdrawTx = await txBuilder
-  .withdrawal(rewardAddress, "5000000")
-  .changeAddress(changeAddress)
-  .selectUtxosFrom(utxos)
-  .complete();
-```
-
-**After:**
-
-```tsx
-import { certificate, withdrawal } from "@meshsdk/core";
-
-const registerTx = await builder.build(
-  [
-    certificate.stakeRegistration({ stake: rewardAddress }),
-    certificate.stakeDelegation({ stake: rewardAddress, pool: poolId }),
-  ],
-  { payer: wallet },
-);
-
-const withdrawTx = await builder.build(
-  withdrawal.pubKey({ rewardAddress, amount: 5_000_000n }),
-  { payer: wallet },
-);
-```
-
-> **Note:** `stakeRegistration` is not the old certificate. It states the deposit and the stake key must sign.
-
-Give the pool id as it is: no `deserializePoolId`. `amount` is a `bigint`, and it must be the whole reward balance. `amount: "all"` looks the balance up for you.
-
-## Signing and Submitting
-
-```tsx
-// build(): wait for a block after submit()
-const { slot } = await built.awaitInclusion();
-
-// plan(): sign, submit and wait in one call
-const plan = await builder.plan(parts, { payer: wallet });
-await plan.run();
-console.log(plan.step("main").txHash);
-```
-
-`plan()` sends several transactions in order and tracks each one. A one-to-one port only needs `build()`.
-
-**Remember:**
-
-- `submit()` goes through the provider, not the wallet. Pass `{ submitter: wallet }` to send through the wallet.
-- Never rebuild a transaction to retry it. A new build may pick other inputs, and both could land. Call `submit()` again on the same `BuiltTx`.
-- `plan()` needs a provider that returns block heights, and `awaitInclusion()` of a Plutus transaction needs the validity flag. The plain `BlockfrostProvider` has neither.
-
-## Troubleshooting
-
-### If You Keep MeshTxBuilder
-
-- Error messages differ from before, and so may the final CBOR.
-- Every Plutus transaction gets collateral and a collateral return. Collateral from `txInCollateral` is used as given.
-- On a test network, script transactions with a validity interval need `new MeshTxBuilder({ network: "preprod", fetcher })`.
-- Internal helpers such as `selectUtxos` and `sortInputs` were removed. The builder does that work.
-
-### Error Codes
-
-Check the code, not the message: `TxError.is(error, "MISSING_SIGNATURES")`.
-
-| Code | Fix |
-|------|-----|
-| `MISSING_PAYER` | Pass `{ payer }` to `build()` or `plan()`. |
-| `MISSING_PARAMETER` | Give a `provider`, or `params` and `costModels`. For governance, give `deposits`. |
-| `OUTPUT_BELOW_MIN_COIN` | Raise the output's lovelace, or leave `lovelace` out. |
-| `NETWORK_MISMATCH` | An address, wallet or provider is on another network than `network`. |
-| `INSUFFICIENT_FUNDS` | The payer cannot cover it. `error.details` names the unit and the amount missing. |
-| `DUPLICATE_PART` | One mint part per policy, one `validity`, one `message`. The same input twice is also refused. |
-| `UTXO_NOT_FOUND` | The output does not exist, is spent, or the provider has not seen it yet. Pass the UTxO in full. |
-| `MISSING_SIGNATURES` | A key has not signed. `built.missing` lists the keys. A stake registration needs the stake key. |
-| `EVALUATION_FAILED` | A script failed. `error.details.failures` names the part and its label. |
-| `CANNOT_OBSERVE` | `plan()` needs block heights. `awaitInclusion()` needs the transaction search and, for a Plutus transaction, the validity flag. `build()` and `submit()` need none of these. |
+| Name | What it is |
+|------|------------|
+| `txBuilder` | the old builder: `new MeshTxBuilder({ fetcher: provider })` |
+| `builder` | the new builder: `new TxBuilder({ network: "preprod", provider })` |
+| `provider` | a provider, such as `BlockfrostProvider` |
+| `wallet`, `mintingWallet`, `utxos`, `changeAddress` | wallets that sign (a `MeshWallet`, a `BrowserWallet` or a CIP-30 api), and the UTxOs and the change address of `wallet` |
+| `recipient`, `partner`, `owner`, `rewardAddress` | addresses. `rewardAddress` is a stake address. |
+| `assetUtxo`, `collateralUtxo` | UTxOs from a provider or a wallet |
+| `script`, `policyCode` | a Plutus script (`{ code, version }`) and the CBOR of a policy script |
+| `refTxHash` | the hash of a transaction that holds a reference script |
+| `unit` | a token unit: policy id plus asset name in hex |
+| `key` | the text of a signing key |
+| `params`, `costModels` | protocol parameters and cost models |
+| `drepId`, `poolId`, `actionTx`, `anchor` | a DRep id, a pool id, the transaction hash of a governance action, and an anchor `{ url, dataHash }` |
+| `parts` | a list of parts |
+| `built`, `unsignedTx` | the `BuiltTx` from `build()` and the string from `complete()`, where an example starts from them |
 
 ## Related
 
+- [Cardano Transaction Builder](/apis/txbuilder) - the pages for `TxBuilder`
+- [MeshTxBuilder (deprecated)](/apis/txbuilder/legacy) - the pages for `MeshTxBuilder`
 - [Skills](/ai/skills) - install the `mesh-tx-builder-migration` skill
 - [Package README](https://github.com/MeshJS/mesh/tree/main/packages/mesh-transaction) - the `@meshsdk/transaction` guide

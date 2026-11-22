@@ -1,0 +1,146 @@
+---
+title: "Migrate Staking"
+description: "Move stake key registration, delegation, withdrawals and deregistration from MeshTxBuilder to TxBuilder."
+---
+
+## Overview
+
+Each stake call becomes a `certificate.*` or `withdrawal.*` part. This page moves them from [Staking and Delegation (MeshTxBuilder)](/apis/txbuilder/legacy/staking) to [Staking Transactions](/apis/txbuilder/staking). Names such as `wallet` and `builder` are explained in [Names in the Examples](/apis/txbuilder/migration#names-in-the-examples).
+
+## What Changes
+
+| Old | New |
+|-----|-----|
+| `.registerStakeCertificate(rewardAddress)` | `certificate.stakeRegistration({ stake: rewardAddress })` |
+| `.delegateStakeCertificate(rewardAddress, deserializePoolId(poolId))` | `certificate.stakeDelegation({ stake: rewardAddress, pool: poolId })` |
+| `.withdrawal(rewardAddress, "5000000")` | `withdrawal.pubKey({ rewardAddress, amount: 5_000_000n })` |
+| `.deregisterStakeCertificate(rewardAddress)` | `certificate.stakeDeregistration({ stake: rewardAddress })` |
+| `.withdrawalPlutusScriptV2().withdrawal(a, c).withdrawalScript(code).withdrawalRedeemerValue(r)` | `withdrawal.plutus({ script: { code, version: "V2" }, redeemer: { data: r }, amount })` |
+| `.registerPoolCertificate(params)`, `.retirePoolCertificate(pool, epoch)` | `certificate.poolRegistration({ params })`, `certificate.poolRetirement({ pool, epoch })` |
+
+## Examples
+
+### Register and Delegate
+
+**Before:**
+
+```tsx
+const unsignedTx = await txBuilder
+  .registerStakeCertificate(rewardAddress)
+  .delegateStakeCertificate(rewardAddress, deserializePoolId(poolId))
+  .changeAddress(changeAddress).selectUtxosFrom(utxos).complete();
+```
+
+**After:**
+
+```tsx
+import { certificate } from "@meshsdk/core";
+
+const built = await builder.build(
+  [
+    // leave out the registration if the key is already registered
+    certificate.stakeRegistration({ stake: rewardAddress }),
+    certificate.stakeDelegation({ stake: rewardAddress, pool: poolId }),
+  ],
+  { payer: wallet },
+);
+await built.sign(); // the stake key signs too
+await built.submit();
+```
+
+`stakeRegistration` is not the old certificate: it states the deposit (`keyDeposit`, or `deposit`), and the stake key must sign (see [Sign with a Key or Several Signers](/apis/txbuilder/migration/basics#sign-with-a-key-or-several-signers)). Give `pool` as it is, with no `deserializePoolId`.
+
+### Withdraw Rewards
+
+**Before:**
+
+```tsx
+const unsignedTx = await txBuilder
+  .withdrawal(rewardAddress, "5000000")
+  .changeAddress(changeAddress).selectUtxosFrom(utxos).complete();
+```
+
+**After:**
+
+```tsx
+import { withdrawal } from "@meshsdk/core";
+
+const built = await builder.build(
+  withdrawal.pubKey({ rewardAddress, amount: 5_000_000n }), // or "all"
+  { payer: wallet },
+);
+```
+
+`amount` is a `bigint` and must be the whole reward balance. `"all"` reads the balance from the provider.
+
+### Deregister a Stake Key
+
+**Before:**
+
+```tsx
+const unsignedTx = await txBuilder
+  .deregisterStakeCertificate(rewardAddress)
+  .changeAddress(changeAddress).selectUtxosFrom(utxos).complete();
+```
+
+**After:**
+
+```tsx
+import { certificate } from "@meshsdk/core";
+
+const built = await builder.build(
+  certificate.stakeDeregistration({ stake: rewardAddress }),
+  { payer: wallet },
+);
+```
+
+The refund is `keyDeposit`, or `refund` if the deposit paid was another amount. The ledger refuses to deregister while rewards remain, so add `withdrawal.pubKey({ rewardAddress, amount: "all" })` to the same transaction.
+
+### Withdraw from a Script
+
+**Before:**
+
+```tsx
+import { resolveScriptHash, serializeRewardAddress } from "@meshsdk/core";
+
+const stakeScriptCbor = "your-stake-script-cbor";
+const scriptHash = resolveScriptHash(stakeScriptCbor, "V2");
+const rewardAddress = serializeRewardAddress(scriptHash, true, 0); // testnet
+
+const unsignedTx = await txBuilder
+  .withdrawalPlutusScriptV2()
+  .withdrawal(rewardAddress, "1000000")
+  .withdrawalScript(stakeScriptCbor)
+  .withdrawalRedeemerValue("") // your redeemer
+  .txInCollateral(
+    collateralUtxo.input.txHash,
+    collateralUtxo.input.outputIndex,
+    collateralUtxo.output.amount,
+    collateralUtxo.output.address,
+  )
+  .changeAddress(changeAddress).selectUtxosFrom(utxos).complete();
+```
+
+**After:**
+
+```tsx
+import { withdrawal } from "@meshsdk/core";
+
+const stakeScriptCbor = "your-stake-script-cbor";
+
+const built = await builder.build(
+  withdrawal.plutus({
+    script: { code: stakeScriptCbor, version: "V2" },
+    redeemer: { data: "" }, // your redeemer
+    amount: 1_000_000n, // 0n is withdraw zero
+  }),
+  { payer: wallet },
+);
+```
+
+Leave out `rewardAddress`: the builder uses the script's own address, and picks collateral (see [Choose the Collateral](/apis/txbuilder/migration/smart-contracts#choose-the-collateral)). Register the script's stake credential first with `certificate.stakeRegistration` and a V3 `witness`, or with the deprecated `certificate.legacyStakeRegistration` for a V1 or V2 script.
+
+## Related
+
+- [Migrate Governance](/apis/txbuilder/migration/governance) - the next area: DReps, votes and proposals
+- [Migrating to TxBuilder](/apis/txbuilder/migration) - the four steps and the names

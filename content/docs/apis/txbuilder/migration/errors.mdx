@@ -1,0 +1,145 @@
+---
+title: "Migration Errors and Differences"
+description: "Error codes a migrated build may throw, and what changes if you keep MeshTxBuilder."
+---
+
+## Overview
+
+This page lists the error codes a migrated build may throw, and what changes if you keep `MeshTxBuilder`. The new builder's errors are also in [Handle Errors](/apis/txbuilder/basics#handle-errors), and the old builder's in [Transaction Builder Basics (MeshTxBuilder)](/apis/txbuilder/legacy/basics). Names such as `wallet` and `builder` are explained in [Names in the Examples](/apis/txbuilder/migration#names-in-the-examples).
+
+## Check the Code, Not the Message
+
+Every error is a `TxError` with a `code`. Old message text is gone, so code that matched on it must match on the code now.
+
+**Before:**
+
+```tsx
+try {
+  await txBuilder
+    // ... the chain
+    .complete();
+} catch (error) {
+  if (error instanceof Error && error.message.startsWith("Evaluate redeemers failed")) {
+    console.log(error.message);
+  } else throw error;
+}
+```
+
+**After:**
+
+```tsx
+import { TxError } from "@meshsdk/core";
+
+try {
+  const built = await builder.build(parts, { payer: wallet });
+  await built.sign();
+  await built.submit();
+} catch (error) {
+  if (TxError.is(error, "INSUFFICIENT_FUNDS")) {
+    console.log(error.details.unit, error.details.missing); // typed by the code
+  } else if (TxError.is(error, "EVALUATION_FAILED")) {
+    console.log(error.details.failures);
+  } else throw error;
+}
+```
+
+`TxError.is` also checks errors from another copy of the package. These old messages now come as codes:
+
+| Old message | New code |
+|-------------|----------|
+| "Change address is not set, utxo selection cannot be done without this" | `MISSING_PAYER` |
+| "Transaction information is incomplete while no fetcher instance is provided" | `MISSING_FETCHER` |
+| "Couldn't find value information for txHash#txIndex" | `UTXO_NOT_FOUND` |
+| "Evaluate redeemers failed" | `EVALUATION_FAILED` |
+
+## Error Codes
+
+### Setup
+
+| Code | Fix |
+|------|-----|
+| `MISSING_PAYER` | Pass `{ payer }` to `build()` or `plan()`. There is no default payer. |
+| `INVALID_OPTION` | Use `"mainnet"`, `"preprod"`, `"preview"` or `customNetwork(...)` as `network`, and give a key through `keySigner(key)`. `error.details` names the option. |
+| `MISSING_PARAMETER` | Give a `provider`, or `params` and `costModels`. For governance, give `deposits`. |
+| `MISSING_FETCHER` | Give a `provider`, or pass UTxOs in full. |
+| `NETWORK_MISMATCH` | An address, wallet or provider is on another network than `network`. |
+
+### Build
+
+| Code | Fix |
+|------|-----|
+| `INVALID_VALUE` | An amount in a record value, a mint, a withdrawal or a deposit is a string or a number. Use `bigint`: `5_000_000n`. An `Asset[]` value in `output` keeps its string quantities. It is thrown at the part call. |
+| `INVALID_DATA` | Metadata text over 64 bytes, or a validity bound given two ways. Use `message({ text })`, which cuts long text. |
+| `OUTPUT_BELOW_MIN_COIN` | Raise the output's lovelace, or leave `lovelace` out. `error.details` gives `coin` and `minCoin`. |
+| `INSUFFICIENT_FUNDS` | The payer cannot cover it. `error.details` names the unit and the amount missing. |
+| `INSUFFICIENT_COLLATERAL` | Drop `topUpCollateral: false`, or give a larger `collateral({ utxo })`. |
+| `DUPLICATE_PART` | One mint part per policy, one `validity`, one `message`. The same input twice is also refused. |
+| `UTXO_NOT_FOUND` | The output does not exist, is spent, or the provider has not seen it yet. Pass the UTxO in full, or use `knownUtxos`. |
+| `WITNESS_MISMATCH` | Use `spend.plutus` or `spend.native` for a script output, and `spend.pubKey` for a key output. |
+| `DATUM_MISMATCH` | The output holds a datum hash: pass `datum: { data }` with the datum it was locked with. Data given must hash to it, and for an inline datum leave `datum` out. |
+| `EVALUATION_FAILED` | A script failed. Give each part a `label`: `error.details.failures` names the part. |
+| `EXUNITS_TOO_LOW` | Leave `exUnits` out. The builder evaluates them. |
+| `TX_TOO_LARGE` | Split the parts, for example into the steps of `builder.plan({ first: partsA, second: partsB }, { payer })`. |
+| `FEE_TOO_LOW` | Drop the `fee` option, or give a higher one. A given fee is never raised. |
+
+### Sign and Submit
+
+| Code | Fix |
+|------|-----|
+| `MISSING_SIGNATURES` | A key has not signed. `built.missing` lists the keys, and a stake registration needs the stake key. Nothing was sent. |
+| `MISSING_SUBMITTER` | Give the builder a `provider` or a `submitter`, or call `built.submit({ submitter: wallet })`. |
+| `SIGN_DECLINED`, `SIGNER_FAILED` | The user declined, or the signer failed. After an account change, connect again and pass the new api as `signers`. |
+| `SUBMIT_FAILED`, `CONFIRM_TIMEOUT` | The outcome is unknown. Repeat the same call on the same `BuiltTx`, and never build again. |
+| `CANNOT_OBSERVE` | `plan()` needs block heights, and `awaitInclusion()` of a transaction that runs a Plutus script needs the provider's validity flag. The plain `BlockfrostProvider` gives neither. For a plain port use `build()`, `sign()` and `submit()`. |
+
+## If You Keep MeshTxBuilder
+
+`MeshTxBuilder` builds on `TxBuilder`. Its methods and signatures are kept, but the final CBOR may differ, and messages are not the old ones.
+
+### What Changes
+
+It throws where it used to return a transaction the ledger refuses: `OUTPUT_BELOW_MIN_COIN`, `FEE_TOO_LOW`, `NETWORK_MISMATCH`, `DATUM_MISMATCH`, `INVALID_DATA`. Other behavior differs as follows:
+
+| Behavior | `MeshTxBuilder` | `TxBuilder` |
+|----------|-----------------|-------------|
+| Network | Guessed from the fetcher, `setNetwork()` or the change address | `network` is required |
+| Protocol parameters | Built-in values when nobody can be asked | `MISSING_PARAMETER` |
+| Repeats | Exact repeats of one input merge, and so do `.mint(...)` calls of one policy. Two entries that differ in a field are `DUPLICATE_PART`. | `DUPLICATE_PART` |
+| Collateral | Every Plutus transaction gets collateral, total collateral and a return. Collateral from `txInCollateral` is used as given: too small is `INSUFFICIENT_COLLATERAL`. | Topped up by default |
+| Evaluation | With a fetcher and no `evaluator`, scripts run in a local evaluator. A script input the provider does not know yet is `UTXO_NOT_FOUND`: give it with `chainTx` or `inputForEvaluation`, or pass `evaluator: null`. With no evaluator, the redeemers keep the units of the calls. | Redeemer units are taken unchecked only with `evaluator: null` |
+
+- `serializer` and `selector` accept only Mesh's own. Anything else is `INVALID_OPTION` at construction.
+- `completeSync()`, `completeUnbalanced()` and `completeUnbalancedSync()` read nothing. An input or collateral without amount or address, or a reference script without size, is `UNRESOLVED`.
+- `reset()` also clears a fee set with `setFee()`.
+- The deposit defaults and `registerStakeCertificate` also differ. See [Migrate Governance](/apis/txbuilder/migration/governance) and [Migrate Staking](/apis/txbuilder/migration/staking).
+
+On a test network, pass `network`, because a script transaction with a validity interval on a network nothing names is `EVALUATION_FAILED`:
+
+```tsx
+import { MeshTxBuilder } from "@meshsdk/core";
+
+const txBuilder = new MeshTxBuilder({ fetcher: provider, network: "preprod" }); // add network
+```
+
+### Removed and Deprecated Members
+
+These members are removed or deprecated:
+
+| Member | State | Replacement |
+|--------|-------|-------------|
+| `selectUtxos` | removed | `builder.build(parts, { payer })`: selection is the builder's |
+| `updateByTxPrototype` | removed | `complete()` writes the body back |
+| `getUtxosForSelection` | removed | `(await builder.readPayer(payer)).utxos`, or `selectUtxosFrom()` |
+| `completeCostModels` | removed | the `costModels` option, or the provider |
+| `evaluateRedeemers` | removed | the builder evaluates the balanced transaction. See the `evaluator` option. |
+| `sortTxParts`, `sortInputs`, `sortMints`, `sortWithdrawals`, `sortVotes`, `sortProposals` | removed | the builder orders every item by the ledger's rules |
+| the protected members, such as `completeTxParts` and `sanitizeOutputs` | removed | none |
+| `calculateMinLovelaceForOutput`, `calculateFee`, `getActualFee`, `getTotalExecutionUnits` and the like | kept | for new code: `minCoin`, `minFee`, `built.fee` and `built.exUnits` |
+| `txEvaluationMultiplier` | kept, deprecated | multiplies nothing |
+| `MeshTxBuilderBody`, `emptyTxBuilderBody`, `cloneTxBuilderBody`, `serializeTxBody` | kept, deprecated | a list of parts |
+
+## Related
+
+- [Migrating to TxBuilder](/apis/txbuilder/migration) - the four steps and the names
+- [Migrate Transaction Basics](/apis/txbuilder/migration/basics) - payer, outputs, signing and submitting
+- [Package README](https://github.com/MeshJS/mesh/tree/main/packages/mesh-transaction) - every error code with its details

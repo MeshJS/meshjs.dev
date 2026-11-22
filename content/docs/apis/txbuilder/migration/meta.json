@@ -1,0 +1,4 @@
+{
+  "title": "Migrating to TxBuilder",
+  "pages": ["basics", "minting", "smart-contracts", "staking", "governance", "errors"]
+}
