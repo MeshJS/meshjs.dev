@@ -7,13 +7,15 @@ description: "Choose who pays, signs and submits a transaction: wallets, private
 
 `build()` signs and sends nothing. You name who signs and who sends, one call at a time. This page is for when the payer's wallet is not the only signer, when a key lives in your own service, or when a call fails and you must retry safely. The basic path is in [Transaction Basics](/apis/txbuilder/basics#build-sign-and-submit).
 
-Examples use `builder`, `wallet`, `provider`, `changeAddress` and `recipient` from there, and these names, which your application defines:
+Examples use `builder`, `wallet`, `provider`, `changeAddress`, `recipient` and `params` from there, and these names, which your application defines:
 
 - `built` - the `BuiltTx` that an earlier example of the page makes
 - `api` - a CIP-30 wallet api (the connection a browser wallet gives), from `window.cardano.<name>.enable()`
 - `vault` - your own key service
 - `witnessSet` - a witness set (the signatures of one party, as hex) made elsewhere
 - `coldKey` - a signing key that never touches the building machine
+- `tx` - a transaction as a CBOR hex string, such as the `built.tx` that was sent to the cold machine
+- `device` - your own link to a signing device: it has a `keyHash` (lower-case hex), and `sign(txHash)` signs the 32 bytes of the hash and returns `{ vkey, signature }` in hex
 
 ## Who Pays, Signs and Submits
 
@@ -76,7 +78,7 @@ await built.sign({ signers: keySigner(process.env.TREASURY_SKEY!) });
 
 ## Sign with Your Own Code
 
-For a key service or a hardware module, give a signer of hashes: an object with `signTxHash`, or that function alone. It gets `txHash` (the hash of the transaction body) and `keys`, the keys still needed, each as `{ keyHash, roles }`. Answer `{ vkey, signature }` in hex for each key you hold, signing the 32 bytes of `txHash`, not its hex text. To decline, throw `TxPlanError("SIGN_DECLINED", reason)`.
+For a key service or a hardware module, give a signer of hashes: an object with `signTxHash`, or that function alone. It gets `txHash` (the hash of the transaction body) and `keys`, the keys still needed, each as `{ keyHash, roles }`. Answer `{ vkey, signature }` in hex for each key you hold, signing the 32 bytes of `txHash`, not its hex text. To decline, throw `new TxPlanError("SIGN_DECLINED", reason)`.
 
 The roles say why a key is asked, for your own decision and display:
 
@@ -127,15 +129,67 @@ await built.submit();
 
 ## Sign on a Cold Machine
 
-Send `built.tx` to a machine that holds the key and has no builder. `signWitnesses(signer, tx)` returns its witness set, and the building machine adds it.
+With `keySigner(key)`, the key must be where `built` is: `await built.sign({ signers: keySigner(key) })`, as in [Sign with a Private Key](#sign-with-a-private-key). When the key is elsewhere, there are three ways. Pick by where the key is:
+
+- On a machine that can run Mesh: [With Mesh on the Cold Machine](#with-mesh-on-the-cold-machine). You read what you sign.
+- In a device or key service that the building machine can reach: [With a Signing Device](#with-a-signing-device). It signs the hash only.
+- On a machine with no builder: [Without a Builder](#without-a-builder). It signs what it is given.
+
+A plan takes the same ways: `plan.step("main").tx` goes out, and `plan.addWitnesses(...)` takes back a witness set or a signed transaction. See [Plans](/apis/txbuilder/plans) and [Servers and Storage](/apis/txbuilder/servers#collect-signatures-over-several-days).
+
+### With Mesh on the Cold Machine
+
+Make the same kind of object there from the bytes. Two things go to the cold machine: the transaction and the UTxOs it names (its inputs, collateral inputs and reference inputs). One thing comes back: the signed transaction.
+
+The builder there needs no provider, but it needs the full `params`: save `(await builder.chain()).params` once online. `fromCbor` uses only their `maxTxSize`, but the builder checks them all. With no provider, `knownUtxos` must hold every UTxO the transaction names, else `MISSING_FETCHER`.
 
 ```tsx
-import { keySigner, signWitnesses } from "@meshsdk/core";
+import { keySigner, toMeshUtxo, TxBuilder } from "@meshsdk/core";
 
-const witnessSet = await signWitnesses(keySigner(coldKey), built.tx); // on the cold machine
-await built.addWitnesses(witnessSet); // back on the building machine
+// On the building machine: send the transaction and the UTxOs it names
+const named = [
+  ...built.inputs,
+  ...built.referenceInputs,
+  ...(built.collateral?.inputs ?? []),
+];
+const toCold = JSON.stringify({ tx: built.tx, utxos: named.map(toMeshUtxo) });
+
+// On the cold machine
+const sent = JSON.parse(toCold);
+const cold = new TxBuilder({ network: "preprod", params });
+const received = await cold.fromCbor(sent.tx, { knownUtxos: sent.utxos });
+const { outputs, fee, missing, collateral, warnings } = received; // read before you sign
+await received.sign({ signers: keySigner(coldKey) });
+console.log(received.missing); // empty when every key has signed
+const signed = received.partialTx; // goes back to the building machine
+
+// Back on the building machine
+await built.addWitnesses(signed); // a signed transaction or just its witness set
 await built.submit();
 ```
+
+Read what the object shows first: the key signs the body as it is, whatever you were told. `outputs` and `fee` come from the bytes you hold. The UTxOs decide which keys are listed. Your own building machine is your own data. For a transaction another party built, look the UTxOs up yourself. [Read a Transaction Built Elsewhere](/apis/txbuilder/offline#read-a-transaction-built-elsewhere) lists what else to check, `collateral` and `warnings` among it.
+
+Send back `partialTx`. Once no key is missing it is `signedTx`. A key that no one asked for signs nothing and throws nothing, so look at `missing` before you send.
+
+### With a Signing Device
+
+Use this when the key sits in a device that the building machine reaches. Sign on the building machine, with a function that carries `txHash` to the device and returns its signatures. The request is the one of [Sign with Your Own Code](#sign-with-your-own-code).
+
+```tsx
+await built.sign({
+  signers: async ({ txHash, keys }) => {
+    if (!keys?.some(({ keyHash }) => keyHash === device.keyHash)) return []; // not its key
+    return [await device.sign(txHash)]; // { vkey, signature } in hex
+  },
+});
+```
+
+The function may wait while a person carries the hash to the device. There is no deadline: pass a `signal` to stop waiting. You decide what the device gets. Here it sees only the hash, so it signs blind. The request also holds `tx`: pass it too, and the device can show what is paid.
+
+### Without a Builder
+
+A machine with no builder uses the lower layer: `signWitnesses(keySigner(coldKey), tx)` of `@meshsdk/core` returns a witness set, and `built.addWitnesses(witnessSet)` takes it. It signs what it is given and shows nothing of what the transaction pays.
 
 ## Submit and Wait
 
@@ -188,7 +242,7 @@ await again.submit(); // the same bytes
 
 - [Transaction Basics](/apis/txbuilder/basics) - build, sign and submit in one path
 - [Plans](/apis/txbuilder/plans) - send transactions in order, with retries that cannot pay twice
-- [Offline and CBOR](/apis/txbuilder/offline) - save and restore, and sign on a cold machine
+- [Offline and CBOR](/apis/txbuilder/offline) - save and restore, and read a transaction built elsewhere
 - [Errors](/apis/txbuilder/errors) - every code and which a retry can fix
 - [UTxOs and Inputs](/apis/txbuilder/utxos) - choose what a transaction spends
 - [Time and Validity](/apis/txbuilder/time) - give a transaction a deadline
