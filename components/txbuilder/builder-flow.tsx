@@ -69,7 +69,13 @@ const PARTS: Part[] = [
   { href: `${B}/time`, title: "Time: expiry, start time and slots (Time and Validity)", name: "Time", code: ["validity"] },
   { href: `${B}/minting`, title: "Mint: mint and burn assets (Mint and Burn Assets)", name: "Mint", code: ["mint.native", "mint.plutus"] },
   { href: `${B}/smart-contracts`, title: "Scripts: lock, spend and read at a script (Smart Contracts)", name: "Scripts", code: ["spend.plutus", "spend.native"] },
-  { href: `${B}/staking`, title: "Staking: register, delegate and withdraw (Staking Transactions)", name: "Staking", code: ["certificate.*", "withdrawal.*"] },
+  { href: `${B}/staking`, title: "Staking: withdraw rewards; the page also walks through stake keys, delegation and pools (Staking Transactions)", name: "Staking", code: ["withdrawal.*"] },
+  {
+    href: `${B}/certificates`,
+    title: "Certificates: what the chain records, such as stake keys, delegation of stake and votes, pools, DReps and the committee (Certificates)",
+    name: "Certificates",
+    code: ["certificate.*"],
+  },
   { href: `${B}/governance`, title: "Governance: DReps, votes and proposals (Governance Transactions)", name: "Governance", code: ["vote", "proposal.*"] },
 ];
 
@@ -381,13 +387,16 @@ function WideScheme() {
   const row1 = { y: 16, h: 140 };
   const box1 = { x: 20, w: 410 };
   const box2 = { x: 470, w: 410 };
-  const parts = { y: 196, h: 128 };
-  const laneA = { cap: 356, y: 376, cy: 401 };
-  const laneB = { cap: 458, y: 476, cy: 501 };
+  const parts = { y: 196, h: 200 }; // two rows of four chips
+  const chip = { x: 34, w: 202, step: 210, h: 64, y: 52, rowStep: 72, perRow: 4 };
+  const base = parts.y + parts.h; // the lower edge of the parts: the lanes hang from it
+  const laneA = { cap: base + 32, y: base + 52, cy: base + 77 };
+  const laneB = { cap: base + 134, y: base + 152, cy: base + 177 };
   const NH = 50; // height of a box in a lane
   const spine = 40;
   const notes = laneB.y + NH + 28;
-  const around = { cap: 598, y: 618, h: 80, w: 160 };
+  const around = { cap: notes + 44, y: notes + 64, h: 80, w: 160 };
+  const H = around.y + around.h + 22; // the height of the drawing
   // Columns of the lanes: x and width; the same for both lanes.
   const col = [
     { x: 68, w: 258 },
@@ -402,7 +411,7 @@ function WideScheme() {
 
   return (
     <svg
-      viewBox="0 0 900 720"
+      viewBox={`0 0 900 ${H}`}
       role="group"
       aria-label={LABEL}
       className="h-auto w-full min-w-[760px] text-fd-foreground @max-[599px]:hidden"
@@ -476,7 +485,18 @@ function WideScheme() {
         Which part for what
       </TextLink>
       {PARTS.map((c, i) => (
-        <NodeLink key={c.href} href={c.href} title={c.title} x={34 + i * 120} y={parts.y + 52} w={114} h={64} names={[c.name]} codes={c.code} codeSize={12} />
+        <NodeLink
+          key={c.href}
+          href={c.href}
+          title={c.title}
+          x={chip.x + (i % chip.perRow) * chip.step}
+          y={parts.y + chip.y + Math.floor(i / chip.perRow) * chip.rowStep}
+          w={chip.w}
+          h={chip.h}
+          names={[c.name]}
+          codes={c.code}
+          codeSize={12}
+        />
       ))}
 
       {/* 4: one transaction */}

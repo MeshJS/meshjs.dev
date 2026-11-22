@@ -49,7 +49,7 @@ You make one builder; each `build()` or `plan()` call takes the parts and `{ pay
 
 1. [Create a builder](/apis/txbuilder/basics#create-a-builder): `new TxBuilder({ network, provider })`; see [networks and providers](/apis/txbuilder/networks), and [offline use](/apis/txbuilder/offline#build-offline) without a provider (`params`, `costModels`), which can `build()` and sign but cannot plan.
 2. [Choose who pays](/apis/txbuilder/basics#choose-the-payer): `{ payer }` is a wallet, an address or `{ changeAddress, utxos }`, given to each call; the payer signs by default. Name other [signers](/apis/txbuilder/signing#who-pays-signs-and-submits) in `sign()` or `run()`, and a submitter in `submit()`, `run()` or on the builder (else the provider sends).
-3. Give the parts ([which part for what](/apis/txbuilder#which-part-for-what)): [outputs](/apis/txbuilder/basics#send-lovelace-and-assets), [inputs](/apis/txbuilder/utxos), [time](/apis/txbuilder/time), [mint](/apis/txbuilder/minting), [scripts](/apis/txbuilder/smart-contracts), [staking](/apis/txbuilder/staking) and [governance](/apis/txbuilder/governance).
+3. Give the parts ([which part for what](/apis/txbuilder#which-part-for-what)): [outputs](/apis/txbuilder/basics#send-lovelace-and-assets), [inputs](/apis/txbuilder/utxos), [time](/apis/txbuilder/time), [mint](/apis/txbuilder/minting), [scripts](/apis/txbuilder/smart-contracts), [staking](/apis/txbuilder/staking), [certificates](/apis/txbuilder/certificates) and [governance](/apis/txbuilder/governance).
 4. One transaction: [`builder.build(parts, { payer })`](/apis/txbuilder/basics#build-sign-and-submit) returns a `BuiltTx`; then [`sign()`](/apis/txbuilder/signing#who-pays-signs-and-submits), [`submit()` and `awaitInclusion()`](/apis/txbuilder/signing#submit-and-wait), which waits for a block, not for `final`.
 5. Or a plan of one or several transactions: [`builder.plan(parts, { payer })`](/apis/txbuilder/plans#make-and-run-a-plan) returns a `TxPlan` and needs a provider that returns block heights ([Use Blockfrost for Plans](/apis/txbuilder/networks#use-blockfrost-for-plans)); [`run()`](/apis/txbuilder/plans#make-and-run-a-plan) it (it returns at `included`), then `run({ waitFor: "final" })` or `refresh()` until the [statuses](/apis/txbuilder/plans#read-the-statuses) show `final`; [`replan()`](/apis/txbuilder/plans#handle-a-step-that-does-not-go-through) pays what is left after a step that did not land; on a server, keep plans [in a store](/apis/txbuilder/servers#record-plans-in-a-store).
 6. Around the flow: a [transaction from elsewhere](/apis/txbuilder/offline#read-a-transaction-built-elsewhere) (`fromCbor` and `restore` give a `BuiltTx`; `requiredSigners` lists its keys), [tests](/apis/txbuilder/testing), [errors](/apis/txbuilder/errors#check-a-code) (`TxError.is`), [options](/apis/txbuilder/options), and [coming from `MeshTxBuilder`](/apis/txbuilder/migration).
@@ -62,7 +62,8 @@ You make one builder; each `build()` or `plan()` call takes the parts and `{ pay
 | `mint.native`, `mint.plutus` | mint and burn assets |
 | `spend.pubKey`, `collateral`, `collateralReturn` | spend a particular output, set the collateral |
 | `spend.plutus`, `spend.native`, `referenceInput` | lock and spend at a script, read an output |
-| `certificate.*`, `withdrawal.*` | stake, delegate and withdraw rewards |
+| `withdrawal.*` | take staking rewards out |
+| `certificate.*` | change what the chain records: stake keys, delegation of stake and votes, pools, DReps, the committee |
 | `vote`, `proposal.*` | take part in governance |
 
 For signing, UTxOs, time, plans, offline use, testing and errors, see the cards below.
