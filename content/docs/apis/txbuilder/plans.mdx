@@ -3,6 +3,8 @@ title: "Plans"
 description: "Send one transaction or several in order with plan(): built once, never rebuilt, so every call can be repeated."
 ---
 
+import { StepStatusGraph, PlanStatusGraph } from "@/components/txbuilder/plan-status-graph";
+
 ## Overview
 
 A plan is a group of transactions built at once and sent in order. `builder.plan()` builds all of them and signs and sends nothing. `plan.run()` then signs, sends and waits for each one in turn. A plan is never rebuilt, so any call can be repeated and sends the same bytes. Use one for transactions that depend on each other, for a retry that must not pay twice, or to wait for blocks.
@@ -89,10 +91,14 @@ await plan.run(); // lock, a block, then unlock
 
 Every step has a status, and so does the plan. A payment is paid when its step is `final`. Release goods then, never at `included`, which a rollback can undo. A plan is not atomic: step one may be `final` while step two never lands, so read the status of each step.
 
+In the graph of a step, a solid arrow is a call and a dashed arrow is what the chain shows; the heavy line is the usual path, and a box with a double border never changes.
+
+<StepStatusGraph />
+
 | Step | Meaning |
 |------|---------|
 | `built`, `signed` | signatures are missing; fully signed but not sent yet |
-| `sent` | delivered: accepted, or the outcome is unknown |
+| `sent` | delivered (accepted, or the outcome is unknown), or rolled back out of a block |
 | `rejected` | the ledger refused it, but it may still land: `run()` sends the same bytes again |
 | `included` | in a block; a rollback can undo it |
 | `final` | enough blocks on top (`confirmations`); never changes |
@@ -100,7 +106,11 @@ Every step has a status, and so does the plan. A payment is paid when its step i
 | `failed` | in a block with a failed script; its collateral is taken |
 | `orphaned` | a step it stands on will not land |
 
-The plan is `pending` while it may still complete, `stopping` when it does not go on but a step may still land, `stopped` when it does not go on and, by what the chain shows, nothing more is expected to land, and `final` when every step is `final`. A later look can still find a step and move a `stopped` plan to `stopping` or `final`, so pay what is left only with `replan`. `plan.stop()` ends a plan: it signs and sends nothing more.
+The plan has its own status, drawn the same way: a solid arrow is a call, a dashed arrow is what the chain shows.
+
+<PlanStatusGraph />
+
+The plan is `pending` while it may still complete; `stopping` when it does not go on but some step is neither `final` nor dead (`expired`, `failed` or `orphaned`), that is, it may still land or is in a block and not `final` yet; `stopped` when it does not go on and, by what the chain shows, nothing more is expected to land; and `final` when every step is `final`. A later look can still find a step and move a `stopped` plan to `stopping` or `final`, so pay what is left only with `replan`. `plan.stop()` ends a plan: it signs and sends nothing more.
 
 ```tsx
 await plan.run({ waitFor: "final" }); // waits for `confirmations` blocks on top
