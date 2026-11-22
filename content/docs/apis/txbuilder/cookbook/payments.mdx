@@ -111,6 +111,7 @@ await Promise.all(queue.map((built) => built.awaitInclusion()));
 ```
 
 - `after` keeps a build off the inputs of the others and lets it name their outputs: see [Build on a Transaction Not Yet on Chain](/apis/txbuilder/utxos#build-on-a-transaction-not-yet-on-chain).
+- Build one after another, as the loop does: builds started at the same time do not know about each other. Another program spending from the same wallet is not known either: give each its own UTxOs with [`canSelect`](/apis/txbuilder/utxos#limit-what-the-builder-may-pick).
 - A retry is `submit()` again on the same object, never a new build: see [Retry Without Rebuilding](/apis/txbuilder/signing#retry-without-rebuilding).
 - If one payment does not land, the ones built on its change cannot land either. Once its `until` has passed, build them again: see [Set an Expiry](/apis/txbuilder/time#set-an-expiry).
 
