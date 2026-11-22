@@ -1,0 +1,172 @@
+---
+title: "Testing on the Emulator"
+description: "Run builds, plans and scripts against a local ledger whose clock moves only when your test moves it."
+---
+
+## Overview
+
+`TxEmulator` of `@meshsdk/tx-emulator` is a local Cardano ledger. It is a provider, a submitter and an evaluator, so a `TxBuilder` can use it in place of a chain. A transaction you submit changes the ledger for the next one, and the clock moves only when the test moves it. Use it for tests that must be fast and repeatable. Install it with `npm install @meshsdk/tx-emulator`.
+
+Examples use `recipient` and `partner` from [Transaction Basics](/apis/txbuilder/basics), and these names, which your application defines:
+
+- `validator` - a `TxValidator` of `@meshsdk/tx-emulator`: it decides whether a transaction is valid. See the [package README](https://github.com/MeshJS/mesh/tree/main/packages/mesh-tx-emulator) for the validators
+- `words` - the mnemonic of a test wallet, as a list of words
+- `script` - a Plutus script as `{ code, version }`
+- `wallet`, `changeAddress`, `emulator` - made in the next section. `wallet` is a `MeshWallet` for the same network, and `changeAddress` is its address
+- `builder`, `built` - made in Build and Submit on the Emulator
+
+## Create and Fund an Emulator
+
+`TxEmulator.create` needs the `validator`. `network` is mainnet by default: give the network of your builder. `fund(address, value)` adds one output with no datum and returns it. Its transaction hash comes from a counter, so it is the same on every run. To start with more state, `create` also takes `utxos`, `params` and `slot`.
+
+Make the wallet without a fetcher, so that the builder reads its UTxOs from the emulator. A wallet that reads UTxOs from a chain hands the builder outputs the emulator does not hold, and `submit()` is refused.
+
+```tsx
+import { MeshWallet } from "@meshsdk/core";
+import { TxEmulator } from "@meshsdk/tx-emulator";
+
+const wallet = new MeshWallet({ networkId: 0, key: { type: "mnemonic", words } });
+const changeAddress = await wallet.getChangeAddress();
+const emulator = await TxEmulator.create({ validator, network: "preprod" });
+emulator.fund(changeAddress, { lovelace: 100_000_000n });
+```
+
+## Build and Submit on the Emulator
+
+Give the builder the emulator as its `provider`: it reads parameters, cost models and UTxOs from it and submits to it. The ledger checks the transaction and applies it, and `awaitInclusion()` finds it at once.
+
+```tsx
+import { output, TxBuilder } from "@meshsdk/core";
+
+const builder = new TxBuilder({ network: "preprod", provider: emulator });
+const built = await builder.build(
+  output({ address: recipient, value: { lovelace: 5_000_000n } }),
+  { payer: wallet },
+);
+await built.sign();
+await built.submit(); // the ledger checks and applies it
+const { slot } = await built.awaitInclusion();
+console.log(emulator.utxos({ address: recipient })); // the new output
+```
+
+### Check Without Submitting
+
+`emulator.simulate(tx)` reports what a signed transaction would do and changes nothing. An accepted one has the `fee` and the `redeemers`, and a refused one lists the `errors`.
+
+```tsx
+const result = await emulator.simulate(built.signedTx!);
+if (result.accepted) console.log(result.fee); // lovelace, as text
+else console.log(result.errors.map((issue) => issue.message));
+```
+
+## Move Time
+
+The clock moves forward only, and only through `advanceTo`: to a slot, to a time in POSIX milliseconds, or to the first slot of an epoch. `emulator.time` is the start of the current slot. A transaction whose `from` is still ahead is refused until you move the clock past it.
+
+```tsx
+import { output, validity } from "@meshsdk/core";
+
+const built = await builder.build(
+  [
+    output({ address: recipient, value: { lovelace: 3_000_000n } }),
+    validity({ from: emulator.time + 3_600_000 }), // valid in an hour
+  ],
+  { payer: wallet },
+);
+await built.sign();
+const early = await emulator.simulate(built.signedTx!);
+emulator.advanceTo({ time: emulator.time + 3_700_000 });
+const late = await emulator.simulate(built.signedTx!);
+console.log(early.accepted, late.accepted); // false true
+```
+
+## Run a Plan
+
+A plan waits for blocks and deadlines, which a test should not. In `planDefaults`, `confirmations: 0` makes a step `final` as soon as it is included, and `expiryMarginMs: 0` makes it `expired` right after its end of validity. A short `pollMs` (the pause between two looks at the chain) and `resendMs` (how often the same bytes of a sent step go again) keep the waiting short. Use them in tests only: see [Set Deadlines and Waiting](/apis/txbuilder/plans#set-deadlines-and-waiting). On a real chain keep the defaults.
+
+```tsx
+import { output, TxBuilder } from "@meshsdk/core";
+
+const builder = new TxBuilder({
+  network: "preprod",
+  provider: emulator,
+  planDefaults: {
+    expiryMarginMs: 0,
+    confirmations: 0,
+    pollMs: 10,
+    resendMs: 10,
+  },
+});
+const plan = await builder.plan(
+  {
+    first: output({ address: recipient, value: { lovelace: 5_000_000n } }),
+    second: output({ address: partner, value: { lovelace: 2_000_000n } }),
+  },
+  { payer: wallet },
+);
+await plan.run({ waitFor: "final" });
+console.log(plan.status, plan.step("second").status); // final final
+```
+
+With the default `confirmations` (30), a step is `final` 30 slots after its block. Run the plan, call `emulator.advanceTo({ slot: emulator.slot + 30 })`, and run it again with `waitFor: "final"`.
+
+## Test That a Script Refuses
+
+A test can lock funds and try to spend them the wrong way. The builder runs a script while it builds, so a script that refuses fails the build as `EVALUATION_FAILED`, and the error names the part by its `label`. `outputOf(step, label)` names the locked output. Here `script` refuses the redeemer below, and `expect` is your test runner's.
+
+```tsx
+import { mConStr0, output, outputOf, spend } from "@meshsdk/core";
+
+const lock = await builder.plan(
+  output({
+    address: builder.scriptAddress(script),
+    value: { lovelace: 10_000_000n },
+    datum: { type: "inline", data: mConStr0([]) },
+    label: "vault",
+  }),
+  { payer: wallet },
+);
+await lock.run({ waitFor: "final" });
+
+await expect(
+  builder.plan(
+    spend.plutus({
+      utxo: outputOf(lock.step("main"), "vault"),
+      script,
+      redeemer: { data: mConStr0([1]) }, // the wrong redeemer
+      label: "unlock",
+    }),
+    { payer: wallet },
+  ),
+).rejects.toMatchObject({ code: "EVALUATION_FAILED", label: "unlock" });
+```
+
+## Fork the Ledger
+
+`emulator.fork()` returns an independent copy of the whole ledger. The emulator has no rollbacks: to play one, keep a copy from before and switch to it. A builder on the copy sees the ledger as it was, and nothing it submits reaches the original.
+
+```tsx
+import { output, TxBuilder } from "@meshsdk/core";
+
+const branch = emulator.fork();
+const onBranch = new TxBuilder({ network: "preprod", provider: branch });
+const built = await onBranch.build(
+  output({ address: recipient, value: { lovelace: 1_000_000n } }),
+  { payer: wallet },
+);
+await built.sign();
+await built.submit(); // only the copy changes
+const onCopy = branch.utxos({ address: recipient }).length;
+const onOriginal = emulator.utxos({ address: recipient }).length;
+console.log(onCopy, onOriginal); // the copy has one more
+```
+
+## Related
+
+- [Transaction Basics](/apis/txbuilder/basics) - build, sign and submit
+- [Plans](/apis/txbuilder/plans) - send transactions in order
+- [Servers and Storage](/apis/txbuilder/servers) - record plans with `memoryPlanStore()`
+- [Smart Contracts](/apis/txbuilder/smart-contracts) - lock and spend with Plutus scripts
+- [Providers and Networks](/apis/txbuilder/networks) - the network option and what a provider must give
+- [Offline and CBOR](/apis/txbuilder/offline) - build without a provider
+- [Emulator README](https://github.com/MeshJS/mesh/tree/main/packages/mesh-tx-emulator) - validators, state, time and limits

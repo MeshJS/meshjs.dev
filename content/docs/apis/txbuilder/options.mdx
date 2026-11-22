@@ -1,0 +1,130 @@
+---
+title: "Options"
+description: "Every option of TxBuilder, build() and plan(), with what it does and its default."
+---
+
+## Overview
+
+Options live in three places: the builder (`new TxBuilder({...})`, set once), a build (`builder.build(parts, {...})`, set per call) and a plan (`builder.plan(steps, {...})`, which takes the build options too). Use this page to find a name and its default. The calls of a `BuiltTx` and of a plan (`sign`, `submit`, `awaitInclusion`, `run`, `add`, `replan`, `resume`) refuse an unknown member with `INVALID_OPTION`. The options of the builder, `build()` and `plan()` are checked by type only, so rely on TypeScript to catch a misspelled name.
+
+Examples use the names of [Transaction Basics](/apis/txbuilder/basics): `provider`, `wallet`, `recipient` and `builder`.
+
+## Builder Options
+
+Give these to `new TxBuilder({...})`. Only `network` is required. With neither a `provider` nor `params`, the constructor throws `MISSING_PARAMETER`: there are no built-in parameter values.
+
+| Option | What it does | Default |
+|--------|--------------|---------|
+| `network` | `"mainnet"`, `"preprod"`, `"preview"` or `customNetwork(...)` for a devnet. Every address, wallet and provider is checked against it | required |
+| `provider` | Reads the chain: outputs, parameters, cost models, the payer's UTxOs. Plans also read the tip | none |
+| `params` | Protocol parameters (a `Protocol`), used instead of reading them | read from the provider |
+| `costModels` | Cost models by Plutus language, V1 first (`number[][]`), used instead of reading them | read from the provider |
+| `deposits` | `drepDeposit` and `govActionDeposit`, which `Protocol` does not carry | none |
+| `submitter` | Sends transactions in place of the provider | the provider |
+| `evaluator` | Works out execution units. `null` turns it off, and then every redeemer needs its own units. `provider` evaluates through the provider | a local evaluator |
+| `serializer` | An `IMeshTxSerializer` with `serializeTxPrototype` | the built-in encoder |
+| `planDefaults` | Defaults of plans: `ttlMs`, `expiryMarginMs`, `confirmations`, `pollMs`, `resendMs`. See [Plan Options](#plan-options) | built-in values |
+| `store` | A `TxPlanStore` that records every plan, so it can be resumed by its `id` | none: plans are not recorded |
+
+## Build Options
+
+Give these to `builder.build(parts, {...})`.
+
+### Payer and Inputs
+
+| Option | What it does | Default |
+|--------|--------------|---------|
+| `payer` | Who pays and gets the change: a wallet, an address, or `{ changeAddress, utxos }` | none: `MISSING_PAYER` |
+| `canSelect` | `(utxo) => boolean`: which of the payer's UTxOs may be selected. Script-locked UTxOs and UTxOs the parts read are never selected | all selectable UTxOs |
+| `coinSelection` | `(need, candidates) => outRefs`: replaces the built-in selection for this build | the built-in selection |
+| `sendAllTo` | Spends every selectable UTxO and sends what is left to this address | none |
+| `knownUtxos` | Outputs that parts name by out ref and the provider may not know yet | none |
+| `after` | Transactions built before and not yet seen by the provider (a `BuiltTx`, a `TxPlan` or a list). Their inputs are not selected again, and their outputs can be spent | none |
+
+### Fee, Collateral and Keys
+
+| Option | What it does | Default |
+|--------|--------------|---------|
+| `fee` | A fee in lovelace (`bigint`) that goes into the body as given. Too low is `FEE_TOO_LOW`; above the minimum is the warning `FEE_ABOVE_MINIMUM` | worked out |
+| `topUpCollateral` | `true`: collateral inputs you give that do not cover the collateral get more from the payer. `false`: they are used as given, and a shortfall is `INSUFFICIENT_COLLATERAL` | `true` |
+| `collateralReturn` | `true`: the transaction states its total collateral and returns the rest. `false`: collateral inputs only, with all of their lovelace at stake (`COLLATERAL_FORFEITED`) | `true` |
+| `extraKeyWitnesses` | A number: key witnesses expected beyond those the parts call for | none |
+| `registeredPools` | Operator key hashes of pools that are already registered | none |
+
+### Control
+
+| Option | What it does | Default |
+|--------|--------------|---------|
+| `signal` | An `AbortSignal`. Aborting it ends the build with `ABORTED` | none |
+| `trace` | Receives the steps of the build (`payer`, `fetched`, `round`, `evaluated`), for diagnostics | none |
+
+## Set Builder and Build Options
+
+Builder options go in the constructor, and build options in the second argument of `build()`. A build option applies to that call only.
+
+```tsx
+import { output, TxBuilder } from "@meshsdk/core";
+
+// Builder options: set once
+const builder = new TxBuilder({
+  network: "preprod",
+  provider,
+  planDefaults: { confirmations: 10 },
+});
+
+// Build options: set per build
+const built = await builder.build(
+  output({ address: recipient, value: { lovelace: 5_000_000n } }),
+  {
+    payer: wallet,
+    canSelect: (utxo) => utxo.value.lovelace > 3_000_000n, // skip small UTxOs
+    signal: AbortSignal.timeout(30_000), // give up after 30 seconds
+  },
+);
+```
+
+## Plan Options
+
+`builder.plan(steps, {...})` takes the build options and these. With named steps, give `sendAllTo` and `fee` inside the step. The three deadlines are worked out once, when the plan is made, and recorded in it.
+
+| Option | What it does | Default |
+|--------|--------------|---------|
+| `id` | Your id for the plan, shown as `plan.id`. Required on a builder with a `store` | none |
+| `consolidate` | `true`: when a step's inputs do not fit one transaction, the plan adds consolidation steps before it. `{ maxSteps }` limits them (1 to 31). `false`: that step is `TX_TOO_LARGE` | `true`, up to 4 steps |
+| `ttlMs` | How long a step is valid when its parts set no `validity({ until })`, and the time left to sign it | `600_000` (10 minutes) |
+| `expiryMarginMs` | The wait after a step's end of validity before the plan calls it `expired` | `600_000` (10 minutes) |
+| `confirmations` | Blocks on top of a step's block before it is `final` | `30` |
+
+`planDefaults` of the builder gives these three their defaults, and adds `pollMs` (`5_000`, the pause between two looks at the chain) and `resendMs` (`120_000`, how often the same bytes of a sent step go again while it is not found).
+
+`plan.run({...})` takes options of its own. They are never recorded in the plan.
+
+| Option | What it does | Default |
+|--------|--------------|---------|
+| `signers` | Who signs a step that still needs signatures | the payer |
+| `submitter` | Who sends. A wallet sends only when it is given as a `submitter`, here or to the builder. The payer never sends by itself | the builder's `submitter`, else the provider |
+| `waitFor` | How far `run()` goes: `"sent"`, `"included"` or `"final"` | `"included"` |
+| `timeoutMs` | How long `run()` waits for a block, then `CONFIRM_TIMEOUT` | `120_000`; for `"final"`, `confirmations × 30_000 + 120_000` |
+| `pollMs` | The pause between two looks at the chain | `planDefaults`, else `5_000` |
+| `signal` | Aborts the call with `ABORTED` | none |
+
+```tsx
+import { output } from "@meshsdk/core";
+
+const plan = await builder.plan(
+  { pay: output({ address: recipient, value: { lovelace: 5_000_000n } }) },
+  { payer: wallet, id: "payment-1", ttlMs: 20 * 60_000 }, // 20 minutes to sign
+);
+await plan.run({ waitFor: "final", timeoutMs: 30 * 60_000 });
+```
+
+`built.sign({ signers, partial })`, `built.submit({ submitter })` and `built.awaitInclusion({ timeoutMs, pollMs })` take options too: see [Signing and Submitting](/apis/txbuilder/signing).
+
+## Related
+
+- [Transaction Basics](/apis/txbuilder/basics) - the builder, the payer, signing and submitting
+- [Plans](/apis/txbuilder/plans) - how the plan options work together
+- [Signing and Submitting](/apis/txbuilder/signing) - signers, submitters and partial signing
+- [Errors](/apis/txbuilder/errors) - the error codes these options can raise
+- [Migrating to TxBuilder](/apis/txbuilder/migration) - move from the `MeshTxBuilder` chain
+- [Package README](https://github.com/MeshJS/mesh/tree/main/packages/mesh-transaction) - every option in full

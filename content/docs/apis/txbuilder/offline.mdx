@@ -1,0 +1,182 @@
+---
+title: "Offline and CBOR"
+description: "Build without a provider, save and restore a built transaction, read one made elsewhere, find who must sign, and assemble one by hand."
+---
+
+## Overview
+
+`TxBuilder` needs no network when you give it the parameters and UTxOs, and it reads and writes transactions as CBOR (the hex form wallets and nodes take). Use this for a cold signer, a transaction another party built, a build that is sent later, a test fixture, or to assemble and price a transaction by hand.
+
+Examples use `builder`, `wallet`, `provider`, `recipient`, `changeAddress`, `utxos`, `unit`, `params` and `costModels` from [Transaction Basics](/apis/txbuilder/basics), and these names, which your application defines:
+
+- `built` - the `BuiltTx` that an earlier example of the page makes
+- `utxo` - an output the build spends, as a Mesh `UTxO`
+- `tx` - a transaction as a CBOR hex string
+- `spent` - the UTxOs that `tx` spends, as Mesh `UTxO`s
+
+## Build Offline
+
+Give the builder `params` and `costModels`, name the payer as `{ changeAddress, utxos }`, and give outputs that a part names by out ref in `knownUtxos`. Then a build reads nothing, and the same arguments give the same bytes and `txHash`. `builder.chain()` returns the network, parameters and cost models of an online builder as data you can save.
+
+```tsx
+import { output, spend, TxBuilder, validity } from "@meshsdk/core";
+
+// Online, once: save what a build reads from the chain
+const snapshot = await builder.chain();
+
+// Offline, later: nothing is read
+const offline = new TxBuilder({ ...snapshot });
+const built = await offline.build(
+  [
+    spend.pubKey({ utxo: utxo.input }), // named by out ref
+    output({ address: recipient, value: { lovelace: 3_000_000n } }),
+    validity({ until: Date.now() + 60 * 60 * 1000 }), // build() sets no deadline
+  ],
+  { payer: { changeAddress, utxos }, knownUtxos: [utxo] },
+);
+```
+
+## Save and Restore a Built Transaction
+
+`JSON.stringify(built)` writes the unsigned transaction with its data and the signatures held so far. `builder.restore(json)` reads it back, in this process or another. It makes no request: it checks that `txHash` is the hash of the body and verifies every signature.
+
+A builder without a provider can build and sign. To send, `submit()` needs a `submitter` (`MISSING_SUBMITTER`) or a provider, and `awaitInclusion()` needs a provider (`MISSING_FETCHER`). A restored object holds no payer, so name the signers.
+
+```tsx
+import { keySigner, output, TxBuilder } from "@meshsdk/core";
+
+const offline = new TxBuilder({ network: "preprod", params, costModels });
+const built = await offline.build(
+  output({ address: recipient, value: { lovelace: 3_000_000n } }),
+  { payer: { changeAddress, utxos } },
+);
+await built.sign({ signers: keySigner(process.env.TREASURY_SKEY!) });
+const saved = JSON.stringify(built); // keep it in a file or a database
+
+// Later, in a process with a provider
+const online = new TxBuilder({ network: "preprod", provider });
+const again = await online.restore(JSON.parse(saved));
+await again.submit(); // a lost answer: call it again, never build again
+await again.awaitInclusion();
+```
+
+A record that is not what `toJSON` wrote is `INVALID_OPTION`, one of another network is `NETWORK_MISMATCH`, and one in a format this library does not read is `INVALID_STATE`. A plan has its own record: give its JSON to `builder.resume`, not to `restore` ([Servers and Storage](/apis/txbuilder/servers)).
+
+## Read a Transaction Built Elsewhere
+
+`builder.fromCbor(tx, { knownUtxos })` makes a `BuiltTx` of a transaction that exists only as CBOR, such as one another party built for you to sign. Nothing is built or balanced: the body you sign is the one you were given, byte for byte. The UTxOs of its inputs come from `knownUtxos`, else from the provider. Without a provider, give them all.
+
+```tsx
+const received = await builder.fromCbor(tx, { knownUtxos: spent });
+const { outputs, fee, missing, collateral, warnings } = received; // read before you sign
+await received.sign({ signers: wallet }); // there is no payer: name who signs
+await received.submit(); // MISSING_SIGNATURES while a key is missing
+```
+
+Before you sign a transaction someone else built:
+
+- `outputs` and `fee` say what leaves your wallet
+- `missing` lists the keys that must still sign, each with its roles
+- `collateral` and `warnings` tell what a failing script would cost: `COLLATERAL_FORFEITED` says there is no collateral return, and `COLLATERAL_RETURN_ELSEWHERE` says a collateral input's owner is not the one the return pays
+- whoever submits can mark the transaction as failing, whatever its scripts do. Then its collateral inputs are spent, and only the collateral return is paid. Judge `collateral` (`total`, `return`) and `warnings` as money you may lose
+- `knownUtxos` is your own data: never take it from the party that made the transaction
+
+`partialTx` is the transaction with the signatures held so far, for the next party to sign.
+
+### When fromCbor Refuses a Transaction
+
+Text that is not a transaction in CBOR, or a transaction over the `maxTxSize` of your `params` (16 384 bytes without them), is `INVALID_OPTION`, and one for another network is `NETWORK_MISMATCH`. A native script it runs that the library cannot read, so that the signers cannot be listed, is `NATIVE_SCRIPT_UNREAD`. `details.reason` is `"depth"`, `"size"` or `"form"`.
+
+```tsx
+import { TxError } from "@meshsdk/core";
+
+try {
+  await builder.fromCbor(tx, { knownUtxos: spent });
+} catch (error) {
+  if (TxError.is(error, "NATIVE_SCRIPT_UNREAD")) {
+    console.log(error.details.scriptHash, error.details.reason); // do not sign it
+  } else throw error;
+}
+```
+
+## Find Who Must Sign
+
+`requiredSigners(tx, spent, { maxTxSize })` lists the keys a transaction needs, with no builder and no provider. `spent` holds the UTxO of every input and collateral input, and of the reference inputs that hold native scripts. A missing one is `UTXO_NOT_FOUND`. Set `maxTxSize` to that of your network's protocol parameters.
+
+```tsx
+import { requiredSigners } from "@meshsdk/core";
+
+const { keyHashes, keys } = requiredSigners(tx, spent, {
+  maxTxSize: params.maxTxSize,
+});
+for (const key of keys) console.log(key.keyHash, key.roles);
+```
+
+## Low-Level Helpers
+
+Most builds never need these. They put a transaction together and price it by hand, with no builder doing the balancing.
+
+### Assemble Without Balancing
+
+`assembleTxPrototype(parts, { fee })` is the last step of `build()`. It puts complete parts together and does nothing else: it selects no inputs, adds no change and runs no script, so the balance and the fee are yours. It returns a `prototype`, the transaction as a value. A serializer turns that into CBOR, and `builder.fromCbor` makes a `BuiltTx` that signs and submits it. `minFee` gives the least fee, so you can check yours.
+
+```tsx
+import {
+  assembleTxPrototype,
+  cst,
+  minFee,
+  output,
+  spend,
+  toUtxo,
+} from "@meshsdk/core";
+
+const fee = 200_000n;
+const input = toUtxo(utxo);
+const { prototype } = assembleTxPrototype(
+  [
+    spend.pubKey({ utxo: input }),
+    output({ address: recipient, value: { lovelace: 5_000_000n } }),
+    output({
+      address: changeAddress,
+      value: { lovelace: input.value.lovelace - 5_000_000n - fee },
+    }),
+  ],
+  { fee },
+);
+const least = minFee(prototype, { params, vkeyWitnesses: 1, inputs: [input] });
+if (fee < least) throw new Error(`the fee is below the minimum, ${least}`);
+const tx = new cst.CardanoSDKSerializer().serializeTxPrototype(prototype);
+const final = await builder.fromCbor(tx, { knownUtxos: [input] });
+await final.sign({ signers: wallet }); // an object of fromCbor holds no payer
+await final.submit();
+```
+
+### Price a Fee or an Output
+
+`minCoin(output(...), params)` is the least lovelace an output holds. `minFee(prototype, { params, vkeyWitnesses, inputs })` is the least fee a transaction takes once the given number of keys have signed. Both are pure functions.
+
+```tsx
+import { minCoin, minFee, output } from "@meshsdk/core";
+
+const part = output({ address: recipient, value: { [unit]: 1n } });
+console.log(minCoin(part, params)); // lovelace the output needs
+
+console.log(
+  minFee(built.prototype, {
+    params,
+    vkeyWitnesses: 1,
+    inputs: built.inputs,
+  }),
+);
+```
+
+## Related
+
+- [Transaction Basics](/apis/txbuilder/basics) - build, sign and submit
+- [Signing and Submitting](/apis/txbuilder/signing) - signers, submitters and several signers
+- [UTxOs and Inputs](/apis/txbuilder/utxos) - give the builder UTxOs in any form
+- [Plans](/apis/txbuilder/plans) - use a transaction built elsewhere as a step
+- [Errors](/apis/txbuilder/errors) - every code, and what a retry may repeat
+- [Testing on the Emulator](/apis/txbuilder/testing) - run builds against a local ledger
+- [Providers and Networks](/apis/txbuilder/networks) - what the builder asks a provider for
+- [Package README](https://github.com/MeshJS/mesh/tree/main/packages/mesh-transaction) - every part, option and error

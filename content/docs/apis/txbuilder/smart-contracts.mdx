@@ -5,9 +5,9 @@ description: "Lock assets at a script address and spend them with a Plutus scrip
 
 ## Overview
 
-A script holds assets through an ordinary `output` at its address, and a `spend.plutus` part unlocks them. The builder reads the datum from the output, adds collateral (ada the network can take if a script fails), evaluates execution units and orders inputs and redeemers. You do not set them.
+A script holds assets through an ordinary `output` at its address, and a `spend.plutus` part unlocks them. The builder reads the datum from the output, adds collateral (ada the network can take if a script fails), evaluates execution units and orders inputs and redeemers. You do not set them. Use this page to lock funds at a script or to spend them.
 
-Examples stop at `build()`: call `built.sign()` and `built.submit()` as in [Transaction Basics](/apis/txbuilder/basics#build-sign-and-submit). They use `builder` and `wallet` from there, and these names, which your application defines:
+Examples stop at `build()`: call `built.sign()` and `built.submit()` as in [Transaction Basics](/apis/txbuilder/basics#build-sign-and-submit). They use `builder`, `wallet` and `recipient` from there, and these names, which your application defines:
 
 - `changeAddress` - the wallet's address, from `await wallet.getChangeAddress()`
 - `script` - a Plutus script, `{ code, version }`
@@ -39,7 +39,7 @@ Give `spend.plutus` the output, the script and a redeemer (the data you give the
 - Find the output with your provider's `fetchAddressUTxOs(address)`, or name it by `{ txHash, outputIndex }`.
 - The datum is read from the output. For an output that holds only a datum hash, add `datum: { data }`.
 - The assets go to the payer's change address unless an `output` part sends them elsewhere.
-- The builder picks collateral. To choose it yourself, add a `collateral({ utxo })` part. The builder tops it up unless you pass `topUpCollateral: false`.
+- The builder picks collateral: see [Choose the Collateral](/apis/txbuilder/utxos#choose-the-collateral).
 
 ```tsx
 import { guard, mConStr0, spend } from "@meshsdk/core";
@@ -52,6 +52,24 @@ const built = await builder.build(
       redeemer: { data: mConStr0([]) },
     }),
     guard.pubKey({ address: changeAddress }), // for a script that checks a signer
+  ],
+  { payer: wallet },
+);
+```
+
+A redeemer may be a function of the final transaction, for a script that wants positions. `tx.self` is the index of the spend itself, and `tx.output(label)` the index of the output with that label. Such a part cannot be recorded by a [plan store](/apis/txbuilder/servers).
+
+```tsx
+import { mConStr0, output, spend } from "@meshsdk/core";
+
+const built = await builder.build(
+  [
+    spend.plutus({
+      utxo: scriptUtxo,
+      script,
+      redeemer: { data: (tx) => mConStr0([tx.self, tx.output("payout")]) },
+    }),
+    output({ address: recipient, value: { lovelace: 5_000_000n }, label: "payout" }),
   ],
   { payer: wallet },
 );
@@ -86,7 +104,7 @@ Minting works the same way: see [Mint and Burn Assets](/apis/txbuilder/minting#m
 
 ## Read a Datum without Spending
 
-A reference input lets scripts read an output, its datum and its reference script, without spending it. The builder never spends such an output for payment. An output the transaction also spends is not a reference input.
+A reference input lets scripts read an output, its datum and its reference script, without spending it. The rules for choosing one are in [Read an Output without Spending It](/apis/txbuilder/utxos#read-an-output-without-spending-it).
 
 ```tsx
 import { mConStr0, referenceInput, spend } from "@meshsdk/core";
@@ -122,7 +140,7 @@ const built = await builder.build(
 
 ## Lock and Unlock with a Plan
 
-A plan sends several transactions in order, waits for each to land, and can be repeated safely. The unlock step names the output of the lock step by its label. The change of the lock step pays for the unlock. A plan needs a provider that returns block heights and the validity flag: see the [Note in Transaction Basics](/apis/txbuilder/basics#plan-several-transactions).
+A [plan](/apis/txbuilder/plans) sends several transactions in order, waits for each to land, and can be repeated safely. The unlock step names the output of the lock step by its label. The change of the lock step pays for the unlock. A plan needs a provider that returns block heights and the validity flag: see [Providers and Networks](/apis/txbuilder/networks#use-blockfrost-for-plans).
 
 ```tsx
 import { mConStr0, output, spend } from "@meshsdk/core";
@@ -153,7 +171,10 @@ await plan.run(); // lock, a block, then unlock
 
 - [Transaction Basics](/apis/txbuilder/basics) - the builder, outputs, signing and submitting
 - [Mint and Burn Assets](/apis/txbuilder/minting) - native and Plutus minting policies
-- [Staking Transactions](/apis/txbuilder/staking#withdraw-from-a-script) - scripts that run from withdrawals and certificates
+- [UTxOs and Inputs](/apis/txbuilder/utxos) - read an output, choose collateral and inputs
+- [Plans](/apis/txbuilder/plans) - lock and unlock in order, with links between steps
+- [Testing on the Emulator](/apis/txbuilder/testing) - test that a script accepts and refuses
+- [Staking Transactions](/apis/txbuilder/staking#use-a-script-as-the-stake-credential) - scripts that run from withdrawals and certificates
 - [Migrating to TxBuilder](/apis/txbuilder/migration) - move from the `MeshTxBuilder` chain
 - [Data Types](/apis/data) - build datums and redeemers
 - [Blueprints](/apis/utilities/blueprints) - get a script's code from a blueprint

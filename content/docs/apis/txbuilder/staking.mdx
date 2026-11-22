@@ -5,7 +5,7 @@ description: "Register a stake key, delegate to a pool, withdraw rewards and der
 
 ## Overview
 
-Staking uses certificates and withdrawals, passed as parts to `builder.build()`.
+Staking uses certificates and withdrawals, passed as parts to `builder.build()`. Use this page to register a stake key, delegate, collect rewards or run a pool.
 
 Examples stop at `build()`: call `built.sign()` and `built.submit()` as in [Transaction Basics](/apis/txbuilder/basics#build-sign-and-submit). They use `builder` and `wallet` from there, and these names, which your application defines:
 
@@ -38,9 +38,6 @@ const built = await builder.build(
   ],
   { payer: wallet },
 );
-await built.sign(); // the payer signs; the stake key too, if the wallet holds it
-await built.submit();
-await built.awaitInclusion(); // waits until a block holds it
 ```
 
 If the wallet does not hold the stake key, pass the key as a signer: `built.sign({ signers: [wallet, keySigner(<signing key>)] })`. `built.missing` lists the keys that have not signed yet. `certificate.stakeDelegation` alone changes the delegation of a registered key, and `certificate.stakeRegistrationAndDelegation` does both in one certificate.
@@ -76,11 +73,14 @@ const built = await builder.build(
 );
 ```
 
-## Withdraw from a Script
+## Use a Script as the Stake Credential
 
-A stake address can be held by a Plutus script. Use `withdrawal.plutus` with the script and a redeemer (the data you give the script). Leave out `rewardAddress` and the builder derives the script's own address. An amount of `0n` runs the script without taking rewards, and works only while the reward balance is zero. To run the script whatever the balance, use `amount: "all"`.
+A stake address can be held by a Plutus script:
 
-A certificate of a script's stake address takes the script as its `witness`: `{ plutus, redeemer }`, which must be V3, or `{ native }`. For a native script, withdraw with `withdrawal.native`.
+- Withdraw: use `withdrawal.plutus` with the script and a redeemer (the data you give the script). Leave out `rewardAddress` and the builder derives the script's own address.
+- Amounts: `0n` runs the script without taking rewards, and works only while the reward balance is zero. To run the script whatever the balance, use `amount: "all"`.
+- Certificate: a certificate of a script's stake address takes the script as its `witness`: `{ plutus, redeemer }`, which must be V3, or `{ native }`.
+- Native script: withdraw with `withdrawal.native`.
 
 ```tsx
 import { certificate, mConStr0, withdrawal } from "@meshsdk/core";
@@ -135,5 +135,7 @@ To retire the pool, use `certificate.poolRetirement({ pool: poolId, epoch })`. T
 - [Transaction Basics](/apis/txbuilder/basics) - the builder, the payer and signing
 - [Smart Contracts](/apis/txbuilder/smart-contracts) - Plutus scripts that spend and mint
 - [Governance Transactions](/apis/txbuilder/governance) - DReps, voting and proposals
+- [Signing and Submitting](/apis/txbuilder/signing) - sign with a stake key or a pool operator key
+- [Options](/apis/txbuilder/options) - `registeredPools` and the other options
 - [Migrating to TxBuilder](/apis/txbuilder/migration) - move from the `MeshTxBuilder` chain
 - [Package README](https://github.com/MeshJS/mesh/tree/main/packages/mesh-transaction) - every part, option and error

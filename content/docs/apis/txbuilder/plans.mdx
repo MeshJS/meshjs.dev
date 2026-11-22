@@ -1,0 +1,213 @@
+---
+title: "Plans"
+description: "Send one transaction or several in order with plan(): built once, never rebuilt, so every call can be repeated."
+---
+
+## Overview
+
+A plan is a group of transactions built at once and sent in order. `builder.plan()` builds all of them and signs and sends nothing. `plan.run()` then signs, sends and waits for each one in turn. A plan is never rebuilt, so any call can be repeated and sends the same bytes. Use one for transactions that depend on each other, for a retry that must not pay twice, or to wait for blocks.
+
+Examples use `builder`, `wallet`, `recipient` and `partner` from [Transaction Basics](/apis/txbuilder/basics), and these names, which your application defines:
+
+- `script` - a Plutus script, `{ code, version }`
+- `partnerTx` - a transaction as CBOR hex that another party built
+- `plan` - the plan made in Make and Run a Plan
+- `provider` - a provider that returns block heights and the validity flag: see [Providers and Networks](/apis/txbuilder/networks#use-blockfrost-for-plans)
+
+## Make and Run a Plan
+
+`builder.plan(parts, { payer })` takes the same parts and payer as `build()`. A plan of one list of parts has one step, named `main`. `run()` signs it as the payer, sends it and waits until it is in a block.
+
+```tsx
+import { output } from "@meshsdk/core";
+
+const plan = await builder.plan(
+  output({ address: recipient, value: { lovelace: 5_000_000n } }),
+  { payer: wallet },
+); // built; nothing is signed or sent
+await plan.run();
+console.log(plan.step("main").txHash, plan.status);
+```
+
+> **Note:** `plan()` needs a provider that returns block heights and the validity flag. The plain `BlockfrostProvider` does not, and `plan()` throws `CANNOT_OBSERVE` before anything is signed: see [Providers and Networks](/apis/txbuilder/networks#use-blockfrost-for-plans). `build()` needs neither.
+
+## Send Several Transactions
+
+Give named steps as an object. `run()` sends them one after another:
+
+- Order: the steps go in the order of the keys, and a step is sent only when every step before it is in a block.
+- Names: a name is not empty, is not a whole number and does not start with `consolidate-`. A plan has at most 32 steps.
+- Change: a step built from parts spends the change of the step before it, so it cannot land without it.
+- Payer: a step may be `{ parts, payer }` to pay from another payer. That payer does not sign by default: name a signer for it in `run({ signers })`.
+
+```tsx
+import { output } from "@meshsdk/core";
+
+const plan = await builder.plan(
+  {
+    first: output({ address: recipient, value: { lovelace: 5_000_000n } }),
+    second: output({ address: partner, value: { lovelace: 2_000_000n } }),
+  },
+  { payer: wallet },
+); // both are built; nothing is on chain yet
+console.log(plan.fee, plan.steps.map((step) => step.standsOn)); // the fees of both; the steps each stands on
+await plan.sign(); // signs every step before anything is sent
+await plan.run(); // first, a block, then second
+```
+
+## Link Steps
+
+Where a part takes a UTxO (`spend.*`, `referenceInput`, `collateral`), it can name an output of an earlier step by a link. Nothing is looked up and no hash is written by hand. `{ step: "lock", output: "vault" }` names the output of the part labelled `vault`, and `{ step: "lock", output: 0 }` the output at that position. `{ step: "lock", change: true }` names every change output of that step, for `spend.pubKey`. Outside a plan a link is `UNRESOLVED`. For a step you already built, `outputOf(built, label)` gives its output to a later plan, as in `utxo: outputOf(plan.step("lock"), "vault")`.
+
+```tsx
+import { mConStr0, output, spend } from "@meshsdk/core";
+
+const plan = await builder.plan(
+  {
+    lock: output({
+      address: builder.scriptAddress(script),
+      value: { lovelace: 10_000_000n },
+      datum: { type: "inline", data: mConStr0([]) },
+      label: "vault", // links name this output
+    }),
+    unlock: [
+      spend.plutus({
+        utxo: { step: "lock", output: "vault" },
+        script,
+        redeemer: { data: mConStr0([]) },
+      }),
+      spend.pubKey({ utxo: { step: "lock", change: true } }), // all the change of lock
+      output({ address: recipient, value: { lovelace: 4_000_000n } }),
+    ],
+  },
+  { payer: wallet },
+);
+await plan.run(); // lock, a block, then unlock
+```
+
+## Read the Statuses
+
+Every step has a status, and so does the plan. A payment is paid when its step is `final`. Release goods then, never at `included`, which a rollback can undo. A plan is not atomic: step one may be `final` while step two never lands, so read the status of each step.
+
+| Step | Meaning |
+|------|---------|
+| `built`, `signed` | signatures are missing; fully signed but not sent yet |
+| `sent` | delivered: accepted, or the outcome is unknown |
+| `rejected` | the ledger refused it, but it may still land: `run()` sends the same bytes again |
+| `included` | in a block; a rollback can undo it |
+| `final` | enough blocks on top (`confirmations`); never changes |
+| `expired` | past its end of validity and the margin, and not found, though it is still looked for |
+| `failed` | in a block with a failed script; its collateral is taken |
+| `orphaned` | a step it stands on will not land |
+
+The plan is `pending` while it may still complete, `stopping` when it does not go on but a step may still land, `stopped` when it does not go on and, by what the chain shows, nothing more is expected to land, and `final` when every step is `final`. A later look can still find a step and move a `stopped` plan to `stopping` or `final`, so pay what is left only with `replan`. `plan.stop()` ends a plan: it signs and sends nothing more.
+
+```tsx
+await plan.run({ waitFor: "final" }); // waits for `confirmations` blocks on top
+console.log(plan.status, plan.steps.map((step) => `${step.name}: ${step.status}`)); // final when every payment is paid
+```
+
+## Add Steps to a Plan
+
+`plan.add(steps)` puts named steps at the end of a plan that is `pending`. It builds them at once, signs and sends nothing, and returns the plan. A `run()` that is going takes the new steps in their turn. The same call again builds nothing, so read `plan.status` after it. On a `final`, `stopping` or `stopped` plan it throws `INVALID_STATE`: new content for it is a new plan.
+
+```tsx
+import { output } from "@meshsdk/core";
+
+await plan.add({
+  refund: output({ address: recipient, value: { lovelace: 2_000_000n } }),
+}); // built now, paid by the plan's payer
+if (plan.status === "pending") await plan.run();
+```
+
+## Use a Transaction Built Elsewhere
+
+A step may be a transaction another party built: give it as a `BuiltTx` or as CBOR hex. A plan signs it as it signs its own steps: with the call's `signers`, or, when the call names none, with the plan's payer if it can sign. It keeps the witnesses the transaction came with. Read it first with [`builder.fromCbor()`](/apis/txbuilder/offline#read-a-transaction-built-elsewhere), which shows its outputs, fee and missing keys. Keep any key you do not want used on it out of the call's signers, and out of the payer when the call names none.
+
+```tsx
+import { output } from "@meshsdk/core";
+
+const swap = await builder.fromCbor(partnerTx); // read it first: outputs, fee, missing keys
+const swapPlan = await builder.plan(
+  {
+    swap,
+    pay: output({ address: recipient, value: { lovelace: 1_000_000n } }),
+  },
+  { payer: wallet }, // the wallet signs both
+);
+await swapPlan.run();
+```
+
+## Set Deadlines and Waiting
+
+Three deadlines belong to the plan. They are taken from the plan's options, else from the builder's `planDefaults`, else the built-in values, and are fixed and recorded when the plan is made. The defaults are in [Options](/apis/txbuilder/options#plan-options).
+
+| Deadline | What it sets |
+|----------|--------------|
+| `ttlMs` | how long a step is valid, which is also the time left to sign it |
+| `expiryMarginMs` | how long after its end of validity a step waits before it is `expired` |
+| `confirmations` | blocks on top of a step's block before it is `final` |
+
+A step whose parts give `validity({ until })` keeps that end. A step that runs a Plutus script may not end past the network's horizon (36 hours on mainnet and preprod), else `INVALID_STATE`. `0` for `expiryMarginMs` and `confirmations` is for tests only.
+
+The waiting options belong to one call of `run()` and are never recorded:
+
+| Option | What it sets |
+|--------|--------------|
+| `waitFor` | how far `run()` goes: `"sent"`, `"included"` or `"final"` |
+| `timeoutMs` | how long `run()` waits for a block, then `CONFIRM_TIMEOUT` |
+| `pollMs` | the pause between two looks at the chain |
+
+`CONFIRM_TIMEOUT` is a wait, not a failure: call `run()` again. The builder's `planDefaults` sets the deadlines and `pollMs` for every plan it makes.
+
+```tsx
+import { output } from "@meshsdk/core";
+
+const slow = await builder.plan(
+  output({ address: recipient, value: { lovelace: 5_000_000n } }),
+  { payer: wallet, ttlMs: 1_200_000, confirmations: 180 }, // this plan only
+);
+await slow.run({ waitFor: "final", pollMs: 60_000 }); // this call only
+```
+
+## Handle a Step That Does Not Go Through
+
+`run()` throws `EXPIRED`, `SCRIPT_FAILED` or `ORPHANED` when a step will not land. The error names the step in `error.step`, and the plan does not go on. `plan.landed` lists the steps in a block, and `plan.rest` what is left. A plan in its place pays what is left: `plan.replan({ id })`. It marks the old plan first, never builds a `final` step again, and carries on a step that is in a block. Never call `builder.plan(plan.rest)`: nothing keeps that plan apart from the old one.
+
+```tsx
+import { output, TxError } from "@meshsdk/core";
+
+const plan = await builder.plan(
+  {
+    a: output({ address: recipient, value: { lovelace: 5_000_000n } }),
+    b: output({ address: partner, value: { lovelace: 3_000_000n } }),
+  },
+  { id: "order-7", payer: wallet },
+);
+try {
+  await plan.run();
+} catch (error) {
+  if (!TxError.is(error, "EXPIRED", "SCRIPT_FAILED", "ORPHANED")) throw error;
+  console.log(error.step, plan.landed.map((step) => step.name)); // b, and [a]
+}
+// later, once no step may still land outside a block
+await plan.refresh(); // one look at the chain; it never signs or sends
+if (plan.steps.some((step) => step.status === "failed")) {
+  console.error("give new steps: replan({ id, steps })", plan.id);
+} else if (plan.live.length === 0 && plan.status !== "final") {
+  const next = await plan.replan({ id: plan.replacedBy ?? "order-7:2" });
+  await next.run(); // pays what is left, once
+}
+```
+
+`replan` may wait, with `CANNOT_OBSERVE` or `STILL_LIVE`, when an old transaction may still land: call it again later. The same call again returns the same plan. A step that failed its script needs new parts, so `replan` without `steps` refuses it: give them as `replan({ id, steps })`.
+
+## Related
+
+- [Transaction Basics](/apis/txbuilder/basics) - build, sign and submit one transaction
+- [Servers and Storage](/apis/txbuilder/servers) - record plans so a server can restart and resume
+- [Errors](/apis/txbuilder/errors#errors-from-waiting-and-plans) - the codes a plan throws
+- [Options](/apis/txbuilder/options#plan-options) - every plan option with its default
+- [UTxOs and Inputs](/apis/txbuilder/utxos#spend-many-small-utxos-with-a-plan) - consolidation steps for a wallet with many small UTxOs
+- [Providers and Networks](/apis/txbuilder/networks#use-blockfrost-for-plans) - a provider that plans can use
+- [Package README](https://github.com/MeshJS/mesh/tree/main/packages/mesh-transaction) - every plan option, status and error

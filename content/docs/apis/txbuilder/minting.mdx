@@ -5,11 +5,12 @@ description: "Mint and burn native assets with a native script or a Plutus scrip
 
 ## Overview
 
-Minting is a part of the transaction: `mint.native` for a native script policy and `mint.plutus` for a Plutus policy. Quantities are `bigint`, and a negative quantity burns.
+Minting is a part of the transaction: `mint.native` for a native script policy and `mint.plutus` for a Plutus policy. Quantities are `bigint`, and a negative quantity burns. Use this page to mint or burn tokens, with a native or a Plutus policy.
 
 Examples stop at `build()`: call `built.sign()` and `built.submit()` as in [Transaction Basics](/apis/txbuilder/basics#build-sign-and-submit). They use `builder` and `wallet` from there, and these names, which your application defines:
 
 - `changeAddress` - the wallet's address, from `await wallet.getChangeAddress()`
+- `forgingScript` - the policy script of the first example, `ForgeScript.withOneSignature(changeAddress)`
 - `policyCode` - a Plutus minting policy as script CBOR: `applyCborEncoding(compiledCode)` of `@meshsdk/core`, the form `resolveScriptHash` takes
 - `referenceAddress` - where CIP-68 reference tokens are kept
 - `refTxHash` - the hash of a transaction that holds a script in one of its outputs
@@ -37,9 +38,8 @@ const built = await builder.build(
 Put every asset of a policy in the `assets` of one part. A second part of the same policy is `DUPLICATE_PART` (see [Handle Errors](/apis/txbuilder/basics#handle-errors)). A quantity above `1n` makes a fungible token. A very large collection may not fit in one transaction (`TX_TOO_LARGE`): split it.
 
 ```tsx
-import { ForgeScript, mint, stringToHex } from "@meshsdk/core";
+import { mint, stringToHex } from "@meshsdk/core";
 
-const forgingScript = ForgeScript.withOneSignature(changeAddress);
 const names = ["MeshToken1", "MeshToken2", "MeshToken3"];
 
 const built = await builder.build(
@@ -56,9 +56,7 @@ const built = await builder.build(
 A negative quantity burns. Use the script of the policy that minted the tokens. The tokens must be in the payer's wallet.
 
 ```tsx
-import { ForgeScript, mint, stringToHex } from "@meshsdk/core";
-
-const forgingScript = ForgeScript.withOneSignature(changeAddress);
+import { mint, stringToHex } from "@meshsdk/core";
 
 const built = await builder.build(
   mint.native({
@@ -74,12 +72,7 @@ const built = await builder.build(
 `script` also takes a `NativeScript` object. This policy works only before a slot, so the transaction states the end of its validity with `validity()`. `builder.slotAt()` turns a time into a slot.
 
 ```tsx
-import {
-  deserializeAddress,
-  mint,
-  stringToHex,
-  validity,
-} from "@meshsdk/core";
+import { deserializeAddress, mint, stringToHex, validity } from "@meshsdk/core";
 import type { NativeScript } from "@meshsdk/core";
 
 const { pubKeyHash } = deserializeAddress(changeAddress);
@@ -109,15 +102,8 @@ const built = await builder.build(
 CIP-25, the NFT metadata standard, keeps metadata under label 721, keyed by policy id and then by asset name as text. Add it with `metadata()`. Each text is at most 64 bytes, so split a longer one into a list of strings.
 
 ```tsx
-import {
-  ForgeScript,
-  metadata,
-  mint,
-  resolveScriptHash,
-  stringToHex,
-} from "@meshsdk/core";
+import { metadata, mint, resolveScriptHash, stringToHex } from "@meshsdk/core";
 
-const forgingScript = ForgeScript.withOneSignature(changeAddress);
 const policyId = resolveScriptHash(forgingScript);
 
 const built = await builder.build(
@@ -143,7 +129,20 @@ const built = await builder.build(
 );
 ```
 
-A royalty token (CIP-27) has the empty asset name and its own entry: `mint.native({ script: forgingScript, assets: { "": 1n } })` with `metadata({ metadataLabel: 777n, value: { rate: "0.05", addr: [first64, rest] } })`. Split the address into strings of at most 64 bytes.
+A royalty token (CIP-27) has the empty asset name and its own entry. Split the address into strings of at most 64 bytes.
+
+```tsx
+import { metadata, mint } from "@meshsdk/core";
+
+const royalty = [
+  mint.native({ script: forgingScript, assets: { "": 1n } }),
+  metadata({
+    metadataLabel: 777n,
+    value: { rate: "0.05", addr: [changeAddress.slice(0, 64), changeAddress.slice(64)] },
+  }),
+];
+const built = await builder.build(royalty, { payer: wallet });
+```
 
 ## Mint with a Plutus Script
 
@@ -168,14 +167,8 @@ CIP-68 keeps the metadata in an inline datum (data stored with an output). The r
 
 ```tsx
 import {
-  CIP68_100,
-  CIP68_222,
-  mConStr0,
-  metadataToCip68,
-  mint,
-  output,
-  resolveScriptHash,
-  stringToHex,
+  CIP68_100, CIP68_222, mConStr0, metadataToCip68,
+  mint, output, resolveScriptHash, stringToHex,
 } from "@meshsdk/core";
 
 const nameHex = stringToHex("MyToken");
@@ -223,6 +216,8 @@ const built = await builder.build(
 
 - [Transaction Basics](/apis/txbuilder/basics) - the builder, outputs, metadata and validity
 - [Smart Contracts](/apis/txbuilder/smart-contracts) - lock and spend with Plutus scripts
+- [Time and Validity](/apis/txbuilder/time) - end of validity for a time-locked policy
+- [Signing and Submitting](/apis/txbuilder/signing) - sign with a policy key or several signers
 - [Migrating to TxBuilder](/apis/txbuilder/migration) - move from the `MeshTxBuilder` chain
 - [Data Types](/apis/data) - build datums and redeemers
 - [Resolvers](/apis/utilities/resolvers) - policy ids and script hashes

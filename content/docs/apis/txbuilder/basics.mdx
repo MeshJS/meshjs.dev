@@ -1,6 +1,6 @@
 ---
 title: "Transaction Basics"
-description: "Build, sign and submit a Cardano transaction with TxBuilder: payer, outputs, metadata, validity and signers."
+description: "Build, sign and submit a Cardano transaction with TxBuilder: payer, outputs, metadata and required signers."
 ---
 
 ## Overview
@@ -21,7 +21,7 @@ Examples use these names, which your application defines:
 
 `network` is required: `"mainnet"`, `"preprod"`, `"preview"`, or `customNetwork(...)` for a devnet. Give a `provider` to read from the chain. One builder serves every transaction.
 
-To build offline, give `params` and `costModels` instead of a provider. Then name the payer as `{ changeAddress, utxos }`, and give any outputs that parts name by out ref in the `knownUtxos` build option. `params` and `costModels` also replace what a provider would read.
+To build offline, give `params` and `costModels` instead of a provider, and your own UTxOs as the payer: see [Offline and CBOR](/apis/txbuilder/offline). Every option is in [Options](/apis/txbuilder/options).
 
 ```tsx
 import { TxBuilder } from "@meshsdk/core";
@@ -88,25 +88,9 @@ await built.submit({ submitter: wallet }); // the wallet sends it
 const { slot } = await built.awaitInclusion(); // found in a block
 ```
 
-Never rebuild a transaction to retry it: a new build may pick other inputs, and both could land. Call `submit()` again on the same `BuiltTx`.
+Never rebuild a transaction to retry it: a new build may pick other inputs, and both could land. Call `submit()` again on the same `BuiltTx`. To change a built transaction, build again with the changed parts and do not send the first one: a built transaction is not edited.
 
-### Sign with a Key or Several Signers
-
-`sign({ signers })` takes one signer or a list. A signer is a wallet, or `keySigner(key)`, where `key` is hex, bech32 (such as `ed25519_sk`) or the `cborHex` of a signing key file. Each signer is asked, in order, for the keys that are still missing. `built.missing` lists the keys that have not signed yet.
-
-```tsx
-import { keySigner, output } from "@meshsdk/core";
-
-const built = await builder.build(
-  output({ address: recipient, value: { lovelace: 5_000_000n } }),
-  { payer: changeAddress }, // an address: no wallet needed
-);
-
-await built.sign({ signers: keySigner(process.env.TREASURY_SKEY!) }); // a private key
-// or several signers, asked in order:
-await built.sign({ signers: [wallet, keySigner(process.env.PARTNER_SKEY!)] });
-console.log(built.missing); // keys that have not signed yet
-```
+To sign with a private key, with your own code or with several signers, see [Signing and Submitting](/apis/txbuilder/signing).
 
 ## Add More to a Transaction
 
@@ -114,19 +98,7 @@ Add these parts to the list you give to `build()`.
 
 ### Choose Inputs
 
-The builder picks the payer's inputs. To spend a particular output, add a `spend.pubKey` part. To limit what the builder may pick, give `canSelect`. To replace the built-in selection, give `coinSelection: (need, candidates) => outRefs`, where each out ref names a candidate.
-
-```tsx
-import { output, spend } from "@meshsdk/core";
-
-const built = await builder.build(
-  [
-    spend.pubKey({ utxo }), // an input you choose
-    output({ address: recipient, value: { lovelace: 5_000_000n } }),
-  ],
-  { payer: wallet, canSelect: (c) => c.value.lovelace > 5_000_000n },
-);
-```
+The builder picks the payer's inputs. To spend a particular output, add a `spend.pubKey({ utxo })` part. To limit or replace the choice, see [UTxOs and Inputs](/apis/txbuilder/utxos).
 
 ### Add a Message or Metadata
 
@@ -147,19 +119,7 @@ const built = await builder.build(
 
 ### Set the Validity
 
-`validity` takes POSIX milliseconds: `from` and `until`. For slots, use `invalidBefore` and `invalidHereafter`. For "valid from now", leave `from` out. `build()` sets no deadline, so give `until` when you follow the transaction yourself.
-
-```tsx
-import { output, validity } from "@meshsdk/core";
-
-const built = await builder.build(
-  [
-    output({ address: recipient, value: { lovelace: 5_000_000n } }),
-    validity({ until: Date.now() + 60 * 60 * 1000 }), // expires in one hour
-  ],
-  { payer: wallet },
-);
-```
+`validity({ until })` takes POSIX milliseconds, and `build()` sets no deadline, so give `until` when you follow the transaction yourself. For start times, slots and devnets, see [Time and Validity](/apis/txbuilder/time).
 
 ### Require a Signer
 
@@ -179,27 +139,13 @@ const built = await builder.build(
 
 ## Plan Several Transactions
 
-`plan()` takes named steps and sends them in order. Use it for several dependent transactions, for retries that cannot pay twice, or to wait for blocks. A plan never builds again, so repeating `run()` sends the same transactions.
+`plan()` takes named steps and sends them in order. Use it for several dependent transactions, for retries that cannot pay twice, or to wait for blocks: see [Plans](/apis/txbuilder/plans).
 
-> **Note:** `plan()` needs a provider that returns block heights and, for a step that runs a Plutus script, the validity flag (whether the script passed). The plain `BlockfrostProvider` returns neither, so `plan()` throws `CANNOT_OBSERVE`. The package README (Providers and networks) shows a subclass that adds them. For a Plutus transaction, `awaitInclusion()` needs the validity flag too. `build()` needs neither.
-
-```tsx
-import { output } from "@meshsdk/core";
-
-const plan = await builder.plan(
-  {
-    first: output({ address: recipient, value: { lovelace: 5_000_000n } }),
-    second: output({ address: partner, value: { lovelace: 2_000_000n } }),
-  },
-  { payer: wallet },
-);
-await plan.run(); // signs, submits and waits for a block, step by step
-console.log(plan.step("second").txHash);
-```
+> **Note:** `plan()` needs a provider that returns block heights and the validity flag. The plain `BlockfrostProvider` does not, and `plan()` throws `CANNOT_OBSERVE`: see [Providers and Networks](/apis/txbuilder/networks#use-blockfrost-for-plans).
 
 ## Handle Errors
 
-Every error is a `TxError` with a `code`. Check the code, not the message. `TxError.is` also types `error.details`. Build before the `try`, so that a retry calls `submit()` on the same `BuiltTx` and never builds again.
+Every error is a `TxError` with a `code`. Check the code, not the message. `TxError.is` also types `error.details`. Build before the `try`, so that a retry calls `submit()` on the same `BuiltTx` and never builds again. Every code, when it comes and which a retry can fix, is in [Errors](/apis/txbuilder/errors).
 
 ```tsx
 import { output, TxError } from "@meshsdk/core";
@@ -227,24 +173,11 @@ try {
 }
 ```
 
-| Code | Meaning | Fix |
-|------|---------|-----|
-| `MISSING_PAYER` | `build()` got no `payer` | Pass `{ payer }` |
-| `INSUFFICIENT_FUNDS` | the payer's UTxOs cannot pay | `error.details` names the unit and the amount missing |
-| `OUTPUT_BELOW_MIN_COIN` | an output holds less lovelace than the ledger requires | Add lovelace, or leave `lovelace` out |
-| `DUPLICATE_PART` | the same input, policy or voter twice, or a part that is held once given twice | Give each part once |
-| `TX_TOO_LARGE` | the transaction is over the size limit | Split it into several transactions |
-| `MISSING_PARAMETER` | no protocol parameters, cost models or deposits | Give a `provider`, or `params`, `costModels` or `deposits` |
-| `NETWORK_MISMATCH` | an address, wallet or provider is on another network than `network` | Use one network everywhere |
-| `MISSING_SIGNATURES` | a key has not signed, and nothing was sent | Name the signer; `built.missing` lists the keys |
-| `SUBMIT_FAILED`, `CONFIRM_TIMEOUT` | the outcome is unknown | Call `submit()` or `awaitInclusion()` again on the same `BuiltTx` |
-| `CANNOT_OBSERVE` | the provider returns no block heights or validity flag | See the Note under Plan Several Transactions |
-
 ## Related
 
-- [Mint and Burn Assets](/apis/txbuilder/minting) - mint and burn with native and Plutus scripts
-- [Smart Contracts](/apis/txbuilder/smart-contracts) - lock and unlock funds at a script
-- [Staking Transactions](/apis/txbuilder/staking) - register, delegate and withdraw
-- [Governance Transactions](/apis/txbuilder/governance) - DReps, votes and proposals
+- [Signing and Submitting](/apis/txbuilder/signing) - keys, your own signer, several signers and retries
+- [UTxOs and Inputs](/apis/txbuilder/utxos) - give, limit or chain UTxOs, and set collateral
+- [Plans](/apis/txbuilder/plans) - send transactions in order
+- [Errors](/apis/txbuilder/errors) - every code and which a retry can fix
 - [Migrating to TxBuilder](/apis/txbuilder/migration) - move from the `MeshTxBuilder` chain
 - [Package README](https://github.com/MeshJS/mesh/tree/main/packages/mesh-transaction) - every part, option and error

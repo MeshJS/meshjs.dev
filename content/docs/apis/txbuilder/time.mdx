@@ -1,0 +1,133 @@
+---
+title: "Time and Validity"
+description: "Limit when a transaction is valid, by time or by slot, convert between the two, and run on a devnet with its own clock."
+---
+
+## Overview
+
+A transaction can be valid only inside a window. The ledger counts that window in slots, and `TxBuilder` lets you write it in time or in slots. This page is for deadlines, time-locked scripts and devnets. The basic `validity` part is in [Transaction Basics](/apis/txbuilder/basics#set-the-validity).
+
+Examples use `builder`, `wallet` and `recipient` from there, and these names, which your application defines:
+
+- `deadline` - a deadline in POSIX milliseconds as a `bigint`, such as one read from a datum
+- `systemStart` - the start time in your devnet's genesis file, as an ISO text, POSIX milliseconds or a `Date`
+- `devnetProvider` - a provider of your devnet
+
+## Set an Expiry
+
+`validity({ until })` ends the window. Times are POSIX milliseconds, as a `number`, a `bigint` or a `Date`. `build()` sets no deadline, so give `until` when you follow the transaction yourself. Once it has passed, with a margin for rollbacks, the transaction cannot land. `built.validity` shows the slot and the time it became. A time that is not a whole number of milliseconds, or is before the network's clock starts, is `INVALID_DATA`.
+
+```tsx
+import { output, validity } from "@meshsdk/core";
+
+const built = await builder.build(
+  [
+    output({ address: recipient, value: { lovelace: 5_000_000n } }),
+    validity({ until: new Date(Date.now() + 60 * 60 * 1000) }), // in one hour
+  ],
+  { payer: wallet },
+);
+console.log(built.validity); // { invalidHereafter, until }: the slot, and the ms it starts at
+```
+
+## Set a Start Time
+
+`from` is the earliest time. For "valid from now", leave `from` out: `from: Date.now()` is valid from the next slot only, and nodes check the lower bound against their own, lagging, tip. Use `from` for a script that needs a time. One that needs its lower bound strictly after a deadline gets `from: deadline + 1n`.
+
+```tsx
+import { output, validity } from "@meshsdk/core";
+
+const built = await builder.build(
+  [
+    output({ address: recipient, value: { lovelace: 5_000_000n } }),
+    validity({ from: deadline + 1n, until: deadline + 3_600_000n }), // just after the deadline, for an hour
+  ],
+  { payer: wallet },
+);
+```
+
+## Use Slots
+
+`invalidBefore` is the first slot the transaction is valid in, and `invalidHereafter` is the first slot it is no longer valid in. They take a `bigint` or a `number`. Give each bound one way only: `from` together with `invalidBefore` is `INVALID_DATA`, and so is a lower bound that is not before the upper one.
+
+```tsx
+import { output, validity } from "@meshsdk/core";
+
+const now = builder.slotAt(Date.now());
+const built = await builder.build(
+  [
+    output({ address: recipient, value: { lovelace: 5_000_000n } }),
+    validity({ invalidBefore: now, invalidHereafter: now + 600 }), // ends 600 slots later
+  ],
+  { payer: wallet },
+);
+```
+
+## Convert Between Time and Slots
+
+These use the builder's network:
+
+- `builder.slotAt(time)` gives the slot that contains a time.
+- `builder.slotAt(time, "up")` gives the first slot that starts at or after it.
+- `builder.timeAt(slot)` gives the time a slot starts at.
+- In `validity`, a time becomes a slot so that the interval a script sees lies within `[from, until]`: `from` becomes the first slot starting at or after it, and `until` the slot containing it.
+
+```tsx
+const slot = builder.slotAt(Date.now() + 3_600_000); // the slot that contains a time in an hour
+const startsAt = builder.timeAt(slot); // POSIX ms
+const fromNow = builder.slotAt(Date.now(), "up"); // what `from: Date.now()` becomes
+```
+
+## Wait for a Start Time
+
+A start that is ahead of the local clock is the warning `VALID_FROM_FUTURE` in `built.warnings`, because nodes refuse the transaction until their tip reaches it. The `run()` of a [plan](/apis/txbuilder/plans) before the start throws `NOT_YET_VALID`, with the wait in `error.retryAfterMs`, and sends nothing. Wait and call `run()` again. A plan also sets an end of validity itself when your parts set none.
+
+```tsx
+import { output, TxError, validity } from "@meshsdk/core";
+
+const plan = await builder.plan(
+  [
+    output({ address: recipient, value: { lovelace: 5_000_000n } }),
+    validity({ from: deadline + 1n }),
+  ],
+  { payer: wallet },
+);
+try {
+  await plan.run();
+} catch (error) {
+  if (!TxError.is(error, "NOT_YET_VALID")) throw error; // before the start: nothing was sent
+  await new Promise((resolve) => setTimeout(resolve, error.retryAfterMs));
+  await plan.run();
+}
+```
+
+## A Devnet Clock
+
+A devnet has its own slot clock. Describe it with `customNetwork`, from the genesis, and give that as `network`. `slotAt`, `timeAt` and every time in `validity` then follow it. `name`, `networkId`, `magic` and `zeroSlot` are optional.
+
+```tsx
+import { customNetwork, TxBuilder } from "@meshsdk/core";
+
+const devnet = new TxBuilder({
+  network: customNetwork({
+    systemStart,
+    slotLengthMs: 1_000,
+    epochLength: 500,
+  }),
+  provider: devnetProvider,
+});
+console.log(devnet.slotAt(Date.now())); // a slot of the devnet's clock
+```
+
+## Related
+
+- [Transaction Basics](/apis/txbuilder/basics) - the builder and the other parts
+- [Plans](/apis/txbuilder/plans) - send a transaction when its start has come, and follow its end
+- [Smart Contracts](/apis/txbuilder/smart-contracts) - lock and spend with a script
+- [Mint and Burn Assets](/apis/txbuilder/minting#mint-with-a-time-locked-policy) - a policy that works only before a slot
+- [Signing and Submitting](/apis/txbuilder/signing) - sign, submit and retry
+- [UTxOs and Inputs](/apis/txbuilder/utxos) - choose what a transaction spends
+- [Testing on the Emulator](/apis/txbuilder/testing#move-time) - move the clock of a local ledger
+- [Providers and Networks](/apis/txbuilder/networks) - the network and its slot clock
+- [Errors](/apis/txbuilder/errors#build-warnings) - `VALID_FROM_FUTURE`, `NEVER_EXPIRES` and the other warnings
+- [Package README](https://github.com/MeshJS/mesh/tree/main/packages/mesh-transaction) - every part, option and error
