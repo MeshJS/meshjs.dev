@@ -1,5 +1,5 @@
 {
   "title": "Transaction Builder",
   "icon": "BanknotesIcon",
-  "pages": ["basics", "minting", "smart-contracts", "staking", "governance"]
+  "pages": ["basics", "minting", "smart-contracts", "staking", "governance", "migration"]
 }

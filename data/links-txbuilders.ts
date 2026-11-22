@@ -25,6 +25,11 @@ export const metaTxbuilderGovernance = {
   title: "Governance Transactions",
   desc: "Transactions for participating in Cardano's on-chain governance",
 };
+export const metaTxbuilderMigration = {
+  link: `/apis/txbuilder/migration`,
+  title: "Migrating to TxBuilder",
+  desc: "Move from the MeshTxBuilder chain to TxBuilder parts",
+};
 
 export const linksTxbuilder = [
   metaTxbuilderBasic,
@@ -32,6 +37,7 @@ export const linksTxbuilder = [
   metaTxbuilderSmartContract,
   metaTxbuilderStaking,
   metaTxbuilderGovernance,
+  metaTxbuilderMigration,
 ];
 
 export const metaTxbuilder = {
