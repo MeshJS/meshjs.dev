@@ -1,514 +1,250 @@
 ---
-title: "Transaction Builder Basics"
-description: "Build and customize Cardano transactions with the MeshTxBuilder low-level API."
+title: "Transaction Basics"
+description: "Build, sign and submit a Cardano transaction with TxBuilder: payer, outputs, metadata, validity and signers."
 ---
-
-import Link from "fumadocs-core/link";
 
 ## Overview
 
-`MeshTxBuilder` is a powerful, low-level API for constructing Cardano transactions. It provides fine-grained control over every aspect of transaction building, from simple ADA transfers to complex multi-signature and smart contract interactions.
+A transaction is a list of parts, such as `output(...)`. Give the list and a payer to `builder.build()` and you get a `BuiltTx` to sign and submit. The builder selects inputs, adds change and sets the fee. For scripts it also adds collateral and execution units, so you set none of them.
 
-**When to use MeshTxBuilder:**
-- Building custom transaction logic beyond standard transfers
-- Creating multi-signature transactions
-- Interacting with Plutus smart contracts
-- Optimizing transaction fees and execution units
+Examples use these names, which your application defines:
 
-## Quick Start
+- `provider`, `wallet` - a provider such as `BlockfrostProvider` ([Providers](/providers)), and a `MeshWallet` or `BrowserWallet` ([Wallets](/apis/wallets))
+- `changeAddress` - the wallet's address, from `await wallet.getChangeAddress()`
+- `recipient`, `partner` - addresses
+- `utxo`, `utxos` - one output of yours and a list of them, as Mesh `UTxO`s (an unspent output: coins held at an address)
+- `unit` - a policy id plus an asset name in hex
+- `params`, `costModels` - protocol parameters (`Protocol`) and cost models (`number[][]`)
+- `builder` - the one made in the next section
+
+## Create a Builder
+
+`network` is required: `"mainnet"`, `"preprod"`, `"preview"`, or `customNetwork(...)` for a devnet. Give a `provider` to read from the chain. One builder serves every transaction.
+
+To build offline, give `params` and `costModels` instead of a provider. Then name the payer as `{ changeAddress, utxos }`, and give any outputs that parts name by out ref in the `knownUtxos` build option. `params` and `costModels` also replace what a provider would read.
 
 ```tsx
-import { MeshTxBuilder, BlockfrostProvider } from "@meshsdk/core";
+import { TxBuilder } from "@meshsdk/core";
 
-// Initialize provider and builder
-const provider = new BlockfrostProvider("<YOUR_API_KEY>");
-const txBuilder = new MeshTxBuilder({
-  fetcher: provider,
-  verbose: true,
-});
+// Online: parameters, UTxOs and outputs are read through the provider
+const builder = new TxBuilder({ network: "preprod", provider });
 
-// Build a simple transfer
-const unsignedTx = await txBuilder
-  .txOut("addr_test1qz...", [{ unit: "lovelace", quantity: "5000000" }])
-  .changeAddress(changeAddress)
-  .selectUtxosFrom(utxos)
-  .complete();
-
-// Sign and submit
-const signedTx = await wallet.signTx(unsignedTx);
-const txHash = await wallet.submitTx(signedTx);
+// Offline: nothing is read, so give the parameters yourself
+const offline = new TxBuilder({ network: "preprod", params, costModels });
 ```
 
-## Configuration
+`builder.add(...parts)` returns a new builder that also holds those parts, so a function that returns parts is a reusable piece. A part that a transaction holds once, such as `validity` or `message`, held and also given again is `DUPLICATE_PART`.
 
-### Constructor Options
+## Choose the Payer
+
+The payer pays and gets the change. There is no default: without one, `build()` throws `MISSING_PAYER`. Give a wallet, an address or your own UTxOs. A wallet also signs by default.
 
 ```tsx
-const txBuilder = new MeshTxBuilder({
-  fetcher: provider,      // Required for auto-fetching UTXO data
-  submitter: provider,    // Optional: for direct submission via builder
-  evaluator: provider,    // Optional: for script execution unit optimization
-  serializer: serializer, // Optional: custom serializer (default: CSLSerializer)
-  params: protocolParams, // Optional: custom protocol parameters
-  isHydra: false,         // Optional: use Hydra protocol parameters
-  verbose: true,          // Optional: enable detailed logging
-});
+import { output } from "@meshsdk/core";
+
+const pay = output({ address: recipient, value: { lovelace: 5_000_000n } });
+
+// A wallet: its change address and UTxOs are read
+const byWallet = await builder.build(pay, { payer: wallet });
+// An address: change goes there, its UTxOs are read through the provider
+const byAddress = await builder.build(pay, { payer: changeAddress });
+// Your own data: nothing is read
+const byData = await builder.build(pay, { payer: { changeAddress, utxos } });
 ```
 
-| Option | Type | Required | Description |
-|--------|------|----------|-------------|
-| `fetcher` | `IFetcher` | Recommended | Provider for fetching blockchain data |
-| `submitter` | `ISubmitter` | No | Provider for submitting transactions |
-| `evaluator` | `IEvaluator` | No | Provider for evaluating script execution |
-| `serializer` | `IMeshTxSerializer` | No | Custom transaction serializer |
-| `params` | `Partial<Protocol>` | No | Custom protocol parameters |
-| `isHydra` | `boolean` | No | Enable Hydra-specific parameters |
-| `verbose` | `boolean` | No | Enable detailed console logging |
+## Send Lovelace and Assets
 
-## Sending ADA
-
-### Basic Transfer
-
-Send ADA to a recipient address:
+`value` maps `lovelace` and units to `bigint` amounts. Leave `lovelace` out and the builder adds the minimum the output needs. Too little is `OUTPUT_BELOW_MIN_COIN`. For several outputs, pass a list: outputs keep their order, and a part that is `false`, `null` or `undefined` is skipped, so `condition && output(...)` works. To attach a datum to an output, see [Smart Contracts](/apis/txbuilder/smart-contracts#lock-assets-at-a-script).
 
 ```tsx
-import { MeshTxBuilder, BlockfrostProvider } from "@meshsdk/core";
+import { output } from "@meshsdk/core";
 
-const provider = new BlockfrostProvider("<YOUR_API_KEY>");
-const txBuilder = new MeshTxBuilder({
-  fetcher: provider,
-  verbose: true,
-});
-
-// Get wallet data
-const utxos = await wallet.getUtxos();
-const changeAddress = await wallet.getChangeAddress();
-
-// Build transaction
-const unsignedTx = await txBuilder
-  .txOut("addr_test1qz...", [{ unit: "lovelace", quantity: "5000000" }])
-  .changeAddress(changeAddress)
-  .selectUtxosFrom(utxos)
-  .complete();
-
-// Sign and submit
-const signedTx = await wallet.signTx(unsignedTx);
-const txHash = await wallet.submitTx(signedTx);
-```
-
-### Send Multiple Outputs
-
-Send to multiple recipients in a single transaction:
-
-```tsx
-const unsignedTx = await txBuilder
-  .txOut("addr_test1qz...", [{ unit: "lovelace", quantity: "5000000" }])
-  .txOut("addr_test1qr...", [{ unit: "lovelace", quantity: "3000000" }])
-  .txOut("addr_test1qs...", [{ unit: "lovelace", quantity: "2000000" }])
-  .changeAddress(changeAddress)
-  .selectUtxosFrom(utxos)
-  .complete();
-```
-
-### Send Native Assets
-
-Include native assets (tokens/NFTs) in the output:
-
-```tsx
-const unsignedTx = await txBuilder
-  .txOut("addr_test1qz...", [
-    { unit: "lovelace", quantity: "2000000" },
-    { unit: "d9312da562da182b02322fd8acb536f37eb9d29fba7c49dc172555274d657368546f6b656e", quantity: "1" }
-  ])
-  .changeAddress(changeAddress)
-  .selectUtxosFrom(utxos)
-  .complete();
-```
-
-## Input Selection
-
-### Automatic Selection
-
-Let Mesh automatically select UTXOs to cover the transaction:
-
-```tsx
-const unsignedTx = await txBuilder
-  .txOut(recipientAddress, [{ unit: "lovelace", quantity: "5000000" }])
-  .changeAddress(changeAddress)
-  .selectUtxosFrom(utxos)
-  .complete();
-```
-
-### Selection Strategies
-
-Configure how UTXOs are selected:
-
-```tsx
-txBuilder.selectUtxosFrom(
-  utxos,           // Available UTXOs
-  "largestFirst",  // Selection strategy
-  "5000000",       // Minimum threshold (lovelace)
-  true             // Include transaction fees in calculation
+const built = await builder.build(
+  [
+    output({
+      address: recipient,
+      value: { lovelace: 2_000_000n, [unit]: 1n },
+    }),
+    output({ address: partner, value: { [unit]: 1n } }), // no lovelace: the minimum is added
+  ],
+  { payer: wallet },
 );
 ```
 
-| Strategy | Description |
-|----------|-------------|
-| `experimental` | Mesh's optimized selection algorithm |
-| `keepRelevant` | Prefer UTXOs with relevant assets |
-| `largestFirst` | Select largest UTXOs first |
-| `largestFirstMultiAsset` | Optimized for transactions with multiple assets |
+## Build, Sign and Submit
 
-### Manual Input Selection
-
-Explicitly specify which UTXOs to spend:
+`build()` signs nothing and sends nothing. It returns a `BuiltTx`. `built.tx` is the unsigned transaction as a hex string (CBOR), and `built.txHash` is known before signing. `sign()` signs as the payer, and `submit()` sends through the provider, or through the `submitter` you name.
 
 ```tsx
-const unsignedTx = await txBuilder
-  .txIn(
-    "abc123...",  // Transaction hash
-    0,            // Output index
-    [{ unit: "lovelace", quantity: "10000000" }], // Amount
-    "addr_test1qz..." // Address
-  )
-  .txOut("addr_test1qr...", [{ unit: "lovelace", quantity: "5000000" }])
-  .changeAddress(changeAddress)
-  .complete();
+import { output } from "@meshsdk/core";
+
+const built = await builder.build(
+  output({ address: recipient, value: { lovelace: 5_000_000n } }),
+  { payer: wallet },
+);
+const { tx, txHash, fee } = built;
+await built.sign(); // the payer signs
+await built.submit({ submitter: wallet }); // the wallet sends it
+const { slot } = await built.awaitInclusion(); // found in a block
 ```
 
-## Multi-Signature Transactions
+Never rebuild a transaction to retry it: a new build may pick other inputs, and both could land. Call `submit()` again on the same `BuiltTx`.
 
-Create transactions requiring multiple signatures:
+### Sign with a Key or Several Signers
+
+`sign({ signers })` takes one signer or a list. A signer is a wallet, or `keySigner(key)`, where `key` is hex, bech32 (such as `ed25519_sk`) or the `cborHex` of a signing key file. Each signer is asked, in order, for the keys that are still missing. `built.missing` lists the keys that have not signed yet.
 
 ```tsx
-import { MeshTxBuilder, ForgeScript, resolveScriptHash, stringToHex } from "@meshsdk/core";
-import { MeshCardanoHeadlessWallet, AddressType } from "@meshsdk/wallet";
+import { keySigner, output } from "@meshsdk/core";
 
-// Create minting wallet
-const mintingWallet = await MeshCardanoHeadlessWallet.fromMnemonic({
-  networkId: 0,
-  walletAddressType: AddressType.Base,
-  fetcher: provider,
-  submitter: provider,
-  mnemonic: ["your", "mnemonic", "words", "..."],
-});
-
-// Create forging script
-const forgingScript = ForgeScript.withOneSignature(
-  await mintingWallet.getChangeAddressBech32()
+const built = await builder.build(
+  output({ address: recipient, value: { lovelace: 5_000_000n } }),
+  { payer: changeAddress }, // an address: no wallet needed
 );
 
-const policyId = resolveScriptHash(forgingScript);
-const assetName = "MeshToken";
-
-// Get user wallet data
-const address = (await wallet.getUsedAddresses())[0];
-const utxos = await wallet.getUtxos();
-
-// Build multi-sig transaction
-const txBuilder = new MeshTxBuilder({
-  fetcher: provider,
-  verbose: true,
-});
-
-const unsignedTx = await txBuilder
-  .mint("1", policyId, stringToHex(assetName))
-  .mintingScript(forgingScript)
-  .metadataValue(721, {
-    [policyId]: {
-      [assetName]: { name: "Mesh Token", image: "ipfs://..." }
-    }
-  })
-  .changeAddress(address)
-  .selectUtxosFrom(utxos)
-  .complete();
-
-// Sign with both wallets (partial signing)
-const signedTx1 = await wallet.signTx(unsignedTx, true, false);
-const signedTx2 = await mintingWallet.signTx(signedTx1, true, false);
-
-// Submit final transaction
-const txHash = await wallet.submitTx(signedTx2);
+await built.sign({ signers: keySigner(process.env.TREASURY_SKEY!) }); // a private key
+// or several signers, asked in order:
+await built.sign({ signers: [wallet, keySigner(process.env.PARTNER_SKEY!)] });
+console.log(built.missing); // keys that have not signed yet
 ```
 
-## Native Script Multi-Sig
+## Add More to a Transaction
 
-Spend from a native script address requiring multiple signatures:
+Add these parts to the list you give to `build()`.
+
+### Choose Inputs
+
+The builder picks the payer's inputs. To spend a particular output, add a `spend.pubKey` part. To limit what the builder may pick, give `canSelect`. To replace the built-in selection, give `coinSelection: (need, candidates) => outRefs`, where each out ref names a candidate.
 
 ```tsx
-import { deserializeAddress, serializeNativeScript, NativeScript } from "@meshsdk/core";
+import { output, spend } from "@meshsdk/core";
 
-// Get key hashes from addresses
-const { pubKeyHash: keyHash1 } = deserializeAddress(walletAddress1);
-const { pubKeyHash: keyHash2 } = deserializeAddress(walletAddress2);
-
-// Create native script requiring both signatures
-const nativeScript: NativeScript = {
-  type: "all",
-  scripts: [
-    { type: "sig", keyHash: keyHash1 },
-    { type: "sig", keyHash: keyHash2 },
+const built = await builder.build(
+  [
+    spend.pubKey({ utxo }), // an input you choose
+    output({ address: recipient, value: { lovelace: 5_000_000n } }),
   ],
-};
-
-// Serialize script to get address
-const { address: scriptAddress, scriptCbor } = serializeNativeScript(nativeScript);
-
-// Fetch UTXOs from script address
-const scriptUtxos = await provider.fetchAddressUTxOs(scriptAddress);
-const utxo = scriptUtxos[0];
-
-// Build transaction spending from script
-const unsignedTx = await txBuilder
-  .txIn(
-    utxo.input.txHash,
-    utxo.input.outputIndex,
-    utxo.output.amount,
-    utxo.output.address
-  )
-  .txInScript(scriptCbor)
-  .txOut("addr_test1qz...", [{ unit: "lovelace", quantity: "2000000" }])
-  .changeAddress(scriptAddress)
-  .selectUtxosFrom(scriptUtxos)
-  .complete();
-
-// Both wallets must sign
-const signedTx1 = await wallet1.signTx(unsignedTx, true, false);
-const signedTx2 = await wallet2.signTx(signedTx1, true, false);
-const txHash = await wallet1.submitTx(signedTx2);
+  { payer: wallet, canSelect: (c) => c.value.lovelace > 5_000_000n },
+);
 ```
 
-## Transaction Metadata
+### Add a Message or Metadata
 
-### Add Messages
-
-Attach messages to transactions using label 674 (CIP-20):
+`message` writes a message under metadata label 674 (CIP-20, the transaction message standard). `metadata` writes any label. Text in `metadata` is limited to 64 bytes per string. `message` cuts a long text into lines for you.
 
 ```tsx
-const unsignedTx = await txBuilder
-  .txOut(recipientAddress, [{ unit: "lovelace", quantity: "5000000" }])
-  .metadataValue(674, {
-    msg: [
-      "Invoice-No: 1234567890",
-      "Customer-No: 555-1234"
-    ]
-  })
-  .changeAddress(changeAddress)
-  .selectUtxosFrom(utxos)
-  .complete();
-```
+import { message, metadata, output } from "@meshsdk/core";
 
-Each message string must be at most 64 bytes when UTF-8 encoded.
-
-### Custom Metadata
-
-Add any JSON-compatible metadata:
-
-```tsx
-const unsignedTx = await txBuilder
-  .metadataValue(customLabel, {
-    key: "value",
-    nested: { data: [1, 2, 3] }
-  })
-  .txOut(address, amount)
-  .changeAddress(changeAddress)
-  .selectUtxosFrom(utxos)
-  .complete();
-```
-
-## Transaction Validity
-
-### Set Expiration (TTL)
-
-Make a transaction invalid after a specific slot:
-
-```tsx
-import { resolveSlotNo } from "@meshsdk/core";
-
-// Transaction expires in 5 minutes
-const expirationTime = new Date(Date.now() + 5 * 60 * 1000);
-const slot = resolveSlotNo("mainnet", expirationTime.getTime());
-
-const unsignedTx = await txBuilder
-  .txOut(address, amount)
-  .invalidHereafter(Number(slot))
-  .changeAddress(changeAddress)
-  .selectUtxosFrom(utxos)
-  .complete();
-```
-
-### Set Start Time
-
-Make a transaction invalid before a specific slot:
-
-```tsx
-const startTime = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes from now
-const startSlot = resolveSlotNo("mainnet", startTime.getTime());
-
-const unsignedTx = await txBuilder
-  .txOut(address, amount)
-  .invalidBefore(Number(startSlot))
-  .changeAddress(changeAddress)
-  .selectUtxosFrom(utxos)
-  .complete();
-```
-
-## Required Signers
-
-Specify required signers for smart contract transactions:
-
-```tsx
-import { deserializeAddress } from "@meshsdk/core";
-
-const { pubKeyHash } = deserializeAddress(walletAddress);
-
-const unsignedTx = await txBuilder
-  // ... transaction details
-  .requiredSignerHash(pubKeyHash)
-  .complete();
-```
-
-## Network Configuration
-
-### Set Network
-
-Configure the network for proper cost model calculation:
-
-```tsx
-txBuilder.setNetwork("mainnet"); // or "testnet", "preview", "preprod"
-```
-
-### Custom Protocol Parameters
-
-Use specific protocol parameters:
-
-```tsx
-const params = await provider.fetchProtocolParameters();
-
-const txBuilder = new MeshTxBuilder({
-  fetcher: provider,
-  params: params,
-});
-```
-
-## Manual Fee Control
-
-Override automatic fee calculation:
-
-```tsx
-const unsignedTx = await txBuilder
-  .txOut(address, amount)
-  .changeAddress(changeAddress)
-  .setFee("200000") // Set exact fee in lovelace
-  .complete();
-```
-
-## Build with JSON
-
-Alternative method using a JSON object:
-
-```tsx
-import { MeshTxBuilderBody } from "@meshsdk/core";
-
-const meshTxBody: Partial<MeshTxBuilderBody> = {
-  outputs: [
-    {
-      address: recipientAddress,
-      amount: [{ unit: "lovelace", quantity: "5000000" }],
-    },
+const built = await builder.build(
+  [
+    output({ address: recipient, value: { lovelace: 5_000_000n } }),
+    message({ text: "Invoice-No: 1234567890" }),
+    metadata({ metadataLabel: 1234n, value: { order: "42" } }),
   ],
-  changeAddress: changeAddress,
-  extraInputs: utxos,
-  selectionConfig: {
-    threshold: "5000000",
-    strategy: "largestFirst",
-    includeTxFees: true,
+  { payer: wallet },
+);
+```
+
+### Set the Validity
+
+`validity` takes POSIX milliseconds: `from` and `until`. For slots, use `invalidBefore` and `invalidHereafter`. For "valid from now", leave `from` out. `build()` sets no deadline, so give `until` when you follow the transaction yourself.
+
+```tsx
+import { output, validity } from "@meshsdk/core";
+
+const built = await builder.build(
+  [
+    output({ address: recipient, value: { lovelace: 5_000_000n } }),
+    validity({ until: Date.now() + 60 * 60 * 1000 }), // expires in one hour
+  ],
+  { payer: wallet },
+);
+```
+
+### Require a Signer
+
+`guard.pubKey` names a key that must sign. Scripts see it among the signatories. Give its `address` or its `keyHash`. Keys needed for inputs, certificates and similar are worked out by the builder and listed in `built.signers`.
+
+```tsx
+import { guard, output } from "@meshsdk/core";
+
+const built = await builder.build(
+  [
+    output({ address: recipient, value: { lovelace: 5_000_000n } }),
+    guard.pubKey({ address: partner }),
+  ],
+  { payer: wallet },
+);
+```
+
+## Plan Several Transactions
+
+`plan()` takes named steps and sends them in order. Use it for several dependent transactions, for retries that cannot pay twice, or to wait for blocks. A plan never builds again, so repeating `run()` sends the same transactions.
+
+> **Note:** `plan()` needs a provider that returns block heights and, for a step that runs a Plutus script, the validity flag (whether the script passed). The plain `BlockfrostProvider` returns neither, so `plan()` throws `CANNOT_OBSERVE`. The package README (Providers and networks) shows a subclass that adds them. For a Plutus transaction, `awaitInclusion()` needs the validity flag too. `build()` needs neither.
+
+```tsx
+import { output } from "@meshsdk/core";
+
+const plan = await builder.plan(
+  {
+    first: output({ address: recipient, value: { lovelace: 5_000_000n } }),
+    second: output({ address: partner, value: { lovelace: 2_000_000n } }),
   },
-};
-
-const unsignedTx = await txBuilder.complete(meshTxBody);
+  { payer: wallet },
+);
+await plan.run(); // signs, submits and waits for a block, step by step
+console.log(plan.step("second").txHash);
 ```
 
-## Complete Example
+## Handle Errors
+
+Every error is a `TxError` with a `code`. Check the code, not the message. `TxError.is` also types `error.details`. Build before the `try`, so that a retry calls `submit()` on the same `BuiltTx` and never builds again.
 
 ```tsx
-import {
-  MeshTxBuilder,
-  BlockfrostProvider,
-  resolveSlotNo
-} from "@meshsdk/core";
+import { output, TxError } from "@meshsdk/core";
 
-// Setup
-const provider = new BlockfrostProvider("<YOUR_API_KEY>");
-const txBuilder = new MeshTxBuilder({
-  fetcher: provider,
-  verbose: true,
-});
+const built = await builder
+  .build(
+    output({ address: recipient, value: { lovelace: 5_000_000n } }),
+    { payer: wallet },
+  )
+  .catch((error) => {
+    if (TxError.is(error, "INSUFFICIENT_FUNDS")) {
+      console.log(error.details.unit, error.details.missing);
+    }
+    throw error; // nothing was sent
+  });
 
-// Get wallet data
-const utxos = await wallet.getUtxos();
-const changeAddress = await wallet.getChangeAddress();
-
-// Set expiration (5 minutes)
-const expiration = new Date(Date.now() + 5 * 60 * 1000);
-const expirationSlot = resolveSlotNo("preprod", expiration.getTime());
-
-// Build transaction
-const unsignedTx = await txBuilder
-  // Send 5 ADA to recipient
-  .txOut("addr_test1qz...", [{ unit: "lovelace", quantity: "5000000" }])
-  // Send 3 ADA + token to another recipient
-  .txOut("addr_test1qr...", [
-    { unit: "lovelace", quantity: "3000000" },
-    { unit: "policyId...", quantity: "1" }
-  ])
-  // Add transaction message
-  .metadataValue(674, { msg: ["Payment for services"] })
-  // Set expiration
-  .invalidHereafter(Number(expirationSlot))
-  // Configure change and UTXO selection
-  .changeAddress(changeAddress)
-  .selectUtxosFrom(utxos, "largestFirst", "5000000", true)
-  // Build the transaction
-  .complete();
-
-// Sign and submit
-const signedTx = await wallet.signTx(unsignedTx);
-const txHash = await wallet.submitTx(signedTx);
-
-console.log(`Transaction submitted: ${txHash}`);
+try {
+  await built.sign();
+  await built.submit();
+  await built.awaitInclusion();
+} catch (error) {
+  if (TxError.is(error, "SUBMIT_FAILED", "CONFIRM_TIMEOUT")) {
+    // the outcome is unknown: call submit() or awaitInclusion() again on this same built
+  } else throw error;
+}
 ```
 
-## Troubleshooting
-
-### "Insufficient funds" error
-- Ensure UTXOs have enough ADA to cover outputs + fees + min UTxO values
-- Check that `selectUtxosFrom` is provided with current UTXOs
-- For native asset outputs, ensure minimum ADA (typically ~1.5 ADA) is included
-
-### "Missing input" error
-- The `fetcher` provider is required for automatic UTXO data fetching
-- If using manual `txIn`, provide all four parameters (txHash, index, amount, address)
-
-### Transaction too large
-- Split into multiple transactions
-- Reduce the number of outputs
-- Use UTXO consolidation first
-
-### Invalid slot number
-- Ensure you're using the correct network in `resolveSlotNo`
-- Mainnet and testnets have different slot calculations
-
-### Multi-sig transaction fails
-- Ensure `partialSign: true` is set for all signers except the last
-- Verify all required signers have signed
-- Check that signing order doesn't matter (unless script requires specific order)
+| Code | Meaning | Fix |
+|------|---------|-----|
+| `MISSING_PAYER` | `build()` got no `payer` | Pass `{ payer }` |
+| `INSUFFICIENT_FUNDS` | the payer's UTxOs cannot pay | `error.details` names the unit and the amount missing |
+| `OUTPUT_BELOW_MIN_COIN` | an output holds less lovelace than the ledger requires | Add lovelace, or leave `lovelace` out |
+| `DUPLICATE_PART` | the same input, policy or voter twice, or a part that is held once given twice | Give each part once |
+| `TX_TOO_LARGE` | the transaction is over the size limit | Split it into several transactions |
+| `MISSING_PARAMETER` | no protocol parameters, cost models or deposits | Give a `provider`, or `params`, `costModels` or `deposits` |
+| `NETWORK_MISMATCH` | an address, wallet or provider is on another network than `network` | Use one network everywhere |
+| `MISSING_SIGNATURES` | a key has not signed, and nothing was sent | Name the signer; `built.missing` lists the keys |
+| `SUBMIT_FAILED`, `CONFIRM_TIMEOUT` | the outcome is unknown | Call `submit()` or `awaitInclusion()` again on the same `BuiltTx` |
+| `CANNOT_OBSERVE` | the provider returns no block heights or validity flag | See the Note under Plan Several Transactions |
 
 ## Related
 
-- <Link href="/apis/txbuilder/minting">Minting Tokens</Link> - Mint native assets
-- <Link href="/apis/txbuilder/smart-contracts">Smart Contracts</Link> - Interact with Plutus scripts
-- <Link href="/apis/txbuilder/staking">Staking</Link> - Delegation and rewards
-- <Link href="/apis/txbuilder/governance">Governance</Link> - Voting and proposals
-- <Link href="/providers/blockfrost">Blockfrost Provider</Link> - Provider setup
-- <Link href="/apis/txbuilder/migration">Migrating to TxBuilder</Link> - Move to the new builder
+- [Mint and Burn Assets](/apis/txbuilder/minting) - mint and burn with native and Plutus scripts
+- [Smart Contracts](/apis/txbuilder/smart-contracts) - lock and unlock funds at a script
+- [Staking Transactions](/apis/txbuilder/staking) - register, delegate and withdraw
+- [Governance Transactions](/apis/txbuilder/governance) - DReps, votes and proposals
+- [Migrating to TxBuilder](/apis/txbuilder/migration) - move from the `MeshTxBuilder` chain
+- [Package README](https://github.com/MeshJS/mesh/tree/main/packages/mesh-transaction) - every part, option and error

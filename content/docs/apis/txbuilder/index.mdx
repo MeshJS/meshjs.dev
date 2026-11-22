@@ -1,6 +1,6 @@
 ---
 title: "Cardano Transaction Builder"
-description: "Build Cardano transactions with fine-grained control using low-level APIs."
+description: "Build Cardano transactions from parts with TxBuilder: it selects inputs, adds change and sets the fee."
 icon: BanknotesIcon
 ---
 
@@ -12,49 +12,45 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 
-> **Note:** `MeshTxBuilder` is deprecated but still works. New code uses `TxBuilder`, which takes a list of parts instead of a chain of calls. See [Migrating to TxBuilder](/apis/txbuilder/migration).
+> **Note:** Coming from `MeshTxBuilder`, the chain of calls? It is deprecated but still works. See [Migrating to TxBuilder](/apis/txbuilder/migration).
 
 ## Overview
 
-`MeshTxBuilder` is a powerful, low-level API for constructing Cardano transactions. It provides complete control over every aspect of transaction building, from simple ADA transfers to complex smart contract interactions, staking operations, and governance actions.
-
-**When to use MeshTxBuilder:**
-- Building custom transaction logic beyond standard transfers
-- Creating multi-signature transactions
-- Minting and burning native assets
-- Interacting with Plutus smart contracts
-- Managing stake delegation and rewards
-- Participating in on-chain governance
+`TxBuilder` builds a Cardano transaction from a list of parts, such as `output(...)` or `mint.native(...)`. You name a payer, and the builder selects inputs, adds change and sets the fee; for scripts it also adds collateral and execution units. Then you sign and submit. Examples use `wallet` (a [wallet](/apis/wallets): a `MeshWallet` or `BrowserWallet`) and `recipient` (an address) from your application.
 
 ## Quick Start
 
 ```tsx
-import { MeshTxBuilder, BlockfrostProvider } from "@meshsdk/core";
+import { BlockfrostProvider, output, TxBuilder } from "@meshsdk/core";
 
-// Initialize provider and builder
+// A provider reads the chain
 const provider = new BlockfrostProvider("<YOUR_API_KEY>");
-const txBuilder = new MeshTxBuilder({
-  fetcher: provider,
-  verbose: true,
-});
+const builder = new TxBuilder({ network: "preprod", provider });
 
-// Get wallet data
-const utxos = await wallet.getUtxos();
-const changeAddress = await wallet.getChangeAddress();
+// Build: the builder picks inputs, adds change and sets the fee
+const built = await builder.build(
+  output({ address: recipient, value: { lovelace: 5_000_000n } }), // 5 ada
+  { payer: wallet },
+);
 
-// Build a simple transfer
-const unsignedTx = await txBuilder
-  .txOut("addr_test1qz...", [{ unit: "lovelace", quantity: "5000000" }])
-  .changeAddress(changeAddress)
-  .selectUtxosFrom(utxos)
-  .complete();
-
-// Sign and submit
-const signedTx = await wallet.signTx(unsignedTx);
-const txHash = await wallet.submitTx(signedTx);
+await built.sign(); // the payer signs
+await built.submit(); // sent through the provider
+console.log(built.txHash);
 ```
 
-## Documentation
+`TxBuilder` lives in `@meshsdk/transaction`, and `@meshsdk/core` re-exports it. Amounts are `bigint`. `built.tx` is the unsigned transaction as a hex string (CBOR). For other providers, see [Providers](/providers).
+
+## Which Part for What
+
+| Part | Use it to |
+|------|-----------|
+| `output`, `metadata`, `message`, `validity`, `guard.pubKey` | send assets, add metadata, set validity, require a signer |
+| `mint.native`, `mint.plutus` | mint and burn assets |
+| `spend.plutus`, `spend.native`, `referenceInput` | lock and spend at a script, read an output |
+| `certificate.*`, `withdrawal.*` | stake, delegate and withdraw rewards |
+| `vote`, `proposal.*` | take part in governance |
+
+## Pick a Task
 
 <div className="grid md:grid-cols-2 gap-6 items-stretch">
   {linksTxbuilder.map((card) => (
@@ -69,6 +65,8 @@ const txHash = await wallet.submitTx(signedTx);
 
 ## Related
 
-- <Link href="/apis/txparser">Transaction Parser</Link> - Parse and test transactions
-- <Link href="/providers">Providers</Link> - Blockchain data providers
-- <Link href="/apis/wallets">Wallets</Link> - Wallet integration options
+- [Migrating to TxBuilder](/apis/txbuilder/migration) - move from the `MeshTxBuilder` chain
+- [Transaction Parser](/apis/txparser) - parse and test transactions
+- [Providers](/providers) - blockchain data providers
+- [Wallets](/apis/wallets) - wallet integration options
+- [Package README](https://github.com/MeshJS/mesh/tree/main/packages/mesh-transaction) - every part, option and error

@@ -3,27 +3,27 @@ import { BanknotesIcon } from "@heroicons/react/24/solid";
 export const metaTxbuilderBasic = {
   link: `/apis/txbuilder/basics`,
   title: "Transaction Basics",
-  desc: "Working with transactions and their various options",
+  desc: "Payer, outputs, metadata, validity, signing and submitting",
 };
 export const metaTxbuilderMinting = {
   link: `/apis/txbuilder/minting`,
   title: "Mint and Burn Assets",
-  desc: "Minting and burning assets with Native Script and Plutus Script",
+  desc: "Mint and burn assets with native and Plutus scripts",
 };
 export const metaTxbuilderSmartContract = {
-  link: `/apis/txbuilder/smart-contract`,
+  link: `/apis/txbuilder/smart-contracts`,
   title: "Smart Contracts",
-  desc: "Transactions to work with smart contracts",
+  desc: "Lock, spend and read outputs at a script address",
 };
 export const metaTxbuilderStaking = {
   link: `/apis/txbuilder/staking`,
   title: "Staking Transactions",
-  desc: "Transactions for delegating ADA and managing stake pools",
+  desc: "Register, delegate, withdraw and manage a pool",
 };
 export const metaTxbuilderGovernance = {
   link: `/apis/txbuilder/governance`,
   title: "Governance Transactions",
-  desc: "Transactions for participating in Cardano's on-chain governance",
+  desc: "Register as a DRep, vote and submit proposals",
 };
 export const metaTxbuilderMigration = {
   link: `/apis/txbuilder/migration`,
@@ -42,7 +42,7 @@ export const linksTxbuilder = [
 
 export const metaTxbuilder = {
   title: "Transaction Builder",
-  desc: "Build and sign Cardano transactions with automatic UTXO selection and fee calculation.",
+  desc: "Build and sign Cardano transactions with automatic UTxO selection and fee calculation.",
   link: "/apis/txbuilder",
   icon: BanknotesIcon,
   items: linksTxbuilder,
