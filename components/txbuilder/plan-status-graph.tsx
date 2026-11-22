@@ -11,6 +11,11 @@ const BOX_W = 88;
 const BOX_H = 36;
 const GAP = 4; // distance between the two borders of a terminal status
 
+// Every text sits on the alphabetic baseline, never on dominant-baseline "central": WebKit
+// and Chrome work "central" out differently, so the same label stood at different heights.
+// The y of a text names the middle of its line; the baseline lies 0.35em below it.
+const lineBase = (mid: number, fs: number) => mid + 0.35 * fs;
+
 function Arrowhead({ id }: { id: string }) {
   return (
     <marker
@@ -67,9 +72,8 @@ function Status({
       )}
       <text
         x={cx}
-        y={cy}
+        y={lineBase(cy, 14)}
         textAnchor="middle"
-        dominantBaseline="central"
         fontSize={14}
         className="fill-fd-foreground font-mono"
       >
@@ -153,11 +157,11 @@ function Legend({
   return (
     <g className="fill-fd-foreground/70" fontSize={13}>
       <Edge d={`M ${at(0)} ${row(0)} h 40`} kind="call" marker={marker} />
-      <text x={at(0) + 52} y={row(0)} dominantBaseline="central">
+      <text x={at(0) + 52} y={lineBase(row(0), 13)}>
         a call
       </text>
       <Edge d={`M ${at(120)} ${row(1)} h 40`} kind="chain" marker={marker} />
-      <text x={at(120) + 52} y={row(1)} dominantBaseline="central">
+      <text x={at(120) + 52} y={lineBase(row(1), 13)}>
         what the chain shows
       </text>
       <rect
@@ -178,7 +182,7 @@ function Legend({
         strokeWidth={1.5}
         className="fill-none stroke-fd-muted-foreground"
       />
-      <text x={at(340) + 52} y={row(2)} dominantBaseline="central">
+      <text x={at(340) + 52} y={lineBase(row(2), 13)}>
         never changes
       </text>
     </g>
@@ -252,7 +256,7 @@ export function StepStatusGraph() {
         <Edge d={`M ${x.sent + half + 2} ${row} H ${x.included - half - 2}`} kind="chain" marker={STEP_ARROW} main />
         <Label x={(x.sent + x.included) / 2} y={row - 10} lines={["in a block"]} kind="chain" />
         <Edge d={`M ${x.included + half + 2} ${row} H ${x.final - half - GAP - 2}`} kind="chain" marker={STEP_ARROW} main />
-        <Label x={(x.included + x.final) / 2} y={row - 24} lines={["confirmations", "on top"]} kind="chain" />
+        <Label x={(x.included + x.final) / 2} y={row - 25} lines={["confirmations", "on top"]} kind="chain" />
 
         {/* sent and rejected */}
         <Edge d={`M ${x.sent - 16} ${row - BOX_H / 2 - 2} V ${48 + BOX_H / 2 + 2}`} kind="call" marker={STEP_ARROW} />
@@ -348,7 +352,7 @@ export function PlanStatusGraph() {
           kind="call"
           marker={PLAN_ARROW}
         />
-        <Label x={(x.pending + x.stopping - half) / 2 - 2} y={mid - 8} lines={["stop(), replan()"]} kind="call" />
+        <Label x={(x.pending + x.stopping - half) / 2 - 2} y={mid - 10} lines={["stop(), replan()"]} kind="call" />
 
         {/* pending to stopping: a step will not land while another is not final yet */}
         <Edge

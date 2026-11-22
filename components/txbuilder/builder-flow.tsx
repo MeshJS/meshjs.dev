@@ -7,17 +7,36 @@
 // for a column under 600px, so a phone never has to scroll the scheme sideways.
 
 import Link from "next/link";
+import { useLayoutEffect, useRef, useState } from "react";
 
 const B = "/apis/txbuilder";
 
 const GAP = 4; // distance between the two borders of a terminal box
 const TIP = 4; // the arrowhead tip lies this far beyond the end of its line
 const END = 2 + TIP; // a line ends this far before the box it points at: air plus the arrowhead
+// Another path has a smaller head (7 long). Its colour is translucent in the dark theme, so the
+// line stops where the head begins (they overlap by LAP, so no seam shows) instead of running
+// under it: laid twice, the colour would show as a brighter patch inside the head.
+const HEAD_THIN = 7;
+const LAP = 0.5;
+const END_THIN = 2 + HEAD_THIN - LAP;
 const LINK = "group/link cursor-pointer outline-none"; // the focus ring is drawn by Ring
 const BOX = "fill-fd-card stroke-fd-muted-foreground group-hover/link:fill-fd-accent group-hover/link:stroke-fd-foreground";
 
 const WIDE_ARROW = "bf-arrow-wide";
 const NARROW_ARROW = "bf-arrow-narrow";
+
+// Every text sits on the alphabetic baseline, never on dominant-baseline "central": WebKit works
+// "central" out for each font, Chrome for each text element, so a line that mixes prose and code
+// came out with its pieces at different heights. The y of a text names the middle of its line;
+// the baseline lies 0.35em below it, in every engine.
+const BASELINE = 0.35;
+const lineBase = (mid: number, fs: number) => mid + BASELINE * fs;
+const CAP = 15; // size of a caption and of the title of a box; the texts on its row share its baseline
+
+// Boxes 1 and 2 stand on one row grid, in both layouts: the title, row 1, row 2 and the link
+// row are at the same height in both boxes.
+const ROW = { title: 28, one: 58, two: 86, link: 114 };
 
 // ---------------------------------------------------------------- content, shared by both layouts
 
@@ -140,26 +159,47 @@ const LABEL =
 
 // ---------------------------------------------------------------- drawing pieces
 
-function Arrowhead({ id }: { id: string }) {
-  // refX 6 of 10: the line ends under the head, the tip lies TIP beyond the end of the line
+function Arrowhead({ id, thin = false }: { id: string; thin?: boolean }) {
+  // The head of the usual path is 10 long and the line ends under it, the tip TIP beyond the
+  // end of the line. The head of another path is HEAD_THIN long and starts where its line ends.
+  // Each head has the colour of its line.
+  const size = thin ? HEAD_THIN : 10;
   return (
-    <marker id={id} viewBox="0 0 10 10" refX={10 - TIP} refY="5" markerWidth="10" markerHeight="10" markerUnits="userSpaceOnUse" orient="auto">
-      <path d="M0 0.5 L10 5 L0 9.5 z" fill="currentColor" />
+    <marker
+      id={id}
+      viewBox="0 0 10 10"
+      refX={thin ? (LAP * 10) / HEAD_THIN : 10 - TIP}
+      refY="5"
+      markerWidth={size}
+      markerHeight={size}
+      markerUnits="userSpaceOnUse"
+      orient="auto"
+    >
+      <path d="M0 0.5 L10 5 L0 9.5 z" className={thin ? "fill-fd-muted-foreground" : "fill-fd-foreground"} />
     </marker>
   );
 }
 
+const thinId = (marker: string) => `${marker}-thin`; // the id of the smaller head of another path
+
 function Edge({ d, marker, main = false }: { d: string; marker: string; main?: boolean }) {
-  // main: the usual path, a heavier line
-  return <path d={d} fill="none" stroke="currentColor" strokeWidth={main ? 3 : 1.5} markerEnd={`url(#${marker})`} />;
+  // main: the usual path, a thick line in the text colour. Another path: a thin line in the
+  // muted colour of the captions, with a smaller head of the same colour. No dashes: in the
+  // status graphs a dashed line means what the chain shows.
+  return main ? (
+    <path d={d} fill="none" stroke="currentColor" strokeWidth={3} markerEnd={`url(#${marker})`} />
+  ) : (
+    <path d={d} fill="none" strokeWidth={1.25} className="stroke-fd-muted-foreground" markerEnd={`url(#${thinId(marker)})`} />
+  );
 }
 
 // Lines that stop short of the box they point at.
-const hLine = (from: number, to: number, y: number) => `M ${from + 2} ${y} H ${to - END}`;
-const vLine = (x: number, from: number, to: number) => `M ${x} ${from + 2} V ${to - END}`;
+// `end` is END, or END_THIN for another path.
+const hLine = (from: number, to: number, y: number, end = END) => `M ${from + 2} ${y} H ${to - end}`;
+const vLine = (x: number, from: number, to: number, end = END) => `M ${x} ${from + 2} V ${to - end}`;
 // From a vertical spine, round the corner and go right to a box.
-const elbow = (spine: number, y0: number, cy: number, boxX: number) =>
-  `M ${spine} ${y0} V ${cy - 12} Q ${spine} ${cy} ${spine + 12} ${cy} H ${boxX - END}`;
+const elbow = (spine: number, y0: number, cy: number, boxX: number, end = END) =>
+  `M ${spine} ${y0} V ${cy - 12} Q ${spine} ${cy} ${spine + 12} ${cy} H ${boxX - end}`;
 
 // The focus ring: drawn only for keyboard focus, so it shows in every browser.
 function Ring({ x, y, w, h, r = 6 }: { x: number; y: number; w: number; h: number; r?: number }) {
@@ -176,6 +216,78 @@ function Ring({ x, y, w, h, r = 6 }: { x: number; y: number; w: number; h: numbe
   );
 }
 
+// The name of a link, underlined by a line of our own instead of text-decoration: Chrome breaks
+// the decoration of SVG text beside every descender and ignores text-decoration-skip-ink there,
+// and each engine puts it at another depth, so one name was underlined in three ways. The line
+// is as long as the text (measured in the browser, again when the svg is shown or resized and
+// when the fonts arrive), lies UNDERLINE of the font size below the baseline, and spans all the
+// tspans of the name. Until it is measured (the server render, an svg that is hidden) the name
+// carries the CSS underline, so it is never bare. `y` is the baseline.
+const UNDERLINE = 0.25;
+function LinkName({
+  x,
+  y,
+  anchor = "start",
+  fontSize,
+  hover = false,
+  className,
+  children,
+}: {
+  x: number;
+  y: number;
+  anchor?: "start" | "middle" | "end";
+  fontSize: number;
+  hover?: boolean; // the line turns muted with the text, as the link is hovered
+  className: string;
+  children: React.ReactNode;
+}) {
+  const ref = useRef<SVGTextElement>(null);
+  const [span, setSpan] = useState<[number, number] | null>(null);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    let alive = true;
+    const measure = () => {
+      if (!alive) return;
+      let next: [number, number] | null = null;
+      try {
+        const b = el.getBBox(); // zero while the svg is not displayed
+        if (b.width > 0) next = [b.x, b.x + b.width];
+      } catch {
+        // an engine that cannot measure a hidden text: the CSS underline stays
+      }
+      setSpan((prev) => (prev && next && prev[0] === next[0] && prev[1] === next[1] ? prev : next));
+    };
+    measure();
+    const svg = el.ownerSVGElement;
+    const observer = svg && typeof ResizeObserver !== "undefined" ? new ResizeObserver(measure) : null;
+    if (svg) observer?.observe(svg);
+    document.fonts?.ready.then(measure);
+    return () => {
+      alive = false;
+      observer?.disconnect();
+    };
+  }, [x, y, anchor, fontSize]);
+  const ly = y + UNDERLINE * fontSize;
+  return (
+    <>
+      <text ref={ref} x={x} y={y} textAnchor={anchor} fontSize={fontSize} className={span ? className : `${className} underline`}>
+        {children}
+      </text>
+      {span && (
+        <line
+          x1={span[0]}
+          x2={span[1]}
+          y1={ly}
+          y2={ly}
+          strokeWidth={1}
+          className={hover ? "stroke-fd-foreground group-hover/link:stroke-fd-muted-foreground" : "stroke-fd-foreground"}
+        />
+      )}
+    </>
+  );
+}
+
 // A link made of one line of words. `width` is the width of the text (measured in the
 // browser), used for the focus ring and the hover area.
 function TextLink({
@@ -186,6 +298,7 @@ function TextLink({
   width,
   anchor = "start",
   fontSize = 13,
+  lineFs,
   semibold = false,
   children,
 }: {
@@ -196,6 +309,7 @@ function TextLink({
   width: number;
   anchor?: "start" | "end";
   fontSize?: number;
+  lineFs?: number; // the size of the biggest text on this row: its baseline is the baseline of the row
   semibold?: boolean;
   children: React.ReactNode;
 }) {
@@ -205,16 +319,16 @@ function TextLink({
       <title>{title}</title>
       <rect x={left - 4} y={y - fontSize} width={width + 8} height={2 * fontSize} rx={6} className="fill-transparent" />
       <Ring x={left - 4} y={y - fontSize} w={width + 8} h={2 * fontSize} />
-      <text
+      <LinkName
         x={x}
-        y={y}
-        textAnchor={anchor}
-        dominantBaseline="central"
+        y={lineBase(y, lineFs ?? fontSize)}
+        anchor={anchor}
         fontSize={fontSize}
-        className={`fill-fd-foreground underline underline-offset-4 group-hover/link:fill-fd-muted-foreground ${semibold ? "font-semibold" : ""}`}
+        hover
+        className={`fill-fd-foreground group-hover/link:fill-fd-muted-foreground ${semibold ? "font-semibold" : ""}`}
       >
         {children}
-      </text>
+      </LinkName>
     </Link>
   );
 }
@@ -267,12 +381,12 @@ function NodeLink({
         />
       )}
       {names.map((line, i) => (
-        <text key={line} x={cx} y={first + i * lh} textAnchor="middle" dominantBaseline="central" fontSize={13} className="fill-fd-foreground underline underline-offset-4">
+        <LinkName key={line} x={cx} y={lineBase(first + i * lh, 13)} anchor="middle" fontSize={13} className="fill-fd-foreground">
           {line}
-        </text>
+        </LinkName>
       ))}
       {codes.map((line, i) => (
-        <text key={line} x={cx} y={first + (names.length + i) * lh} textAnchor="middle" dominantBaseline="central" fontSize={codeSize} className="fill-fd-foreground font-mono">
+        <text key={line} x={cx} y={lineBase(first + (names.length + i) * lh, codeSize)} textAnchor="middle" fontSize={codeSize} className="fill-fd-foreground font-mono">
           {line}
         </text>
       ))}
@@ -300,11 +414,12 @@ function RowLink({ step, x, y, w, h }: { step: Step; x: number; y: number; w: nu
           className="fill-none stroke-fd-muted-foreground group-hover/link:stroke-fd-foreground"
         />
       )}
-      <text x={x + 14} y={cy} dominantBaseline="central" fontSize={13} className="fill-fd-foreground underline underline-offset-4">
+      {/* the name and the code are one row: they stand on one baseline */}
+      <LinkName x={x + 14} y={lineBase(cy, 13)} fontSize={13} className="fill-fd-foreground">
         {step.name}
-      </text>
+      </LinkName>
       {step.code && (
-        <text x={x + w - 14} y={cy} textAnchor="end" dominantBaseline="central" fontSize={12} className="fill-fd-foreground font-mono">
+        <text x={x + w - 14} y={lineBase(cy, 13)} textAnchor="end" fontSize={12} className="fill-fd-foreground font-mono">
           {step.code}
         </text>
       )}
@@ -318,22 +433,23 @@ function Badge({ cx, cy, n }: { cx: number; cy: number; n: number }) {
   return (
     <g>
       <circle cx={cx} cy={cy} r={11} strokeWidth={1.5} className="fill-none stroke-fd-muted-foreground" />
-      <text x={cx} y={cy} textAnchor="middle" dominantBaseline="central" fontSize={12} className="fill-fd-foreground font-mono">
+      <text x={cx} y={lineBase(cy, 12)} textAnchor="middle" fontSize={12} className="fill-fd-foreground font-mono">
         {n}
       </text>
     </g>
   );
 }
 
-function Legend({ x, y, marker }: { x: number; y: number; marker: string }) {
+// The two kinds of path, drawn as in the scheme. The arrows are at the middle of the row, the words stand on its baseline.
+function Legend({ x, y, marker, lineFs = 13 }: { x: number; y: number; marker: string; lineFs?: number }) {
   return (
     <g className="fill-fd-foreground/70" fontSize={13}>
       <Edge d={`M ${x} ${y} h 30`} marker={marker} main />
-      <text x={x + 42} y={y} dominantBaseline="central">
+      <text x={x + 42} y={lineBase(y, lineFs)}>
         usual path
       </text>
       <Edge d={`M ${x + 136} ${y} h 30`} marker={marker} />
-      <text x={x + 178} y={y} dominantBaseline="central">
+      <text x={x + 178} y={lineBase(y, lineFs)}>
         another path
       </text>
     </g>
@@ -342,15 +458,15 @@ function Legend({ x, y, marker }: { x: number; y: number; marker: string }) {
 
 function Caption({ x, y, children }: { x: number; y: number; children: React.ReactNode }) {
   return (
-    <text x={x} y={y} dominantBaseline="central" fontSize={15} className="fill-fd-foreground font-semibold">
+    <text x={x} y={lineBase(y, CAP)} fontSize={CAP} className="fill-fd-foreground font-semibold">
       {children}
     </text>
   );
 }
 
-function Sub({ x, y, children }: { x: number; y: number; children: React.ReactNode }) {
+function Sub({ x, y, lineFs = 13, children }: { x: number; y: number; lineFs?: number; children: React.ReactNode }) {
   return (
-    <text x={x} y={y} dominantBaseline="central" fontSize={13} className="fill-fd-foreground/70">
+    <text x={x} y={lineBase(y, lineFs)} fontSize={13} className="fill-fd-foreground/70">
       {children}
     </text>
   );
@@ -376,6 +492,56 @@ function Frame({ children, note }: { children: React.ReactNode; note: string }) 
       </p>
       <p className="mt-2 text-sm text-fd-muted-foreground">{note}</p>
     </div>
+  );
+}
+
+// ---------------------------------------------------------------- boxes 1 and 2, the same in both layouts
+
+type Place = { x: number; y: number; w: number; h: number };
+
+// 1: create a builder
+function CreateBox({ x, y, w, h }: Place) {
+  return (
+    <g>
+      <title>Create a builder</title>
+      <rect x={x} y={y} width={w} height={h} rx={8} strokeWidth={1.5} className="fill-fd-card stroke-fd-muted-foreground" />
+      <Badge cx={x + 24} cy={y + ROW.title} n={1} />
+      <TextLink {...L.create} x={x + 46} y={y + ROW.title} width={115} fontSize={CAP} semibold>
+        Create a builder
+      </TextLink>
+      <text x={x + 24} y={lineBase(y + ROW.one, 13)} fontSize={13} className="fill-fd-foreground font-mono">
+        new TxBuilder({"{"} network, provider {"}"})
+      </text>
+      <TextLink {...L.networks} x={x + 24} y={y + ROW.two} width={147}>
+        Networks and providers
+      </TextLink>
+      <TextLink {...L.offline} x={x + 24} y={y + ROW.link} width={258}>
+        Offline, no provider: <tspan className="font-mono">params</tspan>, <tspan className="font-mono">costModels</tspan>
+      </TextLink>
+    </g>
+  );
+}
+
+// 2: who pays
+function PayerBox({ x, y, w, h }: Place) {
+  return (
+    <g>
+      <title>Who pays</title>
+      <rect x={x} y={y} width={w} height={h} rx={8} strokeWidth={1.5} className="fill-fd-card stroke-fd-muted-foreground" />
+      <Badge cx={x + 24} cy={y + ROW.title} n={2} />
+      <TextLink {...L.payer} x={x + 46} y={y + ROW.title} width={72} fontSize={CAP} semibold>
+        Who pays
+      </TextLink>
+      <text x={x + 24} y={lineBase(y + ROW.one, 13)} fontSize={13} className="fill-fd-foreground">
+        <tspan className="font-mono">{"{ payer }"}</tspan> of each call: a wallet, an address,
+      </text>
+      <text x={x + 24} y={lineBase(y + ROW.two, 13)} fontSize={13} className="fill-fd-foreground">
+        or your own <tspan className="font-mono">{"{ changeAddress, utxos }"}</tspan>
+      </text>
+      <TextLink {...L.signers} x={x + 24} y={y + ROW.link} width={134}>
+        Signers and submitter
+      </TextLink>
+    </g>
   );
 }
 
@@ -407,7 +573,7 @@ function WideScheme() {
   ];
   const last = col.length - 2;
   const arrowsA = col.slice(0, -1).map((c, i) => hLine(c.x + c.w, col[i + 1].x, laneA.cy));
-  const arrowsB = col.slice(0, -1).map((c, i) => hLine(c.x + c.w, col[i + 1].x - (i === last ? GAP : 0), laneB.cy));
+  const arrowsB = col.slice(0, -1).map((c, i) => hLine(c.x + c.w, col[i + 1].x - (i === last ? GAP : 0), laneB.cy, END_THIN));
 
   return (
     <svg
@@ -419,13 +585,14 @@ function WideScheme() {
       <title>Working with TxBuilder</title>
       <defs>
         <Arrowhead id={M} />
+        <Arrowhead id={thinId(M)} thin />
       </defs>
 
       {/* arrows first, so the boxes sit on top of their ends */}
       <Edge marker={M} main d={hLine(box1.x + box1.w, box2.x, row1.y + row1.h / 2)} />
       <Edge marker={M} main d={vLine(box2.x + box2.w / 2, row1.y + row1.h, parts.y)} />
       {/* from the parts to the two lanes */}
-      <Edge marker={M} d={elbow(spine, laneA.cy - 12, laneB.cy, col[0].x)} />
+      <Edge marker={M} d={elbow(spine, laneA.cy - 12, laneB.cy, col[0].x, END_THIN)} />
       <Edge marker={M} main d={elbow(spine, parts.y + parts.h + 2, laneA.cy, col[0].x)} />
       {arrowsA.map((d) => (
         <Edge key={d} marker={M} d={d} main />
@@ -434,43 +601,9 @@ function WideScheme() {
         <Edge key={d} marker={M} d={d} />
       ))}
 
-      {/* 1: create a builder */}
-      <g>
-        <title>Create a builder</title>
-        <rect x={box1.x} y={row1.y} width={box1.w} height={row1.h} rx={8} strokeWidth={1.5} className="fill-fd-card stroke-fd-muted-foreground" />
-        <Badge cx={box1.x + 24} cy={row1.y + 28} n={1} />
-        <TextLink {...L.create} x={box1.x + 46} y={row1.y + 28} width={115} fontSize={15} semibold>
-          Create a builder
-        </TextLink>
-        <text x={box1.x + 24} y={row1.y + 58} dominantBaseline="central" fontSize={13} className="fill-fd-foreground font-mono">
-          new TxBuilder({"{"} network, provider {"}"})
-        </text>
-        <TextLink {...L.networks} x={box1.x + 24} y={row1.y + 88} width={147}>
-          Networks and providers
-        </TextLink>
-        <TextLink {...L.offline} x={box1.x + 24} y={row1.y + 114} width={258}>
-          Offline, no provider: <tspan className="font-mono">params</tspan>, <tspan className="font-mono">costModels</tspan>
-        </TextLink>
-      </g>
-
-      {/* 2: who pays */}
-      <g>
-        <title>Who pays</title>
-        <rect x={box2.x} y={row1.y} width={box2.w} height={row1.h} rx={8} strokeWidth={1.5} className="fill-fd-card stroke-fd-muted-foreground" />
-        <Badge cx={box2.x + 24} cy={row1.y + 28} n={2} />
-        <TextLink {...L.payer} x={box2.x + 46} y={row1.y + 28} width={72} fontSize={15} semibold>
-          Who pays
-        </TextLink>
-        <text x={box2.x + 24} y={row1.y + 58} dominantBaseline="central" fontSize={13} className="fill-fd-foreground">
-          <tspan className="font-mono">{"{ payer }"}</tspan> of each call: a wallet, an address,
-        </text>
-        <text x={box2.x + 24} y={row1.y + 77} dominantBaseline="central" fontSize={13} className="fill-fd-foreground">
-          or your own <tspan className="font-mono">{"{ changeAddress, utxos }"}</tspan>
-        </text>
-        <TextLink {...L.signers} x={box2.x + 24} y={row1.y + 114} width={134}>
-          Signers and submitter
-        </TextLink>
-      </g>
+      {/* 1: create a builder, 2: who pays */}
+      <CreateBox x={box1.x} y={row1.y} w={box1.w} h={row1.h} />
+      <PayerBox x={box2.x} y={row1.y} w={box2.w} h={row1.h} />
 
       {/* 3: the parts */}
       <rect x={20} y={parts.y} width={860} height={parts.h} rx={12} strokeWidth={1.2} strokeDasharray="2 4" className="fill-none stroke-fd-muted-foreground" />
@@ -478,10 +611,10 @@ function WideScheme() {
       <Caption x={66} y={parts.y + 28}>
         Parts
       </Caption>
-      <Sub x={116} y={parts.y + 28}>
+      <Sub x={116} y={parts.y + 28} lineFs={CAP}>
         one part or a list; the builder picks inputs, adds change and sets the fee
       </Sub>
-      <TextLink {...L.which} x={864} y={parts.y + 28} anchor="end" width={121}>
+      <TextLink {...L.which} x={864} y={parts.y + 28} anchor="end" width={121} lineFs={CAP}>
         Which part for what
       </TextLink>
       {PARTS.map((c, i) => (
@@ -504,10 +637,10 @@ function WideScheme() {
       <Caption x={98} y={laneA.cap}>
         One transaction
       </Caption>
-      <Sub x={236} y={laneA.cap}>
+      <Sub x={236} y={laneA.cap} lineFs={CAP}>
         build, sign and send; you follow the outcome
       </Sub>
-      <Legend x={604} y={laneA.cap} marker={M} />
+      <Legend x={604} y={laneA.cap} marker={M} lineFs={CAP} />
       {ONE_TX.map((s, i) => (
         <NodeLink key={s.name} href={s.href} title={s.title} x={col[i].x} y={laneA.y} w={col[i].w} h={NH} names={[s.name]} codes={s.code ? [s.code] : []} codeSize={s.codeSize} skipTab={s.skipTab} />
       ))}
@@ -517,10 +650,10 @@ function WideScheme() {
       <Caption x={98} y={laneB.cap}>
         Or a plan
       </Caption>
-      <Sub x={174} y={laneB.cap}>
+      <Sub x={174} y={laneB.cap} lineFs={CAP}>
         one or several transactions, sent in order, never rebuilt
       </Sub>
-      <TextLink {...L.provider} x={864} y={laneB.cap} anchor="end" width={221}>
+      <TextLink {...L.provider} x={864} y={laneB.cap} anchor="end" width={221} lineFs={CAP}>
         Needs a provider with block heights
       </TextLink>
       {A_PLAN.map((s, i) => (
@@ -548,7 +681,7 @@ function WideScheme() {
 
       {/* 6: around the flow */}
       <Badge cx={31} cy={around.cap} n={6} />
-      <text x={50} y={around.cap} dominantBaseline="central" fontSize={13} className="fill-fd-foreground/70 italic">
+      <text x={50} y={lineBase(around.cap, 13)} fontSize={13} className="fill-fd-foreground/70 italic">
         Around the flow
       </text>
       {AROUND.map((a, i) => (
@@ -591,7 +724,7 @@ function NarrowScheme() {
   const H = rowsC[2] + heights[2] + 16;
 
   const arrowsA = ONE_TX.slice(0, -1).map((_, i) => vLine(bx + bw / 2, rowY(yA, i) + RH, rowY(yA, i + 1)));
-  const arrowsB = A_PLAN.slice(0, -1).map((_, i) => vLine(bx + bw / 2, rowY(yB, i) + RH, rowY(yB, i + 1) - (i === 3 ? GAP : 0)));
+  const arrowsB = A_PLAN.slice(0, -1).map((_, i) => vLine(bx + bw / 2, rowY(yB, i) + RH, rowY(yB, i + 1) - (i === 3 ? GAP : 0), END_THIN));
   const chipX = (i: number) => 19 + (i % 3) * 116;
   const chipY = (i: number) => yParts + 88 + Math.floor(i / 3) * 72;
 
@@ -605,12 +738,13 @@ function NarrowScheme() {
       <title>Working with TxBuilder</title>
       <defs>
         <Arrowhead id={M} />
+        <Arrowhead id={thinId(M)} thin />
       </defs>
 
       {/* arrows first, so the boxes sit on top of their ends */}
       <Edge marker={M} main d={vLine(box.x + box.w / 2, y1 + box.h, y2)} />
       <Edge marker={M} main d={vLine(box.x + box.w / 2, y2 + box.h, yParts)} />
-      <Edge marker={M} d={elbow(spine, rowY(yA, 0) + RH / 2 - 12, rowY(yB, 0) + RH / 2, bx)} />
+      <Edge marker={M} d={elbow(spine, rowY(yA, 0) + RH / 2 - 12, rowY(yB, 0) + RH / 2, bx, END_THIN)} />
       <Edge marker={M} main d={elbow(spine, yParts + partsH + 2, rowY(yA, 0) + RH / 2, bx)} />
       {arrowsA.map((d) => (
         <Edge key={d} marker={M} d={d} main />
@@ -619,43 +753,9 @@ function NarrowScheme() {
         <Edge key={d} marker={M} d={d} />
       ))}
 
-      {/* 1: create a builder */}
-      <g>
-        <title>Create a builder</title>
-        <rect x={box.x} y={y1} width={box.w} height={box.h} rx={8} strokeWidth={1.5} className="fill-fd-card stroke-fd-muted-foreground" />
-        <Badge cx={box.x + 24} cy={y1 + 28} n={1} />
-        <TextLink {...L.create} x={box.x + 46} y={y1 + 28} width={115} fontSize={15} semibold>
-          Create a builder
-        </TextLink>
-        <text x={box.x + 24} y={y1 + 58} dominantBaseline="central" fontSize={13} className="fill-fd-foreground font-mono">
-          new TxBuilder({"{"} network, provider {"}"})
-        </text>
-        <TextLink {...L.networks} x={box.x + 24} y={y1 + 88} width={147}>
-          Networks and providers
-        </TextLink>
-        <TextLink {...L.offline} x={box.x + 24} y={y1 + 114} width={258}>
-          Offline, no provider: <tspan className="font-mono">params</tspan>, <tspan className="font-mono">costModels</tspan>
-        </TextLink>
-      </g>
-
-      {/* 2: who pays */}
-      <g>
-        <title>Who pays</title>
-        <rect x={box.x} y={y2} width={box.w} height={box.h} rx={8} strokeWidth={1.5} className="fill-fd-card stroke-fd-muted-foreground" />
-        <Badge cx={box.x + 24} cy={y2 + 28} n={2} />
-        <TextLink {...L.payer} x={box.x + 46} y={y2 + 28} width={72} fontSize={15} semibold>
-          Who pays
-        </TextLink>
-        <text x={box.x + 24} y={y2 + 58} dominantBaseline="central" fontSize={13} className="fill-fd-foreground">
-          <tspan className="font-mono">{"{ payer }"}</tspan> of each call: a wallet, an address,
-        </text>
-        <text x={box.x + 24} y={y2 + 77} dominantBaseline="central" fontSize={13} className="fill-fd-foreground">
-          or your own <tspan className="font-mono">{"{ changeAddress, utxos }"}</tspan>
-        </text>
-        <TextLink {...L.signers} x={box.x + 24} y={y2 + 114} width={134}>
-          Signers and submitter
-        </TextLink>
-      </g>
+      {/* 1: create a builder, 2: who pays */}
+      <CreateBox x={box.x} y={y1} w={box.w} h={box.h} />
+      <PayerBox x={box.x} y={y2} w={box.w} h={box.h} />
 
       {/* 3: the parts */}
       <rect x={box.x} y={yParts} width={box.w} height={partsH} rx={12} strokeWidth={1.2} strokeDasharray="2 4" className="fill-none stroke-fd-muted-foreground" />
@@ -663,7 +763,7 @@ function NarrowScheme() {
       <Caption x={56} y={yParts + 28}>
         Parts
       </Caption>
-      <TextLink {...L.which} x={356} y={yParts + 28} anchor="end" width={121}>
+      <TextLink {...L.which} x={356} y={yParts + 28} anchor="end" width={121} lineFs={CAP}>
         Which part for what
       </TextLink>
       <Sub x={24} y={yParts + 54}>
@@ -715,7 +815,7 @@ function NarrowScheme() {
 
       {/* 6: around the flow */}
       <Badge cx={21} cy={capC} n={6} />
-      <text x={40} y={capC} dominantBaseline="central" fontSize={13} className="fill-fd-foreground/70 italic">
+      <text x={40} y={lineBase(capC, 13)} fontSize={13} className="fill-fd-foreground/70 italic">
         Around the flow
       </text>
       {AROUND.map((a, i) => {
