@@ -102,9 +102,9 @@ const built = await builder.build(
 
 Minting works the same way: see [Mint and Burn Assets](/apis/txbuilder/minting#mint-with-a-reference-script).
 
-## Read a Datum without Spending
+## Read an Output by Reference
 
-A reference input lets scripts read an output, its datum and its reference script, without spending it. The rules for choosing one are in [Read an Output without Spending It](/apis/txbuilder/utxos#read-an-output-without-spending-it).
+A reference input puts an output into the transaction without spending it: it has no redeemer, runs no script of its own, and stays where it is. A Plutus script sees it in its context among the reference inputs, with its address, value and datum, so it can read data published there, such as an oracle price or a configuration. That datum belongs to the reference input, not to the output being spent, which has its own. Of a reference script held there, the context shows only its hash, not the script. The rules for choosing one are in [Read an Output without Spending It](/apis/txbuilder/utxos#read-an-output-without-spending-it).
 
 ```tsx
 import { mConStr0, referenceInput, spend } from "@meshsdk/core";

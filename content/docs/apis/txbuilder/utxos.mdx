@@ -130,7 +130,7 @@ const built = await builder.build([], { payer: wallet, sendAllTo: newAddress });
 
 ## Read an Output without Spending It
 
-`referenceInput` lets the scripts of a transaction read an output, its datum and its reference script. An output read by several parts is one reference input. An output the transaction spends is never one, and the builder never spends an output a part only reads. `built.referenceInputs` lists them. A script that uses one is in [Smart Contracts](/apis/txbuilder/smart-contracts#read-a-datum-without-spending).
+`referenceInput` puts an output into the transaction without spending it: a Plutus script sees its address, value and datum, and of its reference script only the hash. An output read by several parts is one reference input. An output the transaction spends is never one, and the builder never spends an output a part only reads. `built.referenceInputs` lists them. A script that uses one is in [Smart Contracts](/apis/txbuilder/smart-contracts#read-an-output-by-reference).
 
 ```tsx
 import { output, referenceInput } from "@meshsdk/core";
