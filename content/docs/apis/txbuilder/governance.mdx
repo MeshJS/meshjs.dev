@@ -99,7 +99,7 @@ Each action takes `rewardAccount` and `anchor`, plus its own fields:
 - `newConstitution` - `constitution`
 - `noConfidence` - nothing more
 
-`parameterChange` and `treasuryWithdrawals` take the constitution's `guardrail` script. Every action except `info` and `treasuryWithdrawals` takes `previous: { txHash, index }`, the action it follows.
+`parameterChange` and `treasuryWithdrawals` run the constitution's guardrail script. Leave `guardrail` out and the build adds it: the guardrail your provider's `fetchConstitution` reports, or, when the provider cannot say, the one of mainnet, preprod and preview, the same script on all three. On another network it is added only when the provider reports it. The guardrail is a Plutus script, so the build also puts up collateral and evaluates it. A constitution that names a guardrail Mesh does not hold is `UNRESOLVED`: pass that script as `guardrail`. `guardrail: null` builds the proposal without one. Every action except `info` and `treasuryWithdrawals` takes `previous: { txHash, index }`, the action it follows.
 
 ```tsx
 import { proposal } from "@meshsdk/core";

@@ -159,6 +159,7 @@ The deposit is `govActionDeposit`, or `deposit` on the part, and goes back to `r
 | `TreasuryWithdrawalsAction` with `withdrawals: { [rewardAddress]: "50000000000" }` | `proposal.treasuryWithdrawals({ rewardAccount, anchor, withdrawals: { [rewardAddress]: 50_000_000_000n } })` |
 | `NoConfidenceAction` with `govActionId: { transactionId, govActionIndex }` | `proposal.noConfidence({ rewardAccount, anchor, previous: { txHash, index } })` |
 | `ParameterChangeAction`, `UpdateCommitteeAction`, `NewConstitutionAction`, `HardForkInitiationAction` | `proposal.parameterChange`, `proposal.updateCommittee`, `proposal.newConstitution`, `proposal.hardForkInitiation`. The old `govActionId` is `previous`. `updates` of a parameter change uses the ledger's snake_case names. |
+| `.proposalScript(code, "V3")` and `.proposalRedeemerValue(redeemer)`, the guardrail of a parameter change or a treasury withdrawal | `guardrail: { plutus: { code, version: "V3" }, redeemer: { data: redeemer } }` on the part, or nothing: the build adds the constitution's guardrail, which `MeshTxBuilder` never does. `guardrail: null` builds without one. |
 
 ## Related
 
