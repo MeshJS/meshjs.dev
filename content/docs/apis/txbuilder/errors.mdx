@@ -129,7 +129,7 @@ A part builder checks its arguments at once, so the error points at the line tha
 
 | Code | What happened and what to do |
 |------|------------------------------|
-| `UNRESOLVED` | A part still leaves something open, or links to an earlier step outside a plan. `details` lists the gaps of each part |
+| `UNRESOLVED` | A part still leaves something open, or links to an earlier step outside a plan, or a parameter change or treasury withdrawal whose constitution names a guardrail Mesh does not hold (the gap `guardrail`, with its hash). `details` lists the gaps of each part |
 | `DUPLICATE_PART` | The same input, policy, reward account, voter or collateral input twice, or a part held once given twice. `details.item` names it |
 | `UTXO_NOT_FOUND` | An output the transaction names does not exist, could not be read, or is spent by a transaction of `after`. Pass the UTxO in full, or use `knownUtxos` |
 | `INVALID_REDEEMER` | A [redeemer function](/apis/txbuilder/smart-contracts#spend-from-a-script) threw, asked for an item the transaction does not hold, or returned data that is not Plutus data. `details.reason` says which |
