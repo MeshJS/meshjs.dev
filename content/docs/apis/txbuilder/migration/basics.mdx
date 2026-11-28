@@ -1,0 +1,211 @@
+---
+title: "Migrate Transaction Basics"
+description: "Move payments, metadata, validity, signers, signing and submitting from MeshTxBuilder to TxBuilder."
+---
+
+## Overview
+
+Payer, outputs, metadata and validity become parts, and signing and submitting move to `built`. This page moves them from [Transaction Builder Basics (MeshTxBuilder)](/apis/txbuilder/legacy/basics) to [Transaction Basics](/apis/txbuilder/basics). Names such as `wallet` and `builder` are explained in [Names in the Examples](/apis/txbuilder/migration#names-in-the-examples).
+
+## What Changes
+
+| Old | New |
+|-----|-----|
+| `new MeshTxBuilder({ fetcher: provider })`, one per transaction | `new TxBuilder({ network, provider })`, one for all. `network` is `"mainnet"`, `"preprod"`, `"preview"`, or `customNetwork(...)` for a devnet. |
+| `.complete()` returns a CBOR string | `builder.build()` returns a `BuiltTx`. `built.tx` is the string. |
+| `selectUtxosFrom(utxos)` | `{ payer }`. To limit or replace the built-in selection, use `canSelect` or `coinSelection`. |
+| `.txIn(hash, index, amount, address)` | `spend.pubKey({ utxo })` |
+| `.setFee("200000")` | the build option `fee: 200_000n` |
+| `.signingKey(key)` and `.completeSigning()` | `built.sign({ signers: keySigner(key) })`. `key` is hex, bech32 such as `ed25519_sk`, or the `cborHex` of a key file. |
+| `wallet.signTx(tx)` and `wallet.submitTx(signedTx)` | `built.sign()` and `built.submit()` |
+| `.complete(meshTxBody)` | a list of parts. `MeshTxBuilderBody` is deprecated. |
+
+## Examples
+
+### Choose the Payer
+
+**Before:**
+
+```tsx
+txBuilder.changeAddress(changeAddress).selectUtxosFrom(utxos);
+```
+
+**After:**
+
+```tsx
+import { output } from "@meshsdk/core";
+
+const pay = output({ address: recipient, value: { lovelace: 5_000_000n } });
+
+await builder.build(pay, { payer: wallet }); // reads its UTxOs
+await builder.build(pay, { payer: changeAddress }); // reads UTxOs through the provider
+await builder.build(pay, { payer: { changeAddress, utxos } }); // reads nothing
+```
+
+The payer pays and gets the change, and without one `build()` throws `MISSING_PAYER`. The first example is on the [migration index](/apis/txbuilder/migration).
+
+### Send Lovelace and Assets
+
+**Before:**
+
+```tsx
+const unsignedTx = await txBuilder
+  .txOut(recipient, [
+    { unit: "lovelace", quantity: "2000000" },
+    { unit, quantity: "1" },
+  ])
+  .txOut(partner, [{ unit: "lovelace", quantity: "3000000" }])
+  .changeAddress(changeAddress).selectUtxosFrom(utxos).complete();
+```
+
+**After:**
+
+```tsx
+import { output } from "@meshsdk/core";
+
+const built = await builder.build(
+  [
+    output({ address: recipient, value: { lovelace: 2_000_000n, [unit]: 1n } }),
+    output({ address: partner, value: { lovelace: 3_000_000n } }),
+  ],
+  { payer: wallet },
+);
+```
+
+`value` maps `lovelace` and token units to `bigint`, and leaving `lovelace` out gives the output its minimum. Outputs keep their order, and a part that is `false`, `null` or `undefined` is skipped, so `condition && output(...)` works.
+
+### Add a Message or Metadata
+
+**Before:**
+
+```tsx
+const unsignedTx = await txBuilder
+  .metadataValue(674, { msg: ["Invoice-No: 1234567890", "Customer-No: 555-1234"] })
+  .metadataValue(1234, { order: "42" })
+  .changeAddress(changeAddress).selectUtxosFrom(utxos).complete();
+```
+
+**After:**
+
+```tsx
+import { message, metadata } from "@meshsdk/core";
+
+const built = await builder.build(
+  [
+    message({ text: ["Invoice-No: 1234567890", "Customer-No: 555-1234"] }),
+    metadata({ metadataLabel: 1234n, value: { order: "42" } }),
+  ],
+  { payer: wallet },
+);
+```
+
+`message` is metadata label 674, and one label holds one entry, so do not also give `metadata` for 674. `message` cuts long text into lines, while a text over 64 bytes in `metadata` is `INVALID_DATA`.
+
+### Set the Validity and Require a Signer
+
+**Before:**
+
+```tsx
+const untilSlot = resolveSlotNo("preprod", Date.now() + 60 * 60 * 1000);
+const { pubKeyHash } = deserializeAddress(owner);
+
+const unsignedTx = await txBuilder
+  .txOut(recipient, [{ unit: "lovelace", quantity: "5000000" }])
+  .invalidHereafter(Number(untilSlot))
+  .requiredSignerHash(pubKeyHash)
+  .changeAddress(changeAddress).selectUtxosFrom(utxos).complete();
+```
+
+**After:**
+
+```tsx
+import { guard, output, validity } from "@meshsdk/core";
+
+const built = await builder.build(
+  [
+    output({ address: recipient, value: { lovelace: 5_000_000n } }),
+    validity({ until: Date.now() + 60 * 60_000 }), // expires in one hour
+    guard.pubKey({ address: owner }), // or { keyHash: pubKeyHash }
+  ],
+  { payer: wallet },
+);
+```
+
+`validity` takes milliseconds (`from` and `until`), so `resolveSlotNo` is not needed, and slots still work as `invalidBefore` and `invalidHereafter`. `build()` sets no deadline, so give `until` when the transaction must expire.
+
+### Build, Sign and Submit
+
+**Before:**
+
+```tsx
+const signedTx = await wallet.signTx(unsignedTx);
+const txHash = await wallet.submitTx(signedTx);
+```
+
+**After:**
+
+```tsx
+await built.sign(); // the payer signs
+await built.submit(); // through the provider
+console.log(built.txHash); // known before signing
+const { slot } = await built.awaitInclusion(); // found in a block
+// to send through the wallet: await built.submit({ submitter: wallet })
+```
+
+- `build()` signs and sends nothing, and `built.tx` is the string `complete()` returned.
+- `sign()` is partial by default, so there is no flag. `submit()` sends the same bytes every time: repeat it to retry, and never build again.
+- For several dependent transactions, or a payment to follow to `final` or keep across a crash, use `builder.plan()`. See [Plan Several Transactions](/apis/txbuilder/basics#plan-several-transactions).
+
+### Sign with a Key or Several Signers
+
+**Before:**
+
+```tsx
+const signedTx1 = await wallet.signTx(unsignedTx, true);
+const signedTx2 = await mintingWallet.signTx(signedTx1, true);
+const txHash = await wallet.submitTx(signedTx2);
+```
+
+**After:**
+
+```tsx
+await built.sign({ signers: [wallet, mintingWallet] });
+await built.submit();
+```
+
+- Each signer is asked once, in order, for the keys still missing. A key from a file joins the list as `keySigner(key)`.
+- `submit()` throws `MISSING_SIGNATURES` while `built.missing` is not empty.
+
+### Build Offline
+
+**Before:**
+
+```tsx
+import { MeshTxBuilder } from "@meshsdk/core";
+
+const offlineTxBuilder = new MeshTxBuilder({ params });
+const unsignedTx = await offlineTxBuilder
+  .txOut(recipient, [{ unit: "lovelace", quantity: "5000000" }])
+  .changeAddress(changeAddress).selectUtxosFrom(utxos).complete();
+```
+
+**After:**
+
+```tsx
+import { output, TxBuilder } from "@meshsdk/core";
+
+const offline = new TxBuilder({ network: "preprod", params, costModels }); // reads nothing
+const built = await offline.build(
+  output({ address: recipient, value: { lovelace: 5_000_000n } }),
+  { payer: { changeAddress, utxos } },
+);
+```
+
+- Without a `provider`, give `params`, and `costModels` for a Plutus script, or `build()` throws `MISSING_PARAMETER`.
+- `params` must be a whole `Protocol`. The old builder filled missing fields with built-in values, and a partial object is `INVALID_OPTION`.
+- `JSON.stringify(built)` saves the transaction, and `await builder.restore(JSON.parse(saved))` brings it back in another process.
+
+## Related
+
+- [Migrate Minting and Burning](/apis/txbuilder/migration/minting) - the next area
+- [Migrating to TxBuilder](/apis/txbuilder/migration) - the four steps and the names

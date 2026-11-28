@@ -1,0 +1,224 @@
+---
+title: "Errors"
+description: "The error classes of TxBuilder, every code by when it comes, which ones a retry can fix, and the warnings of a build."
+---
+
+## Overview
+
+Every error of `TxBuilder` is a `TxError` with a `code`. Use it when a call throws, to see what to do, and to decide what a retry may repeat. It lists the classes, which errors a retry can fix, the codes by when they come, and the warnings of a build. For a first look, see [Handle Errors](/apis/txbuilder/basics#handle-errors).
+
+Examples use the names of [Transaction Basics](/apis/txbuilder/basics): `builder`, `wallet` and `recipient`.
+
+## Error Classes
+
+| Class | Thrown by |
+|-------|-----------|
+| `TxError` | The base of the others. `TxError.is(error)` is true for any error of the package |
+| `TxPartError` | A part builder such as `output(...)`, at the call that made the part |
+| `TxBuildError` | `build()` and `plan()`, when the parts cannot be built into a transaction, and for a bad option or argument |
+| `TxPlanError` | Signing, submitting and waiting, from a `BuiltTx` or a `TxPlan`, and the plan store |
+
+Every error has a `code` and a `message`, and where they apply `part`, `label`, `details` and `cause` (the error it was raised from, such as the provider's). A `TxPlanError` of a plan also has `planId`, `status`, `step` and `txHash`. One of a `BuiltTx` has none of them.
+
+## Check a Code
+
+Check the code, not the message. `TxError.is(error, "CODE")` is true when the error has that code, and it types `error.details` for it. Give several codes to match any of them. `TxBuildError.is` and `TxPlanError.is` check one class. `TxPartError.is` is the same as `TxError.is`: tell a part error by its code. The check also works on an error made by another copy of the package.
+
+`details` holds data typed by the code, such as `unit` and `missing` for `INSUFFICIENT_FUNDS`. A code with no details has `details` undefined. The tables below name the useful ones.
+
+## Which Errors a Retry Can Fix
+
+`error.retryable` is `true` when the same call, repeated no earlier than `error.retryAfterMs` when that is set, is safe and may pass. Only these are retryable:
+
+| Code | Repeat |
+|------|--------|
+| `SUBMIT_FAILED` | `submit()` on the same `BuiltTx` (`run()` for a plan). It fails again after `unauthorized` until the key is fixed |
+| `CONFIRM_TIMEOUT` | `awaitInclusion()` on the same `BuiltTx` (`run()` for a plan) |
+| `NOT_YET_VALID` | The call that threw, after `retryAfterMs` (`details.waitMs`) |
+| `CANNOT_OBSERVE` with `reason` `unconfirmed` | The call, after `retryAfterMs` (the builder's `pollMs`) |
+| `STILL_LIVE` with `safeAfter` | `replan` or `add`, after `retryAfterMs` |
+
+Every other error needs a fix, not a retry. Never build again to retry a `SUBMIT_FAILED`, `REJECTED` or `CONFIRM_TIMEOUT`: [Transaction Basics](/apis/txbuilder/basics#build-sign-and-submit) says why.
+
+## Handle Errors Around Build and Submit
+
+Build errors are safe to fix and build again, because nothing was sent. After the build, retry only the same calls on the same `BuiltTx`.
+
+```tsx
+import { output, TxError } from "@meshsdk/core";
+
+async function pay() {
+  const built = await builder
+    .build(
+      output({ address: recipient, value: { lovelace: 5_000_000n } }),
+      { payer: wallet },
+    )
+    .catch((error) => {
+      if (TxError.is(error, "INSUFFICIENT_FUNDS")) {
+        console.log(error.details.unit, error.details.missing);
+      }
+      throw error; // nothing was sent
+    });
+  await built.sign();
+
+  let sent = false;
+  for (let tries = 1; ; tries++) {
+    try {
+      if (!sent) await built.submit();
+      sent = true;
+      return await built.awaitInclusion(); // found in a block
+    } catch (error) {
+      if (!TxError.is(error) || !error.retryable || tries === 3) throw error;
+      await new Promise((r) => setTimeout(r, error.retryAfterMs ?? 5_000));
+    }
+  }
+}
+```
+
+## Abort a Call
+
+A call that takes a `signal` throws `ABORTED` when it is aborted. What that leaves depends on the call:
+
+- `build()` and `plan()`: nothing was signed or sent. Build again if you still want it.
+- `sign()`: the signatures already given stay.
+- `submit()` and `run()`: bytes already handed to the submitter may land. Call the same `submit()` or `run()` again on the same object, and never build again.
+
+## Errors When Making a Part
+
+A part builder checks its arguments at once, so the error points at the line that made the part. None of these has `details`.
+
+| Code | What happened and what to do |
+|------|------------------------------|
+| `INVALID_OUT_REF` | A bad transaction hash or output index, or a UTxO given as text that is not its CBOR. Fix the out ref |
+| `INVALID_ADDRESS` | An address that does not parse, or of the wrong kind for the part. Use a valid address |
+| `INVALID_VALUE` | A malformed amount, unit or policy. Use `bigint` amounts and `policyId + assetNameHex` units |
+| `INVALID_SCRIPT` | A script that does not parse, or a reference output with no suitable script. Check the script and the output it names |
+| `INVALID_DATA` | Plutus data or a hash that does not parse, an inline datum that is not one item, or a validity time out of range |
+| `WITNESS_MISMATCH` | A witness that cannot authorise its output, such as a key spend of a script output. Use `spend.plutus` or `spend.native` for scripts, `spend.pubKey` for keys |
+| `DATUM_MISMATCH` | A datum choice that does not fit the output spent. Give the datum the output was locked with, and leave `datum` out for an inline datum |
+
+## Errors When Building
+
+`build()` and `plan()` throw these. Nothing was signed or sent, so fix the cause and build again. None of them is retryable.
+
+### Setup and Options
+
+| Code | What happened and what to do |
+|------|------------------------------|
+| `MISSING_PAYER` | There is no payer. Pass `{ payer }` |
+| `MISSING_PARAMETER` | Parameters, cost models or deposits are not known. The call that needs them throws, not the constructor. `details.parameter` says which: `"params"`, `"costModels"` or `"deposits"`. Give a `provider`, or `params`, `costModels` or `deposits` |
+| `MISSING_FETCHER` | Something has to be read and there is no provider. Give a `provider`, or pass UTxOs in full |
+| `MISSING_EVALUATOR` | Execution units are needed and there is no evaluator. Give an `evaluator` |
+| `NETWORK_MISMATCH` | An address, wallet, provider or transaction is on another network than `network`. `details.expected` and `details.found` say where. Use one network |
+| `INVALID_OPTION` | An option or argument is not accepted, or a member is unknown. `details.option` names it and `details.allowed` says what is accepted |
+| `UNSUPPORTED_SERIALIZER` | The `serializer` cannot serialize a transaction prototype. Leave it out, or give one with `serializeTxPrototype` |
+| `PROVIDER_FAILED` | A provider read failed. `details.operation` names it, and `error.cause` holds the provider's error |
+| `WALLET_FAILED` | Reading the payer from a wallet failed. Check the wallet, or give `{ changeAddress, utxos }` |
+| `INVALID_SELECTION` | `coinSelection` returned an out ref that is not a candidate. Return candidates only |
+| `UNKNOWN_LABEL` | `outputOf` asked for a label no output has. `details.labels` lists them |
+| `NOT_SERIALIZABLE` | A part holds a [redeemer function](/apis/txbuilder/smart-contracts#spend-from-a-script), so `toJSON()` and a plan on a builder with a store refuse it. Give the redeemer as data |
+
+`MISSING_PARAMETER` comes from these places:
+
+- A builder given its `network` alone is made without error and reads and signs. `build()`, `plan()`, `chain()` and a plan's `add` and `replan` throw it at the call, with `details.parameter` `"params"`. Give the builder a `provider` or `params`: see [A Builder with a Network Alone](/apis/txbuilder/offline#a-builder-with-a-network-alone).
+- The provider's protocol parameters could not be read, came back empty or lack a field a build reads (`"params"`). When the read failed, `error.cause` holds the provider's error.
+- A build that runs a Plutus script, or `chain()`, has no cost models: there are none, or the provider could not read them, and then `error.cause` holds why (`"costModels"`).
+- A deposit is not known. A governance deposit is not given (`"deposits"`). Or the parameters lack the field that gives the amount (`"params"`, and the message names the field): `keyDeposit` for a stake registration or deregistration that states no amount and for a legacy stake certificate (`legacyStakeRegistration`, `legacyStakeDeregistration`), `poolDeposit` for a first `poolRegistration`. These throw before anything is selected. See [Deposits](/apis/txbuilder/certificates#deposits).
+
+### Parts and Inputs
+
+| Code | What happened and what to do |
+|------|------------------------------|
+| `UNRESOLVED` | A part still leaves something open, or links to an earlier step outside a plan, or a parameter change or treasury withdrawal whose constitution names a guardrail Mesh does not hold (the gap `guardrail`, with its hash). `details` lists the gaps of each part |
+| `DUPLICATE_PART` | The same input, policy, reward account, voter or collateral input twice, or a part held once given twice. `details.item` names it |
+| `UTXO_NOT_FOUND` | An output the transaction names does not exist, could not be read, or is spent by a transaction of `after`. Pass the UTxO in full, or use `knownUtxos` |
+| `INVALID_REDEEMER` | A [redeemer function](/apis/txbuilder/smart-contracts#spend-from-a-script) threw, asked for an item the transaction does not hold, or returned data that is not Plutus data. `details.reason` says which |
+| `INVALID_GUARD` | A `guard.pubKey` whose hash is the hash of one of the transaction's scripts. Name a key hash |
+| `NATIVE_SCRIPT_UNREAD` | Only for a transaction built elsewhere: a native script whose keys the library does not read. `details.reason` is `depth`, `size` or `form` |
+
+### Funds, Fees and Size
+
+| Code | What happened and what to do |
+|------|------------------------------|
+| `INSUFFICIENT_FUNDS` | The payer's UTxOs cannot pay. `details.unit` and `details.missing` say what to add |
+| `INSUFFICIENT_COLLATERAL` | No collateral, or not enough, can be put up (`details.required`, `details.available`). Fund the payer, or drop `topUpCollateral: false` |
+| `INVALID_COLLATERAL` | Collateral inputs cannot cover the total, or with `collateralReturn: false` one holds a token. Give inputs with lovelace only |
+| `OUTPUT_BELOW_MIN_COIN` | An output holds less lovelace than the ledger requires (`details.coin`, `details.minCoin`). Add lovelace, or leave `lovelace` out |
+| `VALUE_TOO_LARGE` | An output's value is larger than `maxValSize`. Spread the assets over several outputs |
+| `TX_TOO_LARGE` | Over `maxTxSize`. For `details.cause` `parts` or `referenceScripts`, split it into the steps of a plan. For `selection` (many small UTxOs), give the same parts to `builder.plan()`: it puts [consolidation steps](/apis/txbuilder/plans#consolidation-steps) before the step, unless the step has `sendAllTo` or the plan has `consolidate: false` |
+| `FEE_TOO_LOW` | The `fee` you gave is below the minimum (`details.minFee`). Drop it, or give a higher one |
+| `FEE_NOT_CONVERGED` | Balancing did not settle on a fee within its rounds. This is rare |
+
+### Scripts
+
+| Code | What happened and what to do |
+|------|------------------------------|
+| `EVALUATION_FAILED` | A script failed, or not every redeemer was priced. `details.failures` names each failed part, so give parts a `label` |
+| `EXUNITS_TOO_LOW` | A script needs more units than its redeemer states (`details.needed`, `details.given`). Leave `exUnits` out |
+| `EXUNITS_EXCEEDED` | The scripts need more units than a transaction may use. Spread them over the steps of a plan |
+| `EVALUATION_NOT_CONVERGED` | Execution units did not settle within the evaluation rounds. This is rare |
+
+## Errors When Signing and Submitting
+
+These are `TxPlanError`s, from a `BuiltTx` or a plan.
+
+| Code | What happened and what to do |
+|------|------------------------------|
+| `SIGN_DECLINED` | The user declined to sign. Nothing changed, and asking again is your choice |
+| `SIGNER_FAILED` | The signer failed, timed out or changed accounts (`details.reason`: `error`, `timeout`, `accountChanged`). After an account change, connect again and pass the new api as `signers` |
+| `INVALID_WITNESS` | A witness that cannot be decoded or is not of this transaction. Sign the transaction of this build |
+| `MISSING_SIGNATURES` | A key has not signed, or nobody can sign. Nothing was sent. `built.missing` lists the keys. Name a signer |
+| `MISSING_SUBMITTER` | There is no submitter. Nothing was sent. Give a `provider` or a `submitter`, or call `built.submit({ submitter: wallet })` |
+| `NOT_YET_VALID` | The lower bound of validity is ahead of the tip. Nothing was sent. Call again after `error.retryAfterMs` |
+| `SUBMIT_FAILED` | The outcome is unknown: the bytes may have arrived. Call `submit()` again on the same `BuiltTx`. `details.reason` is `unavailable`, `rateLimited`, `unauthorized`, `refused` or `unknown`. After `unauthorized`, fix the API key first |
+| `REJECTED` | The ledger refused the transaction and the provider does not find it. Do not retry a `BuiltTx`. The object does not know what another process sent: look for the transaction (`awaitInclusion()`) before you decide it did not land. A plan's `run()` sends the same bytes again |
+
+## Errors from Waiting and Plans
+
+These come from waiting for a block and from following a plan.
+
+| Code | What happened and what to do |
+|------|------------------------------|
+| `CONFIRM_TIMEOUT` | Not found in a block within `timeoutMs`. This does not mean "not paid". Call `awaitInclusion()` or `run()` again |
+| `EXPIRED` | A step's end of validity and the margin have passed, and it is not on chain. The plan does not go on. Make a new plan for what is left with `plan.replan` |
+| `SCRIPT_FAILED` | A step landed with a failed script, and its collateral was taken. The plan does not go on |
+| `ORPHANED` | A step stands on a step that will not land, so it will not land either |
+| `CANNOT_OBSERVE` | The provider cannot follow plans. `details.reason` is `noTip`, `noSearch`, `noDepth`, `noValidity` or `unconfirmed`. Use a provider that returns block heights and the validity flag |
+| `INVALID_STATE` | The plan was stopped, replaced or is final, or a Plutus step would end past the horizon (`pastHorizon`: shorten `ttlMs`). `details.reason` says which |
+| `STILL_LIVE` | A step that `replan` or `add` built could land beside an old transaction that may still land. Nothing was written. With `details.safeAfter`, call `replan` or `add` again after `retryAfterMs`. Without it, waiting does not help: an old transaction may still land, and your application decides how to pay what is left (see the package README) |
+
+The plan store raises these when a builder has a `store`:
+
+| Code | What happened and what to do |
+|------|------------------------------|
+| `MISSING_ID` | A plan on a builder with a `store` needs an `id` |
+| `PLAN_EXISTS` | The `id` is already recorded with other parts or options, and nothing was written. Open the recorded plan with `builder.resume(id)`, or repeat the call with the same parts and options. A new `id` is a new order and pays again: use one only for a new payment |
+| `PLAN_NOT_FOUND` | No record under the `id` |
+| `MISSING_STORE` | `resume(id)` on a builder without a `store` |
+| `VERSION_CONFLICT` | Another writer changed the record. Go on through `builder.resume(id)` |
+| `STORE_FAILED` | The store threw, and a write may have passed. Go on through `builder.resume(id)` |
+
+## Build Warnings
+
+A warning does not stop a build. `built.warnings` lists them, each with a `code` and a `message`, and `part` and `label` when it is about a part.
+
+| Code | What it says |
+|------|--------------|
+| `VALID_FROM_FUTURE` | The lower bound of validity starts after the local clock |
+| `COLLATERAL_FORFEITED` | The transaction has collateral and no collateral return, so all of it is at stake if a script fails. It comes with `collateralReturn: false` |
+| `COLLATERAL_RETURN_ELSEWHERE` | Only from `fromCbor`: a collateral input belongs to another payment credential than the one the return pays, and that holder loses if a script fails |
+| `FEE_ABOVE_MINIMUM` | The `fee` you gave is above the minimum |
+| `NEVER_EXPIRES` | Only on a step of a plan that was given built: it has no end of validity |
+
+A plan also tells a [`trace`](/apis/txbuilder/options#control) callback about events of its own, such as `{ type: "warning", code: "CONSOLIDATION_STEPS", steps, fee }`, sent when it puts in consolidation steps: see [Consolidation Steps](/apis/txbuilder/plans#consolidation-steps).
+
+The lists of codes, reasons and warnings can grow, so keep a default branch when you switch on them.
+
+## Related
+
+- [Transaction Basics](/apis/txbuilder/basics) - build, sign and submit, and a first look at errors
+- [Signing and Submitting](/apis/txbuilder/signing) - signers, submitters and safe retries
+- [Plans](/apis/txbuilder/plans) - statuses, deadlines and what to do after a step fails
+- [Options](/apis/txbuilder/options) - the options behind many of these codes
+- [Migration Errors and Differences](/apis/txbuilder/migration/errors) - old messages and their new codes
+- [Package README](https://github.com/MeshJS/mesh/tree/main/packages/mesh-transaction) - every code with its details

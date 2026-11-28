@@ -1,0 +1,195 @@
+---
+title: "Migrate Smart Contracts"
+description: "Move locking, spending, reference scripts and collateral from MeshTxBuilder to TxBuilder parts."
+---
+
+## Overview
+
+A script chain of `txIn`, `txInScript`, `txInRedeemerValue` and friends becomes one `spend.plutus` part, and a lock is an ordinary `output` with a `datum`. This page moves them from [Smart Contract Interactions (MeshTxBuilder)](/apis/txbuilder/legacy/smart-contracts) to [Smart Contracts](/apis/txbuilder/smart-contracts). Names such as `wallet` and `builder` are explained in [Names in the Examples](/apis/txbuilder/migration#names-in-the-examples).
+
+## What Changes
+
+| Old | New |
+|-----|-----|
+| `.txOutInlineDatumValue(d)` | `datum: { type: "inline", data: d }` on `output` |
+| `.txOutDatumHashValue(d)` | `datum: { type: "hash", data: d }` on `output`. Add `embed: true` for `txOutDatumEmbedValue`. |
+| `.txOutReferenceScript(code, "V2")` | `scriptRef: { code, version: "V2" }` on `output` |
+| `.spendingPlutusScriptV2().txIn(...).txInScript(code).txInRedeemerValue(r)` | `spend.plutus({ utxo, script: { code, version: "V2" }, redeemer: { data: r } })` |
+| `.txInInlineDatumPresent()` | Not needed. The datum is read from the output. |
+| `.txInDatumValue(d)` | `datum: { data: d }` on `spend.plutus`, for an output that holds a datum hash |
+| `.txInCollateral(...)` | Not needed. The builder picks collateral. |
+
+## Examples
+
+### Lock Assets at a Script
+
+**Before:**
+
+```tsx
+const { address: scriptAddress } = serializePlutusScript(script);
+
+const unsignedTx = await txBuilder
+  .txOut(scriptAddress, [{ unit: "lovelace", quantity: "10000000" }])
+  .txOutInlineDatumValue(mConStr0([]))
+  .changeAddress(changeAddress).selectUtxosFrom(utxos).complete();
+```
+
+**After:**
+
+```tsx
+import { mConStr0, output } from "@meshsdk/core";
+
+const built = await builder.build(
+  output({
+    address: builder.scriptAddress(script),
+    value: { lovelace: 10_000_000n },
+    datum: { type: "inline", data: mConStr0([]) },
+  }),
+  { payer: wallet },
+);
+```
+
+`builder.scriptAddress(script)` gives the script's address on the builder's network. For a datum hash, write `type: "hash"` instead of `"inline"`.
+
+### Spend from a Script
+
+**Before:**
+
+```tsx
+const unsignedTx = await txBuilder
+  .spendingPlutusScript(script.version)
+  .txIn(assetUtxo.input.txHash, assetUtxo.input.outputIndex)
+  .txInInlineDatumPresent()
+  .txInRedeemerValue(mConStr0([]))
+  .txInScript(script.code)
+  .changeAddress(changeAddress).selectUtxosFrom(utxos).complete();
+```
+
+**After:**
+
+```tsx
+import { mConStr0, spend } from "@meshsdk/core";
+
+const built = await builder.build(
+  spend.plutus({
+    utxo: assetUtxo,
+    script,
+    redeemer: { data: mConStr0([]) },
+  }),
+  { payer: wallet },
+);
+```
+
+`script` is the `PlutusScript` (`{ code, version }`), so the version travels with it. The datum is read from the output; for a datum hash, add `datum: { data }` with the datum the output was locked with.
+
+### Use a Reference Script and a Reference Input
+
+**Before:**
+
+```tsx
+const unsignedTx = await txBuilder
+  .spendingPlutusScriptV2()
+  .txIn(assetUtxo.input.txHash, assetUtxo.input.outputIndex)
+  .txInInlineDatumPresent()
+  .txInRedeemerValue(mConStr0([]))
+  .spendingTxInReference(refTxHash, 0) // the script sits in a reference output
+  .readOnlyTxInReference(refTxHash, 1) // a datum the script reads
+  .changeAddress(changeAddress).selectUtxosFrom(utxos).complete();
+```
+
+**After:**
+
+```tsx
+import { mConStr0, referenceInput, spend } from "@meshsdk/core";
+
+const built = await builder.build(
+  [
+    spend.plutus({
+      utxo: assetUtxo,
+      script: { reference: { txHash: refTxHash, outputIndex: 0 } },
+      redeemer: { data: mConStr0([]) },
+    }),
+    referenceInput({ utxo: { txHash: refTxHash, outputIndex: 1 } }),
+  ],
+  { payer: wallet },
+);
+```
+
+The builder adds the output that holds the script itself and reads its version and size. `referenceInput` is only for reading an output, and an output the transaction also spends is never one.
+
+### Choose the Collateral
+
+**Before:**
+
+```tsx
+const collateralUtxo = (await wallet.getCollateral())[0]!;
+
+txBuilder.txInCollateral(
+  collateralUtxo.input.txHash,
+  collateralUtxo.input.outputIndex,
+  collateralUtxo.output.amount,
+  collateralUtxo.output.address,
+);
+```
+
+**After:**
+
+```tsx
+import { collateral, mConStr0, spend } from "@meshsdk/core";
+
+const collateralUtxo = (await wallet.getCollateral())[0]!;
+
+const built = await builder.build(
+  [
+    spend.plutus({ utxo: assetUtxo, script, redeemer: { data: mConStr0([]) } }),
+    collateral({ utxo: collateralUtxo }),
+  ],
+  { payer: wallet },
+);
+```
+
+Collateral is automatic: leave it out and the builder picks it from the payer's UTxOs. Add `collateral` only to use a given UTxO, which the builder tops up when short unless you pass `topUpCollateral: false` to `build()`.
+
+### Spend from a Native Script
+
+**Before:**
+
+```tsx
+const nativeScript = ForgeScript.withOneSignature(changeAddress);
+
+const unsignedTx = await txBuilder
+  .txIn(
+    assetUtxo.input.txHash,
+    assetUtxo.input.outputIndex,
+    assetUtxo.output.amount,
+    assetUtxo.output.address,
+  )
+  .txInScript(nativeScript)
+  .txOut(recipient, [{ unit: "lovelace", quantity: "2000000" }])
+  .changeAddress(changeAddress).selectUtxosFrom(utxos).complete();
+```
+
+**After:**
+
+```tsx
+import { ForgeScript, output, spend } from "@meshsdk/core";
+
+const nativeScript = ForgeScript.withOneSignature(changeAddress);
+
+const built = await builder.build(
+  [
+    spend.native({ utxo: assetUtxo, script: nativeScript }),
+    output({ address: recipient, value: { lovelace: 2_000_000n } }),
+  ],
+  { payer: wallet },
+);
+```
+
+- A native script needs no redeemer and no collateral.
+- Keys the script names are asked of the signers: the payer in `built.sign()`, or those you name in `built.sign({ signers })`. `built.missing` does not list them, because the script decides which keys are enough, so check them yourself before `submit()`.
+
+## Related
+
+- [Migrate Staking](/apis/txbuilder/migration/staking) - the next area
+- [Migrating to TxBuilder](/apis/txbuilder/migration) - the four steps and the names
+- [Data Types](/apis/data) - build datums and redeemers

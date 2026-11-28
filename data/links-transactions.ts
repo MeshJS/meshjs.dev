@@ -11,7 +11,7 @@ export const metaMinting = {
   desc: "Minting and burning assets with Native Script and Plutus Script",
 };
 export const metaTransactionSmartContract = {
-  link: `/apis/txbuilder/smart-contract`,
+  link: `/apis/txbuilder/smart-contracts`,
   title: "Smart Contracts",
   desc: "Transactions to work with smart contracts",
 };

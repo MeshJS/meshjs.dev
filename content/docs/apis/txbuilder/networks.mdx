@@ -1,0 +1,108 @@
+---
+title: "Providers and Networks"
+description: "Choose the network, see what the builder asks a provider for, and add block heights to BlockfrostProvider for plans."
+---
+
+## Overview
+
+The builder reads the chain through a provider and checks every address, UTxO and wallet against its `network`. Use this page to pick the network, to see what a provider must give, to make plans work with Blockfrost, and to run on a devnet or a Hydra head.
+
+Examples use `builder`, `provider`, `wallet`, `recipient` and `changeAddress` from [Transaction Basics](/apis/txbuilder/basics).
+
+## Choose the Network
+
+`network` is required. A name that is none of these, `"testnet"` too, is `INVALID_OPTION`. The builder converts times to slots with the slot clock of its network: see `builder.slotAt(time)` and `builder.timeAt(slot)`.
+
+| `network` | For |
+|-----------|-----|
+| `"mainnet"` | Cardano mainnet |
+| `"preprod"`, `"preview"` | the public test networks |
+| `customNetwork({ systemStart, slotLengthMs, epochLength })` | a devnet: its clock is set up in [Time and Validity](/apis/txbuilder/time#a-devnet-clock) |
+
+An address, UTxO, wallet or provider on another network is `NETWORK_MISMATCH`. `details.expected` is the network of the builder, and `details.found` lists what disagrees, each with a `role` such as `payer`, `wallet`, `provider`, `utxo` or `output`. Use one network everywhere: in the builder, the wallet and the addresses.
+
+## What the Builder Asks a Provider
+
+A build reads only what it needs, and nothing at all when you give the data yourself (see [Offline and CBOR](/apis/txbuilder/offline)).
+
+| The builder needs | The provider answers | When |
+|-------------------|----------------------|------|
+| the payer's UTxOs | `fetchAddressUTxOs` | the payer is an address |
+| an output named by out ref | `fetchUTxOs` | a part names an output you did not give in full |
+| protocol parameters | `fetchProtocolParameters` | you gave no `params` |
+| cost models | `fetchCostModels` | a script runs and you gave no `costModels` |
+| a reward balance | `fetchAccountInfo` | a withdrawal with `amount: "all"` |
+| the submission | `submitTx` | `submit()` or `run()`, unless a `submitter` is given |
+| the search for a transaction | `fetchTxInfo` | `awaitInclusion()` and plans |
+| the tip, with its block height | `fetchLatestBlock` | plans |
+
+A plan also needs the block height in the search answer and, for a step that runs a Plutus script, the validity flag `validContract`: it says whether the script passed. `awaitInclusion()` of a Plutus transaction needs the flag too.
+
+Reading and sending can be split: the `provider` reads and a `submitter` sends. The call's own `submitter` comes first, then the builder's, then the provider.
+
+```tsx
+import { TxBuilder } from "@meshsdk/core";
+
+const builder = new TxBuilder({
+  network: "preprod",
+  provider, // reads
+  submitter: wallet, // sends
+});
+```
+
+## Use Blockfrost for Plans
+
+`BlockfrostProvider` works for `build()` and `submit()`. It returns neither block heights nor the validity flag, so `builder.plan()` throws `CANNOT_OBSERVE` before anything is signed. Until the provider returns them itself, give the builder this subclass. It is temporary: remove it when the provider does it for you. It costs one more request for each tip and each found step.
+
+```tsx
+import type { BlockInfo, TransactionInfo } from "@meshsdk/core";
+import { BlockfrostProvider } from "@meshsdk/core";
+
+/** BlockfrostProvider with the block heights and the validity flag that plans need */
+export class BlockfrostWithHeights extends BlockfrostProvider {
+  async fetchLatestBlock(): Promise<BlockInfo> {
+    const block = await super.fetchLatestBlock();
+    const { height } = await this.get(`blocks/${block.hash}`);
+    return { ...block, height };
+  }
+
+  async fetchTxInfo(hash: string): Promise<TransactionInfo> {
+    const info = await super.fetchTxInfo(hash);
+    const tx = await this.get(`txs/${hash}`);
+    return {
+      ...info,
+      blockHeight: tx.block_height,
+      validContract: tx.valid_contract,
+    };
+  }
+}
+
+const provider = new BlockfrostWithHeights("<YOUR_API_KEY>");
+```
+
+`details.reason` of `CANNOT_OBSERVE` says what the provider lacks: `noTip`, `noSearch`, `noDepth` or `noValidity`. Plans work on `TxEmulator` and on Blockfrost with the subclass above. A provider that cannot search can still submit, as the builder's `submitter`, while another provider reads.
+
+## Run on a Devnet or a Hydra Head
+
+A devnet's genesis wallets and `topup` give UTxOs without a transaction, which the checks of a plan cannot find. Before the first plan and after each `topup`, have the wallet send its UTxOs to itself in an ordinary transaction.
+
+```tsx
+const built = await builder.build([], { payer: wallet, sendAllTo: changeAddress });
+await built.sign();
+await built.submit();
+await built.awaitInclusion(); // then plans can find the UTxOs
+```
+
+A Hydra head has its own protocol parameters. Let the head's provider read them, or give them as `params` from the file the head was started with. Do not use placeholder zero values. A Plutus transaction carries a collateral input in a head too.
+
+## Related
+
+- [Transaction Basics](/apis/txbuilder/basics) - build, sign and submit
+- [Plans](/apis/txbuilder/plans) - what plans need from a provider
+- [Time and Validity](/apis/txbuilder/time) - convert times to slots and run on a devnet
+- [Offline and CBOR](/apis/txbuilder/offline) - build without a provider
+- [Testing on the Emulator](/apis/txbuilder/testing) - a local ledger as the provider
+- [Errors](/apis/txbuilder/errors) - `NETWORK_MISMATCH`, `CANNOT_OBSERVE` and the other codes
+- [Providers](/providers) - Blockfrost and other providers
+- [Hydra](/providers/hydra) - the Hydra provider
+- [Package README](https://github.com/MeshJS/mesh/tree/main/packages/mesh-transaction) - every part, option and error

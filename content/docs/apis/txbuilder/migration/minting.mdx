@@ -1,0 +1,183 @@
+---
+title: "Migrate Minting and Burning"
+description: "Move minting, burning and NFT metadata from the MeshTxBuilder chain to TxBuilder parts."
+---
+
+## Overview
+
+Each `.mint()` chain becomes one `mint.native` or `mint.plutus` part, and metadata is a part of its own. This page moves them from [Minting and Burning Assets (MeshTxBuilder)](/apis/txbuilder/legacy/minting) to [Mint and Burn Assets](/apis/txbuilder/minting). Names such as `wallet` and `builder` are explained in [Names in the Examples](/apis/txbuilder/migration#names-in-the-examples).
+
+## What Changes
+
+| Old | New |
+|-----|-----|
+| `.mint("1", policyId, nameHex).mintingScript(script)` | `mint.native({ script, assets: { [nameHex]: 1n } })` |
+| `.mint("-1", policyId, nameHex)` | `assets: { [nameHex]: -1n }`. A negative quantity burns. |
+| `.mintPlutusScriptV2().mint(...).mintingScript(code).mintRedeemerValue(r)` | `mint.plutus({ script: { code, version: "V2" }, redeemer: { data: r }, assets })` |
+| `.mintTxInReference(hash, index)` | `script: { reference: { txHash, outputIndex } }` on `mint.plutus` |
+| `.metadataValue(721, nft)` | `metadata({ metadataLabel: 721n, value: nft })`. The label is a `bigint`, and each text is at most 64 bytes. |
+
+## Examples
+
+### Mint with a Native Script
+
+**Before:**
+
+```tsx
+const forgingScript = ForgeScript.withOneSignature(changeAddress);
+const policyId = resolveScriptHash(forgingScript);
+const tokenNameHex = stringToHex("MeshToken");
+const nft = {
+  [policyId]: { MeshToken: { name: "Mesh Token", image: "ipfs://..." } },
+};
+
+const unsignedTx = await txBuilder
+  .mint("1", policyId, tokenNameHex)
+  .mintingScript(forgingScript)
+  .metadataValue(721, nft)
+  .changeAddress(changeAddress).selectUtxosFrom(utxos).complete();
+```
+
+**After:**
+
+```tsx
+import {
+  ForgeScript,
+  metadata,
+  mint,
+  resolveScriptHash,
+  stringToHex,
+} from "@meshsdk/core";
+
+const forgingScript = ForgeScript.withOneSignature(changeAddress);
+const policyId = resolveScriptHash(forgingScript);
+const tokenNameHex = stringToHex("MeshToken");
+const nft = {
+  [policyId]: { MeshToken: { name: "Mesh Token", image: "ipfs://..." } },
+};
+
+const built = await builder.build(
+  [
+    mint.native({ script: forgingScript, assets: { [tokenNameHex]: 1n } }),
+    metadata({ metadataLabel: 721n, value: nft }),
+  ],
+  { payer: wallet },
+);
+```
+
+The policy id comes from the script. To burn, give a negative quantity, `{ [tokenNameHex]: -1n }`, and the payer must hold the tokens.
+
+### Mint Several Assets
+
+**Before:**
+
+```tsx
+const forgingScript = ForgeScript.withOneSignature(changeAddress);
+const policyId = resolveScriptHash(forgingScript);
+
+for (const name of ["MeshToken1", "MeshToken2", "MeshToken3"]) {
+  txBuilder.mint("1", policyId, stringToHex(name));
+  txBuilder.mintingScript(forgingScript);
+}
+const unsignedTx = await txBuilder
+  .changeAddress(changeAddress).selectUtxosFrom(utxos).complete();
+```
+
+**After:**
+
+```tsx
+import { ForgeScript, mint, stringToHex } from "@meshsdk/core";
+
+const forgingScript = ForgeScript.withOneSignature(changeAddress);
+const names = ["MeshToken1", "MeshToken2", "MeshToken3"];
+
+const built = await builder.build(
+  mint.native({
+    script: forgingScript,
+    assets: Object.fromEntries(names.map((name) => [stringToHex(name), 1n])),
+  }),
+  { payer: wallet },
+);
+```
+
+One part per policy: put every asset name in its `assets`, the two names of a CIP-68 pair too. A second part of the same policy is `DUPLICATE_PART`.
+
+### Mint with a Plutus Script
+
+**Before:**
+
+```tsx
+const collateralUtxo = (await wallet.getCollateral())[0]!;
+const policyId = resolveScriptHash(policyCode, "V2");
+
+const unsignedTx = await txBuilder
+  .mintPlutusScriptV2()
+  .mint("1", policyId, stringToHex("MeshToken"))
+  .mintingScript(policyCode)
+  .mintRedeemerValue(mConStr0([]))
+  .txInCollateral(
+    collateralUtxo.input.txHash,
+    collateralUtxo.input.outputIndex,
+    collateralUtxo.output.amount,
+    collateralUtxo.output.address,
+  )
+  .changeAddress(changeAddress).selectUtxosFrom(utxos).complete();
+```
+
+**After:**
+
+```tsx
+import { mConStr0, mint, stringToHex } from "@meshsdk/core";
+
+const built = await builder.build(
+  mint.plutus({
+    script: { code: policyCode, version: "V2" },
+    redeemer: { data: mConStr0([]) },
+    assets: { [stringToHex("MeshToken")]: 1n },
+  }),
+  { payer: wallet },
+);
+```
+
+The version moves into `script`: `mintPlutusScriptV3()` becomes `version: "V3"`. The builder picks collateral and evaluates the script, so leave out the collateral call and the redeemer's `exUnits`. See [Choose the Collateral](/apis/txbuilder/migration/smart-contracts#choose-the-collateral).
+
+### Mint with a Reference Script
+
+**Before:**
+
+```tsx
+const policyId = resolveScriptHash(policyCode, "V2");
+
+const unsignedTx = await txBuilder
+  .mintPlutusScriptV2()
+  .mint("1", policyId, stringToHex("MeshToken"))
+  .mintTxInReference(refTxHash, 0) // the policy sits in a reference output
+  .mintRedeemerValue(mConStr0([]))
+  .changeAddress(changeAddress).selectUtxosFrom(utxos).complete();
+```
+
+**After:**
+
+```tsx
+import { mConStr0, mint, resolveScriptHash, stringToHex } from "@meshsdk/core";
+
+const policyId = resolveScriptHash(policyCode, "V2");
+
+const built = await builder.build(
+  mint.plutus({
+    script: { reference: { txHash: refTxHash, outputIndex: 0 } },
+    policyId,
+    redeemer: { data: mConStr0([]) },
+    assets: { [stringToHex("MeshToken")]: 1n },
+  }),
+  { payer: wallet },
+);
+```
+
+Give `policyId` when the script is given only by its transaction hash and output index. Its version and size are read from the output.
+
+## Related
+
+- [Migrate Smart Contracts](/apis/txbuilder/migration/smart-contracts) - the next area: lock and spend with Plutus scripts
+- [Migrating to TxBuilder](/apis/txbuilder/migration) - the four steps and the names
+- [Mint with a Time-Locked Policy](/apis/txbuilder/minting#mint-with-a-time-locked-policy) and [Mint CIP-68 Tokens](/apis/txbuilder/minting#mint-cip-68-tokens) - more recipes on the new page

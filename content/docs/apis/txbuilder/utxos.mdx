@@ -1,0 +1,179 @@
+---
+title: "UTxOs and Inputs"
+description: "Give the builder UTxOs in any form, choose or limit the inputs it spends, chain transactions that are not on chain yet, and set collateral."
+---
+
+## Overview
+
+A UTxO (an unspent output: coins held at an address) is what a transaction spends. The builder reads the payer's UTxOs and picks the ones a payment needs. This page is for when you want to hand it UTxOs, limit or replace its choice, or build on a transaction that is not on chain yet. The basic parts are in [Transaction Basics](/apis/txbuilder/basics#choose-inputs).
+
+Examples use `builder`, `wallet`, `recipient`, `partner`, `changeAddress`, `utxo` and `utxos` from there, and these names, which your application defines:
+
+- `cborUtxo` - a UTxO as CBOR hex, as a CIP-30 wallet's `getUtxos()` returns it
+- `refUtxo` - an output you only read, such as one that holds a datum
+- `scriptUtxo`, `script` - an output locked at a Plutus script, and that script
+- `collateralUtxo` - an output of the payer that holds lovelace alone
+- `newAddress` - an address that gets everything in a send-all
+
+## The Forms of a UTxO
+
+Wherever the builder takes a UTxO, it takes any of these forms, and the same UTxO in each gives the same transaction. A bare out ref `{ txHash, outputIndex }` is looked up through the provider. Give the UTxO in full to spare the lookup.
+
+| Form | Comes from |
+|------|------------|
+| a Mesh `UTxO`, `{ input, output }` | a provider, a Mesh wallet, `TxEmulator` |
+| CBOR hex of a transaction unspent output (the out ref and the output) | a CIP-30 wallet: `getUtxos`, `getCollateral` |
+| a `Utxo`, the builder's own: `txHash`, `outputIndex`, `address`, `value` and, if held, `datum` and `script` | what the builder returns: `built.inputs`, `built.outputs`, `built.change` |
+
+```tsx
+import { spend, toMeshUtxo, toUtxo } from "@meshsdk/core";
+
+spend.pubKey({ utxo }); // a Mesh UTxO
+spend.pubKey({ utxo: cborUtxo }); // CBOR from a wallet
+spend.pubKey({ utxo: utxo.input }); // an out ref: looked up
+
+const own = toUtxo(utxo); // the builder's Utxo; value maps lovelace and units to bigint
+console.log(own.txHash, own.value.lovelace);
+const mesh = toMeshUtxo(own); // back to a Mesh UTxO, for an API that takes one
+```
+
+## Limit What the Builder May Pick
+
+To spend a particular output, add a `spend.pubKey` part, as in Transaction Basics. To keep some UTxOs out of the choice, give `canSelect`. It is asked about each of the payer's UTxOs, for payment and for collateral. Script-locked UTxOs and the ones parts read are never picked. An ada-only UTxO has one entry in `value`.
+
+```tsx
+import { output } from "@meshsdk/core";
+
+const built = await builder.build(
+  output({ address: recipient, value: { lovelace: 5_000_000n } }),
+  {
+    payer: wallet,
+    canSelect: (candidate) => Object.keys(candidate.value).length === 1, // ada-only: tokens stay put
+  },
+);
+```
+
+## Pick Inputs by Your Own Rule
+
+`coinSelection` replaces the built-in choice for one build. It gets `need` (`lovelace` always, a token only when it is short) and the candidates. It returns the candidates it picks, or their out refs. A name that is no candidate is `INVALID_SELECTION`. The change stays with the built-in rule.
+
+```tsx
+import { output } from "@meshsdk/core";
+
+const built = await builder.build(
+  output({ address: recipient, value: { lovelace: 5_000_000n } }),
+  {
+    payer: wallet,
+    coinSelection: (need, candidates) => {
+      let sum = 0n;
+      const smallestFirst = [...candidates].sort((a, b) =>
+        Number(a.value.lovelace - b.value.lovelace),
+      );
+      return smallestFirst.filter((candidate) => {
+        const short = sum < need.lovelace;
+        sum += candidate.value.lovelace;
+        return short;
+      });
+    },
+  },
+);
+```
+
+## Name Outputs the Provider Does Not Know
+
+A part may name an output by out ref that the provider cannot find yet, or that you build without a provider. Give the output in full in `knownUtxos`, in any form. Only the entries the parts name are read, and two entries for one out ref must hold the same.
+
+```tsx
+import { output, spend } from "@meshsdk/core";
+
+const built = await builder.build(
+  [
+    spend.pubKey({ utxo: utxo.input }), // an out ref only
+    output({ address: recipient, value: { lovelace: 3_000_000n } }),
+  ],
+  { payer: { changeAddress, utxos }, knownUtxos: [utxo] }, // nothing is looked up
+);
+```
+
+## Build on a Transaction Not Yet on Chain
+
+Give `after` a `BuiltTx`, a [plan](/apis/txbuilder/plans), or a list of them. The new build does not pick what they spend, it may pick their change at its change address, and it can name their outputs without a lookup. Without `after`, the second build may pick an input the first spends, and only the ledger catches it. Send them in order.
+
+```tsx
+import { output } from "@meshsdk/core";
+
+const first = await builder.build(
+  output({ address: recipient, value: { lovelace: 5_000_000n } }),
+  { payer: wallet },
+);
+const second = await builder.build(
+  output({ address: partner, value: { lovelace: 2_000_000n } }),
+  { payer: wallet, after: first },
+);
+for (const tx of [first, second]) {
+  await tx.sign();
+  await tx.submit();
+}
+```
+
+## Spend Many Small UTxOs with a Plan
+
+A wallet with many small UTxOs may need more inputs than one transaction holds, and `build()` throws `TX_TOO_LARGE`. Give the same parts to a [plan](/apis/txbuilder/plans). It puts consolidation steps before the payment, which merge the payer's UTxOs. Each costs a fee and a block of waiting. A step with `sendAllTo` is never consolidated. A plan needs a provider with block heights: see [Providers and Networks](/apis/txbuilder/networks#use-blockfrost-for-plans). [Consolidation Steps](/apis/txbuilder/plans#consolidation-steps) shows the steps and their fees before anything is signed, and how many a plan makes.
+
+## Send Everything
+
+`sendAllTo` spends every selectable UTxO of the payer and sends what is left, after outputs, deposits and the fee, to one address. Tokens go with it, in several outputs if they are many. `canSelect` narrows what it takes.
+
+```tsx
+const built = await builder.build([], { payer: wallet, sendAllTo: newAddress });
+```
+
+## Read an Output without Spending It
+
+`referenceInput` puts an output into the transaction without spending it: a Plutus script sees its address, value and datum, and of its reference script only the hash. An output read by several parts is one reference input. An output the transaction spends is never one, and the builder never spends an output a part only reads. `built.referenceInputs` lists them. A script that uses one is in [Smart Contracts](/apis/txbuilder/smart-contracts#read-an-output-by-reference).
+
+```tsx
+import { output, referenceInput } from "@meshsdk/core";
+
+const built = await builder.build(
+  [
+    referenceInput({ utxo: refUtxo }),
+    output({ address: recipient, value: { lovelace: 2_000_000n } }),
+  ],
+  { payer: wallet },
+);
+console.log(built.referenceInputs.map((input) => input.outputIndex));
+```
+
+## Choose the Collateral
+
+A Plutus transaction needs collateral: ada the network takes if a script fails. The builder picks it from the payer's key-locked UTxOs. If they do not cover it and the payer is a CIP-30 api with `getCollateral`, the builder asks the wallet once. To choose it yourself, add a `collateral` part, and use two build options to shape the rest.
+
+| Option | Default | Set to `false` |
+|--------|---------|----------------|
+| `topUpCollateral` | `true`: given collateral that falls short gets inputs from the payer | the given inputs are used as they are, and a shortfall is `INSUFFICIENT_COLLATERAL` |
+| `collateralReturn` | `true`: the transaction returns the rest of the collateral | no return: all lovelace of the collateral inputs is at stake (`COLLATERAL_FORFEITED` in `built.warnings`). They must hold lovelace alone, or `INVALID_COLLATERAL` |
+
+```tsx
+import { collateral, mConStr0, spend } from "@meshsdk/core";
+
+const built = await builder.build(
+  [
+    spend.plutus({ utxo: scriptUtxo, script, redeemer: { data: mConStr0([]) } }),
+    collateral({ utxo: collateralUtxo }), // key-locked, by you
+  ],
+  { payer: wallet, topUpCollateral: false },
+);
+console.log(built.collateral); // { inputs, total, return? }
+```
+
+## Related
+
+- [Transaction Basics](/apis/txbuilder/basics) - the builder, outputs and the basic parts
+- [Smart Contracts](/apis/txbuilder/smart-contracts) - spend from a script, reference scripts
+- [Plans](/apis/txbuilder/plans) - send transactions in order, and consolidate a wallet
+- [Signing and Submitting](/apis/txbuilder/signing) - signers, partial signing and retries
+- [Errors](/apis/txbuilder/errors) - `INSUFFICIENT_FUNDS`, `INSUFFICIENT_COLLATERAL`, `TX_TOO_LARGE` and the other codes
+- [Time and Validity](/apis/txbuilder/time) - validity by time and by slot
+- [Providers](/providers) - read UTxOs from the chain
+- [Package README](https://github.com/MeshJS/mesh/tree/main/packages/mesh-transaction) - every part, option and error

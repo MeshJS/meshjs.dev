@@ -1,5 +1,31 @@
 {
   "title": "Transaction Builder",
   "icon": "BanknotesIcon",
-  "pages": ["basics", "minting", "smart-contracts", "staking", "governance"]
+  "pages": [
+    "basics",
+    "signing",
+    "utxos",
+    "time",
+    "---Plans and Servers---",
+    "plans",
+    "servers",
+    "---Scripts, Staking and Governance---",
+    "minting",
+    "smart-contracts",
+    "staking",
+    "certificates",
+    "governance",
+    "---Examples---",
+    "cookbook",
+    "---Environments---",
+    "offline",
+    "testing",
+    "networks",
+    "---Reference---",
+    "options",
+    "errors",
+    "---Migration---",
+    "migration",
+    "legacy"
+  ]
 }

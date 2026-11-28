@@ -1,0 +1,120 @@
+---
+title: "Test Recipes"
+description: "Complete jest tests that run a payment plan to final and check an expected error on the emulator."
+---
+
+## Overview
+
+Three tests on the `TxEmulator` of `@meshsdk/tx-emulator` (`npm install @meshsdk/tx-emulator`): a payment plan run to `final`, a payout that finishes after a restart, and a payment the wallet cannot afford. Names as in [Before you start](/apis/txbuilder/cookbook#before-you-start), plus `it` and `expect` from jest.
+
+## Test a Payment Plan on the Emulator
+
+Use this for a test of a whole flow, a plan sent to its end and the balances afterwards, with a `setup()` that the other tests of this page share. `validator` is the `TxValidator` of the emulator and `words` the mnemonic of a test wallet, as in [Testing on the Emulator](/apis/txbuilder/testing#create-and-fund-an-emulator).
+
+```tsx
+import { MeshWallet, output, TxBuilder } from "@meshsdk/core";
+import { TxEmulator } from "@meshsdk/tx-emulator";
+
+const planDefaults = { expiryMarginMs: 0, confirmations: 0, pollMs: 10, resendMs: 10 };
+
+async function setup() {
+  const emulator = await TxEmulator.create({ validator, network: "preprod" });
+  const wallet = new MeshWallet({
+    networkId: 0,
+    key: { type: "mnemonic", words },
+  });
+  emulator.fund(await wallet.getChangeAddress(), { lovelace: 100_000_000n });
+  const builder = new TxBuilder({ network: "preprod", provider: emulator, planDefaults });
+  return { emulator, wallet, builder };
+}
+
+const lovelaceOf = (emulator: TxEmulator, address: string) =>
+  emulator
+    .utxos({ address })
+    .flatMap((utxo) => utxo.output.amount)
+    .filter((asset) => asset.unit === "lovelace")
+    .reduce((sum, asset) => sum + BigInt(asset.quantity), 0n);
+
+it("pays the recipient and ends final", async () => {
+  const { emulator, wallet, builder } = await setup();
+  emulator.fund(recipient, { lovelace: 10_000_000n });
+  const plan = await builder.plan(
+    { pay: output({ address: recipient, value: { lovelace: 25_000_000n } }) },
+    { payer: wallet },
+  );
+  await plan.run({ waitFor: "final" });
+
+  expect(plan.status).toBe("final");
+  expect(lovelaceOf(emulator, recipient)).toBe(35_000_000n);
+  expect(lovelaceOf(emulator, await wallet.getChangeAddress())).toBe(75_000_000n - plan.fee);
+});
+```
+
+- `fund` adds an output to the ledger. The wallet has no fetcher, so the builder reads its UTxOs from the emulator: see [Create and Fund an Emulator](/apis/txbuilder/testing#create-and-fund-an-emulator).
+- The `planDefaults` make a step `final` as soon as it is included and keep the waiting short. Use them in tests only: see [Run a Plan](/apis/txbuilder/testing#run-a-plan).
+- The payer holds its funds less the payment and `plan.fee`, the fees of every step: see [Send Several Transactions](/apis/txbuilder/plans#send-several-transactions).
+
+## Test That a Payout Finishes After a Restart
+
+Use this to test server code that resumes plans: the first builder sends a payout and is dropped, and a second builder on the same store finds the plan, finishes it and pays once. It adds a test to the file above, so it uses `setup` and `planDefaults`.
+
+```tsx
+import { memoryPlanStore, output, TxBuilder } from "@meshsdk/core";
+
+it("finishes a payout after a restart without paying twice", async () => {
+  const { emulator, wallet } = await setup();
+  const options = {
+    network: "preprod",
+    provider: emulator,
+    store: memoryPlanStore(),
+    planDefaults,
+  } as const;
+
+  const before = new TxBuilder(options);
+  const plan = await before.plan(
+    output({ address: recipient, value: { lovelace: 5_000_000n } }),
+    { id: "payout-1", payer: wallet },
+  );
+  await plan.run({ waitFor: "sent" }); // the bytes left; the process dies here
+
+  const after = new TxBuilder(options); // a new instance on the same store
+  const resumed = await after.resume("payout-1", { payer: wallet });
+  await resumed.run({ waitFor: "final" }); // looks first: the same bytes, never a new transaction
+  expect(resumed.status).toBe("final");
+  expect(resumed.step("main").txHash).toBe(plan.step("main").txHash);
+  expect(emulator.utxos({ address: recipient })).toHaveLength(1); // paid once
+});
+```
+
+- `resume` reads the store only and does not call the payer, so give the payer again: see [Resume After a Crash](/apis/txbuilder/servers#resume-after-a-crash).
+- `memoryPlanStore()` is for tests: a real server writes its own store: see [Write a Store](/apis/txbuilder/servers#write-a-store).
+- The same `id` with the same steps is the same plan, so a retried job pays once: see [Use One Id for One Plan](/apis/txbuilder/servers#use-one-id-for-one-plan).
+
+## Test an Expected Error
+
+Use this to check that a mistake fails the way you expect: `build()` throws before anything is signed or sent, and the test checks the code. It adds a test to the file above, so it uses `setup`.
+
+```tsx
+import { output } from "@meshsdk/core";
+
+it("refuses a payment the wallet cannot afford", async () => {
+  const { emulator, wallet, builder } = await setup();
+  await expect(
+    builder.build(
+      output({ address: recipient, value: { lovelace: 500_000_000n } }),
+      { payer: wallet },
+    ),
+  ).rejects.toMatchObject({ code: "INSUFFICIENT_FUNDS", details: { unit: "lovelace" } });
+  expect(emulator.utxos({ address: recipient })).toHaveLength(0); // nothing was sent
+});
+```
+
+- Code that reads `error.details` checks the code with `TxError.is(error, "INSUFFICIENT_FUNDS")`, which also types them: see [Check a Code](/apis/txbuilder/errors#check-a-code).
+- A build error means nothing was sent, so a test may fund the wallet and build again: see [Handle Errors Around Build and Submit](/apis/txbuilder/errors#handle-errors-around-build-and-submit).
+- Every code with what it means is in [Funds, Fees and Size](/apis/txbuilder/errors#funds-fees-and-size), and the other groups follow it.
+
+## Related
+
+- [Testing on the Emulator](/apis/txbuilder/testing) - validators, time, forks and scripts that refuse
+- [Plans](/apis/txbuilder/plans) - send transactions in order
+- [Errors](/apis/txbuilder/errors) - every code and which a retry can fix

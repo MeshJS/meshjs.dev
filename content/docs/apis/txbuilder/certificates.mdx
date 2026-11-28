@@ -1,0 +1,299 @@
+---
+title: "Certificates"
+description: "Every certificate part of TxBuilder: what it does, its deposit, who signs it, and how script credentials and legacy forms work."
+---
+
+## Overview
+
+A certificate is a part like any other. `certificate.stakeRegistration({ ... })` goes in the list you give to `builder.build()`. It changes what the chain records: a registered stake key, a delegation, a pool, a DRep. A withdrawal is different. It takes rewards out, and has its own part: see [Withdraw Rewards](/apis/txbuilder/staking#withdraw-rewards).
+
+There are 17 builders, in six groups:
+
+| Group | Builders | Use it to |
+|-------|----------|-----------|
+| [Stake key](#stake-key) | `stakeRegistration`, `stakeDeregistration` | register and deregister a stake key |
+| [Delegation](#delegation) | `stakeDelegation`, `voteDelegation`, `stakeAndVoteDelegation`, three `...RegistrationAndDelegation` | delegate stake, vote, or both |
+| [Pools](#pools) | `poolRegistration`, `poolRetirement` | run a pool |
+| [DReps](#dreps) | `drepRegistration`, `drepUpdate`, `drepDeregistration` | act as a DRep |
+| [Committee](#constitutional-committee) | `committeeHotAuth`, `committeeColdResign` | serve on the committee |
+| [Legacy forms](#legacy-forms) | `legacyStakeRegistration`, `legacyStakeDeregistration` | old forms, not for new code |
+
+- Certificates keep the order you give them, because the order is part of the transaction.
+- Some certificates take a deposit, and some give one back: see [Deposits](#deposits).
+- A certificate is authorised by the key of its credential, or by its script: see [Who Signs](#who-signs).
+
+Examples stop at `build()`: call `built.sign()` and `built.submit()` as in [Transaction Basics](/apis/txbuilder/basics#build-sign-and-submit). They use `builder` and `wallet` from there, and these names, which your application defines:
+
+- `rewardAddress` - your stake address (`stake_test1...` on a test network, `stake1...` on mainnet)
+- `poolId`, `drepId` - a pool id (`pool1...`) and a DRep id (`drep1...`)
+- `anchor` - `{ url, dataHash }`, where a metadata or rationale file is published. `hashDrepAnchor(json)` makes the hash.
+- `stakeScript` - a Plutus V3 staking script, `{ code, version }`
+- `operatorKeyHash`, `vrfKeyHash`, `ownerKeyHash`, `metadataHash` - the values of your pool. `ownerKeyHash` is the stake key hash of a pool owner.
+- `operatorKey`, `epoch` - the pool's cold signing key and the retirement epoch
+- `coldKeyHash`, `hotKeyHash`, `coldKey` - the keys of a committee member
+
+These arguments mean the same in every builder:
+
+| Argument | Takes |
+|----------|-------|
+| `stake`, `cold`, `hot` | a reward address, or a credential `{ type: "KEY" \| "SCRIPT", value: <28-byte hash in hex> }` |
+| `pool` | a pool id in bech32, or the operator key hash in hex |
+| `drep` | a DRep id or a credential. A delegation also takes `"alwaysAbstain"` and `"alwaysNoConfidence"` |
+| `anchor` | `{ url, dataHash }` |
+| `deposit`, `refund` | lovelace as a `bigint`: see [Deposits](#deposits) |
+| `witness` | the script of a script credential: see [Who Signs](#who-signs) |
+| `label` | a name for the part, shown in errors about it |
+
+## Certificates by Group
+
+In every table, "signed by" means the key of the credential. A script credential is authorised by its script instead. The two legacy forms are in [Legacy Forms](#legacy-forms).
+
+### Stake Key
+
+Register a stake key before it delegates. Deregister it to get the deposit back.
+
+| Builder | What it does | Deposit | Signed by |
+|---------|--------------|---------|-----------|
+| `stakeRegistration` | Registers a stake key | pays `keyDeposit` | the stake key |
+| `stakeDeregistration` | Deregisters a stake key | gets `keyDeposit` back | the stake key |
+
+```tsx
+import { certificate } from "@meshsdk/core";
+
+// Register: the deposit is the keyDeposit parameter
+const register = await builder.build(
+  certificate.stakeRegistration({ stake: rewardAddress }),
+  { payer: wallet },
+);
+
+// Deregister: the refund is the keyDeposit parameter
+const leave = await builder.build(
+  certificate.stakeDeregistration({ stake: rewardAddress }),
+  { payer: wallet },
+);
+```
+
+### Delegation
+
+Delegate stake to a pool, a vote to a DRep, or both. The last three builders also register the key, in the same certificate.
+
+| Builder | What it does | Deposit | Signed by |
+|---------|--------------|---------|-----------|
+| `stakeDelegation` | Delegates stake to a pool | none | the stake key |
+| `voteDelegation` | Delegates the vote to a DRep | none | the stake key |
+| `stakeAndVoteDelegation` | Does both | none | the stake key |
+| `stakeRegistrationAndDelegation` | Registers the key, delegates stake | pays `keyDeposit` | the stake key |
+| `voteRegistrationAndDelegation` | Registers the key, delegates the vote | pays `keyDeposit` | the stake key |
+| `stakeVoteRegistrationAndDelegation` | Registers the key, delegates both | pays `keyDeposit` | the stake key |
+
+```tsx
+import { certificate } from "@meshsdk/core";
+
+// A registered key moves its stake to another pool
+const move = await builder.build(
+  certificate.stakeDelegation({ stake: rewardAddress, pool: poolId }),
+  { payer: wallet },
+);
+
+// A new key registers, then delegates its stake and its vote
+const join = await builder.build(
+  certificate.stakeVoteRegistrationAndDelegation({
+    stake: rewardAddress,
+    pool: poolId,
+    drep: "alwaysAbstain",
+  }),
+  { payer: wallet },
+);
+```
+
+### Pools
+
+A stake pool operator registers a pool, updates it, and retires it.
+
+| Builder | What it does | Deposit | Signed by |
+|---------|--------------|---------|-----------|
+| `poolRegistration` | Registers a pool, or updates one | pays `poolDeposit`, none for an update | the operator key and every owner key |
+| `poolRetirement` | Retires a pool at the start of an epoch | none in this transaction | the operator key |
+
+The deposit is `poolDeposit` from the protocol parameters (500 ADA on mainnet), so you give nothing. Sign with the wallet, the operator key and every owner key. An owner key the wallet holds signs with it. Add any other key with `keySigner(...)`.
+
+When a pool retires, the ledger returns `poolDeposit` to the pool's reward account at that epoch. If that account is not registered then, the deposit goes to the treasury. The retirement transaction itself has no refund.
+
+```tsx
+import { certificate, keySigner } from "@meshsdk/core";
+
+const register = await builder.build(
+  certificate.poolRegistration({
+    params: {
+      operator: operatorKeyHash,
+      vrfKeyHash,
+      pledge: "500000000", // lovelace as text: 500 ADA
+      cost: "340000000", // lovelace as text: 340 ADA
+      margin: [3, 100], // 3 percent
+      owners: [ownerKeyHash], // stake key hashes
+      rewardAddress,
+      relays: [{ type: "SingleHostName", domainName: "relay.example.com", port: 3001 }],
+      metadata: { URL: "https://example.com/pool.json", hash: metadataHash },
+    },
+  }),
+  { payer: wallet }, // for an update, add registeredPools: [operatorKeyHash]
+);
+// The owner key signs too: add keySigner(ownerKey) if the wallet does not hold it
+await register.sign({ signers: [wallet, keySigner(operatorKey)] });
+
+const retire = await builder.build(
+  certificate.poolRetirement({ pool: poolId, epoch }),
+  { payer: wallet },
+);
+```
+
+### DReps
+
+A DRep (delegated representative) votes for the stake delegated to it.
+
+| Builder | What it does | Deposit | Signed by |
+|---------|--------------|---------|-----------|
+| `drepRegistration` | Registers a DRep, with an optional `anchor` | pays `drepDeposit` (you state it: see [Deposits](#deposits)) | the DRep key |
+| `drepUpdate` | Changes the `anchor`. Leave it out to clear it | none | the DRep key |
+| `drepDeregistration` | Retires a DRep | gets `drepDeposit` back | the DRep key |
+
+The deposit is not read from the chain. Give `deposit` on the part, or `drepDeposit` on the builder (500 ADA, `500_000_000n`, on mainnet). The DRep key signs. A `MeshWallet` that holds it signs in `built.sign()`, and a browser wallet needs CIP-95. If the key is not in the wallet, `built.missing` lists it.
+
+```tsx
+import { certificate } from "@meshsdk/core";
+
+// Register: state the deposit here, or set drepDeposit on the builder
+const register = await builder.build(
+  certificate.drepRegistration({ drep: drepId, deposit: 500_000_000n, anchor }),
+  { payer: wallet },
+);
+
+// Retire: the refund is the deposit that was paid
+const retire = await builder.build(
+  certificate.drepDeregistration({ drep: drepId, refund: 500_000_000n }),
+  { payer: wallet },
+);
+```
+
+### Constitutional Committee
+
+A committee member has a cold credential, and authorises a hot credential to vote for it.
+
+| Builder | What it does | Deposit | Signed by |
+|---------|--------------|---------|-----------|
+| `committeeHotAuth` | Authorises a hot credential for a member | none | the cold key |
+| `committeeColdResign` | Resigns from the committee. `anchor` says why | none | the cold key |
+
+```tsx
+import { certificate, keySigner } from "@meshsdk/core";
+
+const cold = { type: "KEY", value: coldKeyHash } as const;
+
+// The cold key authorises the hot key
+const auth = await builder.build(
+  certificate.committeeHotAuth({ cold, hot: { type: "KEY", value: hotKeyHash } }),
+  { payer: wallet },
+);
+await auth.sign({ signers: [wallet, keySigner(coldKey)] });
+
+// The cold key resigns
+const resign = await builder.build(
+  certificate.committeeColdResign({ cold, anchor }),
+  { payer: wallet },
+);
+```
+
+## Deposits
+
+A deposit is paid when something is registered. A refund comes back when it is removed. The builder counts both when it balances, so you add no output for either. The other certificates have neither.
+
+| Certificate | Deposit | The amount comes from |
+|-------------|---------|-----------------------|
+| `stakeRegistration`, the three `...RegistrationAndDelegation` | pays | `deposit` on the part, else `keyDeposit` of the protocol parameters |
+| `stakeDeregistration` | refund | `refund` on the part, else `keyDeposit` |
+| `legacyStakeRegistration`, `legacyStakeDeregistration` | pays, refund | always `keyDeposit` |
+| `poolRegistration` | pays, none for an update | `poolDeposit` of the protocol parameters |
+| `drepRegistration` | pays | `deposit` on the part, else `drepDeposit` of the builder's `deposits` option |
+| `drepDeregistration` | refund | `refund` on the part, else `drepDeposit` of `deposits` |
+
+The protocol parameters come from the provider, or from the builder's `params`. `drepDeposit` is a protocol parameter that Mesh's `Protocol` type does not carry, so it comes from the `deposits` option: `new TxBuilder({ ..., deposits: { drepDeposit: 500_000_000n } })`. A proposal works the same way, with `govActionDeposit`: see [Governance Transactions](/apis/txbuilder/governance#submit-a-proposal).
+
+- A `deposit` must equal the current parameter (`keyDeposit` or `drepDeposit`), or the node refuses the transaction. Pass it when the builder does not know the parameter, such as `drepDeposit` without the `deposits` option.
+- A refund must be the deposit that was paid. If you paid another amount than the current parameter, pass `refund`.
+- `poolRegistration` has no `deposit` argument. A pool in the `registeredPools` option of `build()` is an update, and an update pays none.
+- If a certificate with a `deposit` or `refund` argument has neither the amount nor a known parameter, `build()` throws `MISSING_PARAMETER`. `details.parameter` says which: `"params"` or `"deposits"`. Give the amount on the part, or give the builder the option.
+- `poolRegistration` and the legacy forms take `poolDeposit` or `keyDeposit` from the protocol parameters only, so give `params` that hold them (a provider does).
+
+## Who Signs
+
+The credential of a certificate decides what authorises it.
+
+| Credential | Authorised by | You give |
+|------------|---------------|----------|
+| A key | its signature | no `witness` |
+| A native script | the script | `witness: { native: script }` |
+| A Plutus script | the script, run with a redeemer | `witness: { plutus: script, redeemer }` |
+
+### Keys
+
+This is the usual case.
+
+- The builder works out which keys must sign. `built.missing` lists those that have not, each with its roles: `"certificate"` for the key of the credential, or the operator key of a pool, and `"poolOwner"` for each owner of a pool.
+- The payer's wallet also signs for the inputs. A `MeshWallet` signs with the payment, stake and DRep keys it holds. A browser wallet must be connected with the CIP-95 extension to sign with a DRep key.
+- Any other key, such as a pool operator key or a committee cold key, goes in as a signer: `built.sign({ signers: [wallet, keySigner(key)] })`.
+
+### Scripts
+
+- A key credential given a `witness`, and a script credential given none, are `WITNESS_MISMATCH`. So is a script whose hash is not the credential's.
+- A Plutus script must be V3, except for `stakeDelegation` and `legacyStakeDeregistration`, which take any Plutus version.
+- The redeemer's index is the place of the certificate among the transaction's certificates, in the order you give them. The builder sets it, and a redeemer function reads it as `tx.self`.
+
+```tsx
+import { certificate, mConStr0 } from "@meshsdk/core";
+import type { NativeScript } from "@meshsdk/core";
+
+const redeemer = { data: mConStr0([]) };
+const nativeScript: NativeScript = { type: "sig", keyHash: ownerKeyHash };
+
+const built = await builder.build(
+  [
+    // A Plutus script credential: the script runs with the redeemer
+    certificate.stakeRegistration({
+      stake: builder.rewardAddress(stakeScript),
+      witness: { plutus: stakeScript, redeemer },
+    }),
+    // A native script credential: the script is the witness
+    certificate.stakeRegistration({
+      stake: builder.rewardAddress(nativeScript),
+      witness: { native: nativeScript },
+    }),
+  ],
+  { payer: wallet },
+);
+```
+
+## Legacy Forms
+
+`certificate.legacyStakeRegistration` and `certificate.legacyStakeDeregistration` are the older certificates 0 and 1. They state no deposit or refund. Both are `@deprecated` and work only until the next ledger era. Write new code with `stakeRegistration` and `stakeDeregistration`.
+
+| Builder | What it does | Deposit | Signed by | Use instead |
+|---------|--------------|---------|-----------|-------------|
+| `legacyStakeRegistration` | Registers a stake key | pays `keyDeposit` | nobody: it takes no witness | `stakeRegistration` |
+| `legacyStakeDeregistration` | Deregisters a stake key | gets `keyDeposit` back | the stake key | `stakeDeregistration` |
+
+The legacy deregistration always counts the current `keyDeposit` as its refund. If the deposit paid was another amount, use `stakeDeregistration` with `refund`.
+
+When you switch:
+
+- `stakeRegistration` needs the stake key's signature, or the script as `witness`. The legacy registration needs neither.
+- `stakeDeregistration` takes a V3 script as witness. The legacy form takes any Plutus version.
+
+## Related
+
+- [Staking Transactions](/apis/txbuilder/staking) - register a stake key, delegate, withdraw rewards and run a pool
+- [Governance Transactions](/apis/txbuilder/governance) - DReps, votes and proposals
+- [Smart Contracts](/apis/txbuilder/smart-contracts) - the Plutus scripts a script credential runs
+- [Signing and Submitting](/apis/txbuilder/signing#sign-with-a-private-key) - sign with a stake key, a pool operator key or a cold key
+- [Options](/apis/txbuilder/options) - `deposits`, `registeredPools` and the other options
+- [Errors](/apis/txbuilder/errors#setup-and-options) - `MISSING_PARAMETER`, and `WITNESS_MISMATCH` under [Errors When Making a Part](/apis/txbuilder/errors#errors-when-making-a-part)
+- [Package README](https://github.com/MeshJS/mesh/tree/main/packages/mesh-transaction) - every part, option and error

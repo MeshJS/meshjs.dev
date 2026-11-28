@@ -1,0 +1,173 @@
+---
+title: "Scripts"
+description: "Lock funds until a deadline, hold a payment in escrow, and deploy a script once to use it by reference."
+---
+
+## Overview
+
+Three script recipes: funds that vest on a date, a payment held in escrow, and a script stored on chain once. They assume a compiled validator that accepts the datum and redeemer shown. Names as in [Before you start](/apis/txbuilder/cookbook#before-you-start), where `script` is its `{ code, version }`, plus `vault` for the last recipe.
+
+## Vest Funds and Claim Them Later
+
+Use this to pay someone after a date: the owner locks ada at a vesting script, and the beneficiary claims it once the deadline has passed. `script` is your vesting validator, whose datum holds the deadline in POSIX milliseconds and the key hashes of the owner and the beneficiary, and `partnerWallet` is the beneficiary's wallet.
+
+```tsx
+import { guard, mConStr0, output, outputOf, spend, validity } from "@meshsdk/core";
+
+// The owner locks 10 ada under a datum with the deadline and both key hashes,
+// as deserializeAddress(address).pubKeyHash gives them
+export async function lockFunds(deadline: bigint, owner: string, beneficiary: string) {
+  const lock = await builder.plan(
+    output({
+      address: builder.scriptAddress(script),
+      value: { lovelace: 10_000_000n },
+      datum: { type: "inline", data: mConStr0([deadline, owner, beneficiary]) },
+      label: "vesting",
+    }),
+    { payer: wallet },
+  ); // built; nothing is signed or sent
+  await lock.run();
+  const { txHash, outputIndex } = outputOf(lock.step("main"), "vesting");
+  return { txHash, outputIndex }; // keep it: the claim names this output
+}
+
+// The beneficiary claims it from the first moment after the deadline, from anywhere
+export async function claim(
+  vesting: { txHash: string; outputIndex: number },
+  deadline: bigint,
+) {
+  const plan = await builder.plan(
+    [
+      spend.plutus({ utxo: vesting, script, redeemer: { data: mConStr0([]) } }),
+      guard.pubKey({ address: partner }),
+      validity({ from: deadline + 1n }),
+    ],
+    { payer: partnerWallet },
+  );
+  // Before the deadline this is NOT_YET_VALID: nothing is sent, so call claim again later
+  await plan.run();
+  return plan.status;
+}
+```
+
+- A script sees its interval inside `[from, until]`, so a validator that needs a lower bound after the deadline gets `from: deadline + 1n`: see [Set a Start Time](/apis/txbuilder/time#set-a-start-time).
+- `NOT_YET_VALID` is a wait, not a failure: nothing was sent, and `error.retryAfterMs` says how long. For a deadline days away, build the claim when it is near: see [Wait for a Start Time](/apis/txbuilder/time#wait-for-a-start-time).
+- `outputOf(plan.step("main"), "vesting")` names the locked output by its label: see [Link Steps](/apis/txbuilder/plans#link-steps).
+
+## Hold a Payment in Escrow
+
+Use this to hold a payment until both sides are satisfied: the buyer locks the price under a datum that names both parties, and one spend ends it, as a release to the seller or a refund to the buyer. `script` accepts a release signed by the buyer and a refund signed by the seller, and `partnerWallet` is the seller's wallet.
+
+```tsx
+import {
+  deserializeAddress,
+  guard,
+  mConStr0,
+  mConStr1,
+  output,
+  outputOf,
+  spend,
+} from "@meshsdk/core";
+
+const buyer = deserializeAddress(changeAddress).pubKeyHash;
+const seller = deserializeAddress(partner).pubKeyHash;
+const price = 20_000_000n;
+
+// The buyer locks the price. The datum names both parties
+export async function lockPrice() {
+  const lock = await builder.plan(
+    output({
+      address: builder.scriptAddress(script),
+      value: { lovelace: price },
+      datum: { type: "inline", data: mConStr0([buyer, seller]) },
+      label: "escrow",
+    }),
+    { payer: wallet },
+  );
+  await lock.run();
+  const { txHash, outputIndex } = outputOf(lock.step("main"), "escrow");
+  return { txHash, outputIndex }; // keep it: the settlement names this output
+}
+
+// One spend, two outcomes. Release: the buyer signs and the seller is paid.
+// Refund: the seller signs and the buyer is paid back
+const outcomes = {
+  release: { redeemer: mConStr0([]), to: partner, signer: buyer, payer: wallet },
+  refund: {
+    redeemer: mConStr1([]),
+    to: changeAddress,
+    signer: seller,
+    payer: partnerWallet,
+  },
+};
+
+export async function settle(
+  escrow: { txHash: string; outputIndex: number },
+  outcome: keyof typeof outcomes,
+) {
+  const o = outcomes[outcome];
+  const plan = await builder.plan(
+    [
+      spend.plutus({
+        utxo: escrow,
+        script,
+        redeemer: { data: o.redeemer },
+        label: outcome,
+      }),
+      output({ address: o.to, value: { lovelace: price } }),
+      guard.pubKey({ keyHash: o.signer }),
+    ],
+    { payer: o.payer },
+  );
+  await plan.run({ waitFor: "final" }); // release the goods now
+  return plan.status;
+}
+// const escrow = await lockPrice(); await settle(escrow, "release"); // or "refund"
+```
+
+- The constructor of the redeemer picks the action: `mConStr0([])` releases and `mConStr1([])` refunds: see [Spend from a Script](/apis/txbuilder/smart-contracts#spend-from-a-script).
+- `guard.pubKey` requires a key's signature and shows it to the script. The payer signs by default, so the buyer's wallet pays a release and the seller's a refund: see [Require a Signer](/apis/txbuilder/basics#require-a-signer).
+- The locked output is spent once, so only one outcome can happen. Keep its out ref, and act on the status of the plan: see [Read the Statuses](/apis/txbuilder/plans#read-the-statuses).
+
+## Deploy a Script Once and Use It by Reference
+
+Use this for a script that is large or spent often: put it on chain once, and every transaction then names the output that holds it instead of carrying its bytes. `script` is your Plutus script, and `vault` an output already locked at it.
+
+```tsx
+import { mConStr0, output, outputOf, spend } from "@meshsdk/core";
+
+// Once: put the script on chain, in an output of your own
+const setup = await builder.plan(
+  output({
+    address: changeAddress,
+    value: {}, // the output holds the minimum it needs
+    scriptRef: script,
+    label: "code",
+  }),
+  { payer: wallet },
+);
+await setup.run();
+const code = outputOf(setup.step("main"), "code"); // keep this out ref: it is the script's home
+
+// Every use: name the output that holds the script, and keep it out of the selection
+const use = await builder.plan(
+  spend.plutus({
+    utxo: vault,
+    script: { reference: code },
+    redeemer: { data: mConStr0([]) },
+  }),
+  { payer: wallet, canSelect: (candidate) => !candidate.script },
+);
+console.log(use.step("main").referenceInputs.length); // 1: the output that holds the script
+await use.run();
+```
+
+- `scriptRef` stores the script in an output, and an empty `value` gives it the minimum it needs: see [Deploy and Use a Reference Script](/apis/txbuilder/smart-contracts#deploy-and-use-a-reference-script).
+- The holder sits at your own address, so `canSelect` keeps later builds from spending it: see [Limit What the Builder May Pick](/apis/txbuilder/utxos#limit-what-the-builder-may-pick).
+- The builder adds the holder as a reference input and never spends it, so the transaction carries no script bytes: see [Read an Output without Spending It](/apis/txbuilder/utxos#read-an-output-without-spending-it).
+
+## Related
+
+- [Smart Contracts](/apis/txbuilder/smart-contracts) - lock, spend and read with Plutus and native scripts
+- [Time and Validity](/apis/txbuilder/time) - deadlines, start times and the clock
+- [UTxOs and Inputs](/apis/txbuilder/utxos) - choose, limit and read outputs

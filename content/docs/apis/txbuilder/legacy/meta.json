@@ -1,0 +1,5 @@
+{
+  "title": "MeshTxBuilder (deprecated)",
+  "defaultOpen": false,
+  "pages": ["basics", "minting", "smart-contracts", "staking", "governance"]
+}

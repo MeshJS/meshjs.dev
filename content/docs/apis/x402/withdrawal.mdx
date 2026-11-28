@@ -17,7 +17,7 @@ x402 `/settle` is the incoming payment. Whether you then need a withdrawal depen
 
 ## Script (`script`)
 
-x402 only checks that the lock went to **your** script, with the datum you declared. It never spends from it. Unlocking is a normal script spend you build for that contract ([MeshTxBuilder](/apis/txbuilder/smart-contract)): your redeemer, your validity window, your payouts.
+x402 only checks that the lock went to **your** script, with the datum you declared. It never spends from it. Unlocking is a normal script spend you build for that contract ([TxBuilder](/apis/txbuilder/smart-contracts)): your redeemer, your validity window, your payouts.
 
 ```ts
 const unsigned = await new MeshTxBuilder({ fetcher: provider, evaluator: provider })

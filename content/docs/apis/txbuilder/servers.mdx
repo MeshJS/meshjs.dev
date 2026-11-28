@@ -1,0 +1,160 @@
+---
+title: "Servers and Storage"
+description: "Record plans in a store so a server can restart, share work between instances and wait days for signatures."
+---
+
+## Overview
+
+A plan lives in its object unless the builder has a `store`. With a store every plan is recorded under an `id`, and any process can find it again with `builder.resume(id)`. Use it on a server, where a process can crash after sending, several instances share the work, or a signature takes days. Read [Plans](/apis/txbuilder/plans) first.
+
+Examples use `wallet`, `recipient` and `partner` from [Transaction Basics](/apis/txbuilder/basics), and these names, which your application defines:
+
+- `provider` - a provider that returns block heights and the validity flag: see [Providers and Networks](/apis/txbuilder/networks#use-blockfrost-for-plans)
+- `store` - a `TxPlanStore`: `memoryPlanStore()` in tests, or your own (see [Write a Store](#write-a-store))
+- `builder` - a `TxBuilder` made with that `store`, as in the next section
+- `userAddress` - the address of a user who signs in a browser
+- `firstWitnessSet`, `secondWitnessSet` - witness sets as hex, from a wallet's `signTx(tx, true)`
+
+## Record Plans in a Store
+
+Give the builder a `store`. Every change is saved before the method returns: a new plan before it is returned, a delivery before the bytes leave. Without a store a plan lives in its object only. To keep it yourself, save `JSON.stringify(plan)` and give `JSON.parse(saved)` to `builder.resume`: a string is taken as an id.
+
+```tsx
+import { memoryPlanStore, TxBuilder } from "@meshsdk/core";
+
+const builder = new TxBuilder({
+  network: "preprod",
+  provider,
+  store: memoryPlanStore(), // for tests; a server gives its own store
+});
+```
+
+> **Note:** A redeemer may be a function of the final transaction, as in [Spend from a Script](/apis/txbuilder/smart-contracts#spend-from-a-script). A function cannot be recorded, so `builder.plan()` on a builder with a store throws `NOT_SERIALIZABLE`. Use a second builder without a store for those plans: they live in memory and are lost with the process.
+
+## Use One Id for One Plan
+
+On a builder with a store every plan needs an `id` (`MISSING_ID`). The same id with the same steps and options returns the recorded plan and builds nothing, so a repeated request handler is safe. Other steps or options under a known id are `PLAN_EXISTS`, and nothing is written. A new id is a new order: the same steps under a new id are paid again.
+
+```tsx
+import { output } from "@meshsdk/core";
+
+const pay = output({ address: recipient, value: { lovelace: 5_000_000n } });
+const plan = await builder.plan(pay, { id: "order-7", payer: wallet });
+const again = await builder.plan(pay, { id: "order-7", payer: wallet }); // the recorded plan
+const later = await builder.resume("order-7", { payer: wallet }); // from any instance
+```
+
+## Build Without Keys on a Server
+
+The server builds with the user's address as payer and returns the unsigned body. The user signs in the browser, and any instance adds the signature and sends. The store's compare-and-set makes several instances safe: two of them never record two plans under one `id`.
+
+```tsx
+import { output } from "@meshsdk/core";
+
+export async function buildPayment(orderId: string, lovelace: bigint) {
+  const plan = await builder.plan(
+    output({ address: recipient, value: { lovelace } }),
+    { id: orderId, payer: userAddress },
+  ); // recorded before it returns
+  return { tx: plan.step("main").tx }; // the body without signatures
+}
+
+// in the browser: const witnessSet = await api.signTx(tx, true);
+
+export async function submitPayment(orderId: string, witnessSet: string) {
+  const plan = await builder.resume(orderId); // any instance
+  await plan.addWitnesses(witnessSet); // INVALID_WITNESS when it is not of this body
+  await plan.run({ waitFor: "sent" }); // looks, records the delivery, then submits
+  return { orderId, txHash: plan.step("main").txHash }; // the hash never changes
+}
+```
+
+The store does not keep plans with different ids apart. Payouts from one wallet on several instances may select the same UTxO, and one of them is refused. Give each instance its own UTxOs with `canSelect`, or send one payer's payouts one after another with `after`.
+
+## Resume After a Crash
+
+`run()` records a delivery as "outcome unknown" before the bytes leave. After a crash, resume the plan by its id and run it again: it sends the same bytes. `resume` reads the store only. It asks the chain nothing and does not call the payer, so give the payer again, and the `signers` and `submitter` in each `run()`.
+
+```tsx
+const resumed = await builder.resume("payout-7", { payer: wallet }); // live objects are given again
+await resumed.run({ waitFor: "final" }); // looks first; the same bytes go again if needed
+```
+
+| Crash | In the store | After `resume` |
+|-------|--------------|----------------|
+| before the delivery is recorded | `signed` | `run()`: the first delivery |
+| after it, before the answer | `sent`, outcome unknown | `run()`: the same bytes |
+| between signatures | the signatures received | `addWitnesses` with the rest |
+| while `builder.plan()` builds | nothing, or the plan with nothing signed | the same `builder.plan()` call |
+
+## Collect Signatures Over Several Days
+
+Give the plan a long `ttlMs`. The unsigned body goes to every signer, and each witness set is added on any instance as it arrives. A body with some signatures may still land until its end of validity, since the others may sign it. A step that runs a Plutus script cannot be valid for days: its end may not pass the network's horizon (36 hours on mainnet and preprod).
+
+```tsx
+import { guard, output } from "@meshsdk/core";
+
+const plan = await builder.plan(
+  [
+    output({ address: recipient, value: { lovelace: 50_000_000n } }),
+    guard.pubKey({ address: partner }), // a second key must sign
+  ],
+  { id: "payout-17", payer: userAddress, ttlMs: 3 * 86_400_000 }, // three days, recorded
+);
+const { tx } = plan.step("main"); // goes to both signers
+const monday = await builder.resume("payout-17"); // any instance
+await monday.addWitnesses(firstWitnessSet); // recorded; the partner is still missing
+const wednesday = await builder.resume("payout-17");
+await wednesday.addWitnesses(secondWitnessSet); // now "signed"
+await wednesday.run({ waitFor: "final" });
+```
+
+## Reconcile Unfinished Plans
+
+Keep the id of every plan that is not `final` in your database, with the payout it pays. Write it before the plan's first `await`: a crash inside `run()` may come after the bytes have left. Remove it only when a plan of its line is `final`. A retried job uses the same id, never a fresh one. Once a minute and after a restart, run this pass.
+
+```tsx
+// db is your database: openPlanIds() lists the ids of plans that are not final
+for (const id of await db.openPlanIds()) {
+  try {
+    const plan = await builder.resume(id, { payer: wallet });
+    await plan.refresh(); // one look at the chain; it never signs or sends
+    await plan.run({ waitFor: "sent" }); // what can be done at once
+    if (plan.status === "final") await db.close(id); // release the goods
+  } catch (error) {
+    console.error(id, error); // the next pass repeats the call
+  }
+}
+```
+
+Errors with `retryable: true` are a wait, not a failure. With `waitFor: "sent"` each pass moves a plan one step on. A plan you stop on purpose with `stop()` does not leave the list by itself: remove its id yourself, for example with `db.close(id)`. Otherwise every pass reports it, and a pass that also calls `replan` pays what is left of it.
+
+When a step will not land, a plan in its place pays what is left. Add `replan` to the pass as [Handle a Step That Does Not Go Through](/apis/txbuilder/plans#handle-a-step-that-does-not-go-through) shows. A plan with a step that failed its script stays in the list until you give new `steps` to `replan({ id, steps })`.
+
+## Write a Store
+
+A `TxPlanStore` has two methods, `load` and `save`. A store must:
+
+- return from `load(id)` the record saved last, exactly as saved, or `undefined` (never `null`)
+- make `save(json, expectedRev)` a compare-and-set: it writes only when the stored `rev` is `expectedRev` (0: when none is stored), and `json.rev` is `expectedRev + 1`. It returns `true` when written and `false` when another revision is stored. A throw means the write may have passed: `STORE_FAILED`
+- keep the record as data, with no member of your own: `_id` or `updatedAt` inside it makes every read throw `INVALID_STATE`, so keep such columns beside it
+- keep a record while its plan is not `final`
+
+A store without compare-and-set can record two plans under one `id`, and the library cannot detect it. In a browser, two tabs on one key are two writers: keep one plan to one tab. Run `checkPlanStore(store)` once when you set a store up. It checks two writers, a lost acknowledgement and a crash between a write and a send.
+
+```tsx
+import { checkPlanStore } from "@meshsdk/core";
+
+await checkPlanStore(store); // your own store, once, when you set it up
+```
+
+The package README has a store over a SQL database and one for a browser: see [Storage](https://github.com/MeshJS/mesh/tree/main/packages/mesh-transaction#storage).
+
+## Related
+
+- [Plans](/apis/txbuilder/plans) - statuses, links between steps, deadlines and replan
+- [Signing and Submitting](/apis/txbuilder/signing#sign-in-turns) - witness sets from several parties
+- [Errors](/apis/txbuilder/errors#errors-from-waiting-and-plans) - `PLAN_EXISTS`, `STORE_FAILED` and the other store codes
+- [Testing on the Emulator](/apis/txbuilder/testing) - run plans against a local ledger, with `memoryPlanStore()`
+- [Transaction Basics](/apis/txbuilder/basics) - build, sign and submit one transaction
+- [Package README](https://github.com/MeshJS/mesh/tree/main/packages/mesh-transaction) - the plan record, other stores and every error

@@ -1,0 +1,94 @@
+---
+title: "Migrating to TxBuilder"
+description: "Move code from the deprecated MeshTxBuilder chain to TxBuilder parts, with before and after examples."
+---
+
+## Overview
+
+A transaction is now a list of parts, such as `output(...)` or `mint.native(...)`. You give the list and a payer to `builder.build()`, and the builder picks inputs, adds change and sets the fee. `MeshTxBuilder` is deprecated but still works. Import the new names from `@meshsdk/core`, which re-exports `@meshsdk/transaction`.
+
+`ForgeScript`, `mConStr0`, `resolveScriptHash` and the other Data and script helpers do not change. Before blocks use them without an import.
+
+## The Four Steps
+
+1. Make one `TxBuilder` with a `network` and a `provider`. See [Basics](/apis/txbuilder/migration/basics).
+2. Turn each chain into a list of parts, one area at a time:
+   - [Basics](/apis/txbuilder/migration/basics) - payer, outputs, metadata, validity, signers, signing and submitting
+   - [Minting](/apis/txbuilder/migration/minting) - mint and burn with native and Plutus scripts
+   - [Smart Contracts](/apis/txbuilder/migration/smart-contracts) - lock funds at a script and spend from it
+   - [Staking](/apis/txbuilder/migration/staking) - register, delegate and withdraw
+   - [Governance](/apis/txbuilder/migration/governance) - DRep certificates, votes and proposals
+3. Replace `signTx` and `submitTx` with `sign()` and `submit()`. See [Build, Sign and Submit](/apis/txbuilder/migration/basics#build-sign-and-submit).
+4. Check the error codes. See [Migration Errors and Differences](/apis/txbuilder/migration/errors).
+
+## A Payment, Before and After
+
+**Before:**
+
+```tsx
+import { MeshTxBuilder } from "@meshsdk/core";
+
+const txBuilder = new MeshTxBuilder({ fetcher: provider });
+
+const unsignedTx = await txBuilder
+  .txOut(recipient, [{ unit: "lovelace", quantity: "5000000" }])
+  .changeAddress(changeAddress).selectUtxosFrom(utxos).complete();
+const signedTx = await wallet.signTx(unsignedTx);
+const txHash = await wallet.submitTx(signedTx);
+```
+
+**After:**
+
+```tsx
+import { output, TxBuilder } from "@meshsdk/core";
+
+const builder = new TxBuilder({ network: "preprod", provider });
+
+const built = await builder.build(
+  output({ address: recipient, value: { lovelace: 5_000_000n } }),
+  { payer: wallet },
+);
+await built.sign();
+await built.submit();
+console.log(built.txHash);
+```
+
+Three rules hold on every page:
+
+| Old | New |
+|-----|-----|
+| A chain: `.txOut()`, `.mint()`, `.txIn()` | A list of parts: `output`, `mint.native`, `spend.plutus`, ... |
+| `.changeAddress()` and `.selectUtxosFrom()` | `{ payer }`: a wallet, an address, or `{ changeAddress, utxos }` |
+| Amounts as strings: `"5000000"` | Amounts as `bigint`: `5_000_000n` |
+
+## If You Keep MeshTxBuilder
+
+`MeshTxBuilder` now runs on `TxBuilder`, so it throws some errors where it used to return a transaction the ledger refused, such as `OUTPUT_BELOW_MIN_COIN` and `FEE_TOO_LOW`. See [If You Keep MeshTxBuilder](/apis/txbuilder/migration/errors#if-you-keep-meshtxbuilder).
+
+## Names in the Examples
+
+Your application defines these names. Every page of this guide uses them the same way.
+
+| Name | What it is |
+|------|------------|
+| `txBuilder` | the old builder: `new MeshTxBuilder({ fetcher: provider })` |
+| `builder` | the new builder: `new TxBuilder({ network: "preprod", provider })` |
+| `provider` | a provider, such as `BlockfrostProvider` |
+| `wallet`, `mintingWallet`, `utxos`, `changeAddress` | wallets that sign (a `MeshWallet`, a `BrowserWallet` or a CIP-30 api), and the UTxOs and the change address of `wallet` |
+| `recipient`, `partner`, `owner`, `rewardAddress` | addresses. `rewardAddress` is a stake address. |
+| `assetUtxo`, `collateralUtxo` | UTxOs from a provider or a wallet |
+| `script`, `policyCode` | a Plutus script (`{ code, version }`) and the CBOR of a policy script |
+| `refTxHash` | the hash of a transaction that holds a reference script |
+| `unit` | a token unit: policy id plus asset name in hex |
+| `key` | the text of a signing key |
+| `params`, `costModels` | protocol parameters and cost models |
+| `drepId`, `poolId`, `actionTx`, `anchor` | a DRep id, a pool id, the transaction hash of a governance action, and an anchor `{ url, dataHash }` |
+| `parts` | a list of parts |
+| `built`, `unsignedTx` | the `BuiltTx` from `build()` and the string from `complete()`, where an example starts from them |
+
+## Related
+
+- [Cardano Transaction Builder](/apis/txbuilder) - the pages for `TxBuilder`
+- [MeshTxBuilder (deprecated)](/apis/txbuilder/legacy) - the pages for `MeshTxBuilder`
+- [Skills](/ai/skills) - install the `mesh-tx-builder-migration` skill
+- [Package README](https://github.com/MeshJS/mesh/tree/main/packages/mesh-transaction) - the `@meshsdk/transaction` guide

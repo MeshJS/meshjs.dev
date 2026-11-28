@@ -1,0 +1,103 @@
+---
+title: "Server Recipes"
+description: "Take a payment without holding a key, and finish payouts after a crash or a restart."
+---
+
+## Overview
+
+Two recipes for a server that sends transactions: a payment the user signs in a browser, and payouts that finish after a restart. Names as in [Before you start](/apis/txbuilder/cookbook#before-you-start), where `builder` is a `TxBuilder` made with your `store`. `memoryPlanStore()` loses its plans when the process ends, so for a database write a `TxPlanStore` of two methods: see [Write a Store](/apis/txbuilder/servers#write-a-store).
+
+## Take a Payment on a Server
+
+Use this to take a payment without holding a key: the server builds the transaction for the user's address, the user's wallet signs it in the browser, and any instance sends it. One id for one order means that a repeated request never pays twice.
+
+```tsx
+import { output } from "@meshsdk/core";
+
+// Request 1: build the payment, record it under the order's id, return the unsigned body
+export async function startOrder(
+  orderId: string,
+  userAddress: string,
+  lovelace: bigint,
+) {
+  const plan = await builder.plan(
+    output({ address: recipient, value: { lovelace } }),
+    { id: orderId, payer: userAddress },
+  ); // recorded before it returns; a repeated request gets the recorded plan
+  return { tx: plan.step("main").tx };
+}
+
+// Request 2: the browser signed with signTx(tx, true) and sends the witness set
+export async function payOrder(orderId: string, witnessSet: string) {
+  const plan = await builder.resume(orderId); // from any instance
+  await plan.addWitnesses(witnessSet); // INVALID_WITNESS when it is not of this body
+  await plan.run({ waitFor: "sent" }); // sends it and waits for no block
+  return { txHash: plan.step("main").txHash };
+}
+
+// A job, or a webhook: ship the order only when this is true
+export async function isPaid(orderId: string) {
+  const plan = await builder.resume(orderId);
+  await plan.refresh(); // one look at the chain; it needs no payer and sends nothing
+  return plan.status === "final";
+}
+```
+
+- One id is one order: the same id with the same steps returns the recorded plan, and a new id is paid again: see [Use One Id for One Plan](/apis/txbuilder/servers#use-one-id-for-one-plan).
+- The user's address is the payer and the wallet signs in the browser, so the server holds no key: see [Build Without Keys on a Server](/apis/txbuilder/servers#build-without-keys-on-a-server).
+- Ship at `final`, never at `included`, which a rollback can undo. A plan that is `stopped` expired unsigned: start a new order under a new id. See [Read the Statuses](/apis/txbuilder/plans#read-the-statuses).
+
+## Finish Payouts After a Restart
+
+Use this for payouts your wallet makes, which must survive a crash: a plan records its delivery before the bytes leave, so after a restart the same `payout` call finds the plan and sends the same bytes if they are needed, never a new transaction. `db` is your list of open payouts: `open(id, payout)`, `close(id)` and `list()`.
+
+```tsx
+import { output } from "@meshsdk/core";
+import type { TxPlan } from "@meshsdk/core";
+
+// Follow a plan to the plan in its place; when nothing may still land and a step is left,
+// make that plan once
+async function latest(first: TxPlan) {
+  let plan = first;
+  await plan.refresh(); // one look at the chain; it never signs or sends
+  let made = false;
+  while (
+    plan.status !== "final" &&
+    (plan.replacedBy !== undefined ||
+      (!made && plan.live.length === 0 && plan.landed.length < plan.steps.length))
+  ) {
+    made ||= plan.replacedBy === undefined;
+    plan = await plan.replan({ id: plan.replacedBy ?? `${plan.id}:next` });
+    await plan.refresh();
+  }
+  return plan;
+}
+
+// One id for one payout: a retried job, or a restart, is the same call
+export async function payout(id: string, to: string, lovelace: bigint) {
+  await db.open(id, { to, lovelace }); // before the plan's first await
+  const recorded = await builder.plan(
+    output({ address: to, value: { lovelace } }),
+    { id, payer: wallet },
+  ); // the recorded plan, or a new one
+  const plan = await latest(recorded);
+  await plan.run({ waitFor: "sent" }); // what can be done at once
+  if (plan.status === "final") await db.close(id); // release the goods
+}
+
+// At start-up, and once a minute: every open payout, each on its own
+for (const { id, to, lovelace } of await db.list()) {
+  // a call that failed is repeated by the next pass
+  await payout(id, to, lovelace).catch((error) => console.error(id, error));
+}
+```
+
+- With `waitFor: "sent"` each pass moves a plan one step on, and a call that failed with a wait is repeated by the next pass: see [Set Deadlines and Waiting](/apis/txbuilder/plans#set-deadlines-and-waiting).
+- `replan` pays what is left, once. Never call `builder.plan(plan.rest)`: see [Handle a Step That Does Not Go Through](/apis/txbuilder/plans#handle-a-step-that-does-not-go-through).
+- Plans of one payer built together compete for the same UTxOs. Give a later plan `after: earlier`, or build them one after another, else the second waits out its deadline before `replan` pays it: see [Build on a Transaction Not Yet on Chain](/apis/txbuilder/utxos#build-on-a-transaction-not-yet-on-chain).
+
+## Related
+
+- [Servers and Storage](/apis/txbuilder/servers) - stores, ids, signatures over several days and writing a store
+- [Plans](/apis/txbuilder/plans) - statuses, links between steps, deadlines and replan
+- [Signing and Submitting](/apis/txbuilder/signing#sign-in-turns) - witness sets from several parties

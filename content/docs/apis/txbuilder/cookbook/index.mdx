@@ -1,0 +1,74 @@
+---
+title: "Cookbook"
+description: "Complete TxBuilder recipes to copy: payments, tokens, scripts, shared signing, servers, staking, governance and tests."
+---
+
+## Overview
+
+Each recipe is one complete example for one job, where the task pages explain one part at a time. Recipes take the safe path: a transaction is built once and a retry is the same call on the same object, a transaction from another party is read before you sign it, and transactions that depend on each other go through a plan, or are chained with `after`. A plan is not atomic: a step may land while the next never does, so read the status of each step.
+
+## Before you start
+
+Recipes use the names below, and a builder made like this:
+
+```tsx
+import { TxBuilder } from "@meshsdk/core";
+
+const builder = new TxBuilder({ network: "preprod", provider });
+```
+
+`plan()` needs a provider that returns block heights and the validity flag. The plain `BlockfrostProvider` does not, and `plan()` throws `CANNOT_OBSERVE`: see [Use Blockfrost for Plans](/apis/txbuilder/networks#use-blockfrost-for-plans). `run()` returns when the transaction is in a block. Add `{ waitFor: "final" }` before you release goods or ship an order: see [Read the Statuses](/apis/txbuilder/plans#read-the-statuses).
+
+| Name | What it is |
+|------|------------|
+| `builder`, `provider` | the builder above, and the provider it reads through |
+| `wallet`, `partnerWallet` | the `MeshWallet` that pays, and the wallet of the other party |
+| `changeAddress`, `recipient`, `partner` | addresses: the wallet's own, a payee, the other party's |
+| `unit` | a policy id plus an asset name in hex |
+| `script` | a Plutus script, `{ code, version }` |
+| `store`, `db` | a plan store, and your own list of open payouts: see [Server Recipes](/apis/txbuilder/cookbook/servers) |
+| `validator`, `words` | the emulator's `TxValidator`, and a test wallet's mnemonic: see [Test Recipes](/apis/txbuilder/cookbook/testing) |
+
+## Payments
+
+- [Pay from a Browser Wallet](/apis/txbuilder/cookbook/payments#pay-from-a-browser-wallet) - a user signs in a CIP-30 wallet, and a closed window changes nothing
+- [Pay Many Recipients](/apis/txbuilder/cookbook/payments#pay-many-recipients) - a payroll cut into batches, as the steps of one plan
+- [Send a Whole Wallet to a New Address](/apis/txbuilder/cookbook/payments#send-a-whole-wallet-to-a-new-address) - ada and tokens, less the fee, in one transaction
+- [Chain Payments Without Waiting](/apis/txbuilder/cookbook/payments#chain-payments-without-waiting) - build each payment on the one before and send them in a row
+- [Make an Offer That Expires](/apis/txbuilder/cookbook/payments#make-an-offer-that-expires) - sign a payment the recipient may send until its deadline
+
+## Tokens and NFTs
+
+- [Mint an NFT Collection](/apis/txbuilder/cookbook/tokens#mint-an-nft-collection) - CIP-25 metadata under a native policy that closes
+- [Mint a CIP-68 Token](/apis/txbuilder/cookbook/tokens#mint-a-cip-68-token) - a reference token that holds the metadata, and a user token
+- [Burn Tokens](/apis/txbuilder/cookbook/tokens#burn-tokens) - a negative quantity under the policy that minted them
+
+## Scripts
+
+- [Vest Funds and Claim Them Later](/apis/txbuilder/cookbook/scripts#vest-funds-and-claim-them-later) - lock funds until a deadline, then unlock them
+- [Hold a Payment in Escrow](/apis/txbuilder/cookbook/scripts#hold-a-payment-in-escrow) - lock funds under a datum and spend them with a redeemer
+- [Deploy a Script Once and Use It by Reference](/apis/txbuilder/cookbook/scripts#deploy-a-script-once-and-use-it-by-reference) - store a script in an output and name it instead of sending its code
+
+## Several Parties
+
+- [Share a Wallet with a Native Script](/apis/txbuilder/cookbook/parties#share-a-wallet-with-a-native-script) - funds that two keys control
+- [Check a Partner's Swap Before You Sign](/apis/txbuilder/cookbook/parties#check-a-partners-swap-before-you-sign) - read a partner's transaction and sign it only if it is the deal
+- [Build Online, Sign on a Cold Machine](/apis/txbuilder/cookbook/parties#build-online-sign-on-a-cold-machine) - build online and sign where the key lives
+
+## Server Recipes
+
+- [Take a Payment on a Server](/apis/txbuilder/cookbook/servers#take-a-payment-on-a-server) - build for a user, collect the signature and send
+- [Finish Payouts After a Restart](/apis/txbuilder/cookbook/servers#finish-payouts-after-a-restart) - a pass that finds every open payout and finishes it
+
+## Staking and Governance
+
+- [Register and Delegate in One Transaction](/apis/txbuilder/cookbook/staking-governance#register-and-delegate-in-one-transaction) - a stake key registered, delegated to a pool and its vote delegated
+- [Withdraw All Rewards](/apis/txbuilder/cookbook/staking-governance#withdraw-all-rewards) - take out the whole reward balance
+- [Stop Staking and Take the Deposit Back](/apis/txbuilder/cookbook/staking-governance#stop-staking-and-take-the-deposit-back) - deregister a stake key and withdraw its rewards in one transaction
+- [Become a DRep and Vote](/apis/txbuilder/cookbook/staking-governance#become-a-drep-and-vote) - register a DRep and cast a vote
+
+## Test Recipes
+
+- [Test a Payment Plan on the Emulator](/apis/txbuilder/cookbook/testing#test-a-payment-plan-on-the-emulator) - a plan run to final, and the balances
+- [Test That a Payout Finishes After a Restart](/apis/txbuilder/cookbook/testing#test-that-a-payout-finishes-after-a-restart) - drop the builder after a send, resume the plan on a new one, and pay once
+- [Test an Expected Error](/apis/txbuilder/cookbook/testing#test-an-expected-error) - check the code of a refused build

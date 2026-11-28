@@ -1,0 +1,148 @@
+---
+title: "Payments"
+description: "Pay from a browser wallet, pay many recipients, send a whole wallet, chain payments and make an offer that expires."
+---
+
+## Overview
+
+Five payment recipes: a browser wallet pays, a payroll goes out in batches, a whole wallet moves to a new address, payments are chained without waiting, and an offer expires. Names as in [Before you start](/apis/txbuilder/cookbook#before-you-start), plus `payouts` and `newAddress`.
+
+## Pay from a Browser Wallet
+
+Use this when a user connects a CIP-30 wallet in your dApp and pays. The plan is built first, so a closed wallet window changes nothing.
+
+```tsx
+import { BrowserWallet, output, TxError } from "@meshsdk/core";
+
+const wallet = await BrowserWallet.enable("eternl"); // the wallet the user picked
+const plan = await builder.plan(
+  output({ address: recipient, value: { lovelace: 5_000_000n } }),
+  { payer: wallet },
+); // built; nothing is signed or sent
+
+try {
+  await plan.run({ submitter: wallet }); // the wallet asks the user, then sends
+  console.log(plan.step("main").txHash, plan.status);
+} catch (error) {
+  if (!TxError.is(error, "SIGN_DECLINED")) throw error;
+  // the user said no and nothing was sent: call run() again to ask once more, or plan.stop()
+}
+```
+
+- A refusal is `SIGN_DECLINED` and changes nothing, so the same transaction can be asked for again: see [When a Signer Refuses](/apis/txbuilder/signing#when-a-signer-refuses).
+- `submitter: wallet` sends through the wallet. Leave it out and the provider sends: see [Use a Browser Wallet](/apis/txbuilder/signing#use-a-browser-wallet).
+
+## Pay Many Recipients
+
+Use this for a payroll or any list of payouts: a transaction holds a limited number of outputs, so the list is cut into batches, each a step of one plan. `payouts` is your list, each `{ address, lovelace }`.
+
+```tsx
+import { output } from "@meshsdk/core";
+
+const size = 100; // outputs in one transaction
+const steps: Record<string, ReturnType<typeof output>[]> = {};
+for (let i = 0; i < payouts.length; i += size) {
+  steps[`batch-${i / size + 1}`] = payouts
+    .slice(i, i + size)
+    .map(({ address, lovelace }) => output({ address, value: { lovelace } }));
+}
+const plan = await builder.plan(steps, {
+  payer: wallet,
+  ttlMs: (Object.keys(steps).length + 10) * 60_000, // one deadline for every batch
+});
+console.log(plan.steps.length, plan.fee); // the batches, and the fees of all
+
+await plan.run(); // a batch, a block, the next batch
+for (const step of plan.steps) console.log(step.name, step.status);
+```
+
+- A step is sent when the one before it is in a block, and it spends that step's change: see [Send Several Transactions](/apis/txbuilder/plans#send-several-transactions).
+- A plan is not atomic. If a batch does not land, `plan.landed` lists the batches that did, and `plan.replan({ id })` pays only what is left: see [Handle a Step That Does Not Go Through](/apis/txbuilder/plans#handle-a-step-that-does-not-go-through).
+- A plan has at most 32 steps, and its steps share one deadline, so give `ttlMs` a minute for each batch. For a longer list, make several plans one after the other: see [Set Deadlines and Waiting](/apis/txbuilder/plans#set-deadlines-and-waiting).
+
+## Send a Whole Wallet to a New Address
+
+Use this to move everything a wallet holds, ada and tokens, to `newAddress`, such as a new wallet. The fee comes out of the total, and an output that holds a deployed script stays where it is.
+
+```tsx
+const plan = await builder.plan([], {
+  payer: wallet,
+  sendAllTo: newAddress, // every selectable UTxO, less the fee, to one address
+  canSelect: (candidate) => !candidate.script, // leave reference scripts where they are
+});
+
+const { outputs, fee } = plan.step("main");
+console.log(fee, outputs.map(({ address, value }) => [address, value])); // read it first
+await plan.run();
+```
+
+- It moves UTxOs, not rewards. Withdraw them first: see [Withdraw Rewards](/apis/txbuilder/staking#withdraw-rewards).
+- Without `canSelect` a UTxO that holds a deployed script goes too: see [Send Everything](/apis/txbuilder/utxos#send-everything).
+- A sweep is never consolidated. A wallet with more UTxOs than one transaction holds is `TX_TOO_LARGE`: narrow it with `canSelect` and sweep again. See [Consolidation Steps](/apis/txbuilder/plans#consolidation-steps).
+
+## Chain Payments Without Waiting
+
+Use this to send several payments in a row without waiting for a block between them. Each build is told about the ones before it, so it picks other inputs and may spend their change.
+
+```tsx
+import { output, validity } from "@meshsdk/core";
+import type { BuiltTx } from "@meshsdk/core";
+
+const ends = validity({ until: Date.now() + 30 * 60_000 }); // build() sets no deadline: give one
+const queue: BuiltTx[] = [];
+for (const [address, lovelace] of [
+  [recipient, 5_000_000n],
+  [partner, 2_000_000n],
+  [recipient, 1_000_000n],
+] as const) {
+  queue.push(
+    await builder.build([output({ address, value: { lovelace } }), ends], {
+      payer: wallet,
+      after: queue, // not the inputs of the earlier ones; their change is allowed
+    }),
+  );
+}
+
+for (const built of queue) {
+  await built.sign();
+  await built.submit(); // in the order they were built
+}
+await Promise.all(queue.map((built) => built.awaitInclusion()));
+```
+
+- `after` keeps a build off the inputs of the others and lets it name their outputs: see [Build on a Transaction Not Yet on Chain](/apis/txbuilder/utxos#build-on-a-transaction-not-yet-on-chain).
+- Build one after another, as the loop does: builds started at the same time do not know about each other. Another program spending from the same wallet is not known either: give each its own UTxOs with [`canSelect`](/apis/txbuilder/utxos#limit-what-the-builder-may-pick).
+- A retry is `submit()` again on the same object, never a new build: see [Retry Without Rebuilding](/apis/txbuilder/signing#retry-without-rebuilding).
+- If one payment does not land, the ones built on its change cannot land either. Once its `until` has passed, build them again: see [Set an Expiry](/apis/txbuilder/time#set-an-expiry).
+
+## Make an Offer That Expires
+
+Use this to sign a payment and hand it to the recipient, who may send it until it expires. The plan sets the deadline and follows the outcome, so you know when the funds are yours again.
+
+```tsx
+import { output } from "@meshsdk/core";
+
+const offer = await builder.plan(
+  output({ address: recipient, value: { lovelace: 50_000_000n } }),
+  { payer: wallet, ttlMs: 3_600_000 }, // valid for one hour
+);
+await offer.sign(); // signed by you, not sent
+const { signedTx } = offer.step("main"); // give it to the recipient
+console.log(new Date(offer.until!)); // the last moment it can land
+const saved = JSON.stringify(offer); // keep it: it brings the plan back after a restart
+
+// Later: what became of the offer?
+const back = await builder.resume(JSON.parse(saved), { payer: wallet });
+await back.refresh(); // one look at the chain; it never signs or sends
+console.log(back.step("main").status); // included or final: taken. expired: it cannot land
+```
+
+- The deadline is in the signed bytes: after it the ledger refuses the transaction. The plan calls it `expired` once a margin for rollbacks has passed too: see [Set Deadlines and Waiting](/apis/txbuilder/plans#set-deadlines-and-waiting).
+- Until it expires the offer may still land, so keep other payments off its inputs with `after: offer`. Once `expired`, `back.replan({ id })` builds it again: see [Handle a Step That Does Not Go Through](/apis/txbuilder/plans#handle-a-step-that-does-not-go-through).
+- A plan lives in its object. To find it by an id instead, make it with an `id` on a builder with a `store`, and call `builder.resume(id, { payer: wallet })`: see [Record Plans in a Store](/apis/txbuilder/servers#record-plans-in-a-store).
+
+## Related
+
+- [Plans](/apis/txbuilder/plans) - steps, statuses, deadlines and replan
+- [Signing and Submitting](/apis/txbuilder/signing) - wallets, keys and safe retries
+- [UTxOs and Inputs](/apis/txbuilder/utxos) - `canSelect`, `after` and `sendAllTo`

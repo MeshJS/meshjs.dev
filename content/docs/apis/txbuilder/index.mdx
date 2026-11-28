@@ -1,6 +1,6 @@
 ---
 title: "Cardano Transaction Builder"
-description: "Build Cardano transactions with fine-grained control using low-level APIs."
+description: "Build Cardano transactions from parts with TxBuilder: it selects inputs, adds change and sets the fee."
 icon: BanknotesIcon
 ---
 
@@ -11,48 +11,64 @@ import {
   CardDescription,
   CardTitle,
 } from "@/components/ui/card";
+import { BuilderFlow } from "@/components/txbuilder/builder-flow";
+
+> **Note:** Coming from `MeshTxBuilder`, the chain of calls? It is deprecated but still works. See [Migrating to TxBuilder](/apis/txbuilder/migration).
 
 ## Overview
 
-`MeshTxBuilder` is a powerful, low-level API for constructing Cardano transactions. It provides complete control over every aspect of transaction building, from simple ADA transfers to complex smart contract interactions, staking operations, and governance actions.
-
-**When to use MeshTxBuilder:**
-- Building custom transaction logic beyond standard transfers
-- Creating multi-signature transactions
-- Minting and burning native assets
-- Interacting with Plutus smart contracts
-- Managing stake delegation and rewards
-- Participating in on-chain governance
+`TxBuilder` builds a Cardano transaction from a list of parts, such as `output(...)` or `mint.native(...)`. You name a payer, and the builder selects inputs, adds change and sets the fee; for scripts it also adds collateral and execution units. Then you sign and submit. Examples use `wallet` (a [wallet](/apis/wallets): a `MeshWallet` or `BrowserWallet`) and `recipient` (an address) from your application.
 
 ## Quick Start
 
 ```tsx
-import { MeshTxBuilder, BlockfrostProvider } from "@meshsdk/core";
+import { BlockfrostProvider, output, TxBuilder } from "@meshsdk/core";
 
-// Initialize provider and builder
+// A provider reads the chain
 const provider = new BlockfrostProvider("<YOUR_API_KEY>");
-const txBuilder = new MeshTxBuilder({
-  fetcher: provider,
-  verbose: true,
-});
+const builder = new TxBuilder({ network: "preprod", provider });
 
-// Get wallet data
-const utxos = await wallet.getUtxos();
-const changeAddress = await wallet.getChangeAddress();
+// Build: the builder picks inputs, adds change and sets the fee
+const built = await builder.build(
+  output({ address: recipient, value: { lovelace: 5_000_000n } }), // 5 ada
+  { payer: wallet },
+);
 
-// Build a simple transfer
-const unsignedTx = await txBuilder
-  .txOut("addr_test1qz...", [{ unit: "lovelace", quantity: "5000000" }])
-  .changeAddress(changeAddress)
-  .selectUtxosFrom(utxos)
-  .complete();
-
-// Sign and submit
-const signedTx = await wallet.signTx(unsignedTx);
-const txHash = await wallet.submitTx(signedTx);
+await built.sign(); // the payer signs
+await built.submit(); // sent through the provider
+console.log(built.txHash);
 ```
 
-## Documentation
+`TxBuilder` lives in `@meshsdk/transaction`, and `@meshsdk/core` re-exports it. Amounts are `bigint`. `built.tx` is the unsigned transaction as a hex string (CBOR). For other providers, see [Providers](/providers).
+
+## How It Works
+
+You make one builder; each `build()` or `plan()` call takes the parts and `{ payer }`. Build one transaction, or plan one or several. Every underlined name in the scheme is a link to the page that explains it.
+
+<BuilderFlow />
+
+1. [Create a builder](/apis/txbuilder/basics#create-a-builder): `new TxBuilder({ network, provider })`; see [networks and providers](/apis/txbuilder/networks), and [offline use](/apis/txbuilder/offline#build-offline) without a provider (`params`, `costModels`), which can `build()` and sign but cannot plan.
+2. [Choose who pays](/apis/txbuilder/basics#choose-the-payer): `{ payer }` is a wallet, an address or `{ changeAddress, utxos }`, given to each call; the payer signs by default. Name other [signers](/apis/txbuilder/signing#who-pays-signs-and-submits) in `sign()` or `run()`, and a submitter in `submit()`, `run()` or on the builder (else the provider sends).
+3. Give the parts ([which part for what](/apis/txbuilder#which-part-for-what)): [outputs](/apis/txbuilder/basics#send-lovelace-and-assets), [inputs](/apis/txbuilder/utxos), [time](/apis/txbuilder/time), [mint](/apis/txbuilder/minting), [scripts](/apis/txbuilder/smart-contracts), [staking](/apis/txbuilder/staking), [certificates](/apis/txbuilder/certificates) and [governance](/apis/txbuilder/governance).
+4. One transaction: [`builder.build(parts, { payer })`](/apis/txbuilder/basics#build-sign-and-submit) returns a `BuiltTx`; then [`sign()`](/apis/txbuilder/signing#who-pays-signs-and-submits), [`submit()` and `awaitInclusion()`](/apis/txbuilder/signing#submit-and-wait), which waits for a block, not for `final`.
+5. Or a plan of one or several transactions: [`builder.plan(parts, { payer })`](/apis/txbuilder/plans#make-and-run-a-plan) returns a `TxPlan` and needs a provider that returns block heights ([Use Blockfrost for Plans](/apis/txbuilder/networks#use-blockfrost-for-plans)); [`run()`](/apis/txbuilder/plans#make-and-run-a-plan) it (it returns at `included`), then `run({ waitFor: "final" })` or `refresh()` until the [statuses](/apis/txbuilder/plans#read-the-statuses) show `final`; [`replan()`](/apis/txbuilder/plans#handle-a-step-that-does-not-go-through) pays what is left after a step that did not land; on a server, keep plans [in a store](/apis/txbuilder/servers#record-plans-in-a-store).
+6. Around the flow: a [transaction from elsewhere](/apis/txbuilder/offline#read-a-transaction-built-elsewhere) (`fromCbor` and `restore` give a `BuiltTx`; `requiredSigners` lists its keys), [tests](/apis/txbuilder/testing), [errors](/apis/txbuilder/errors#check-a-code) (`TxError.is`), [options](/apis/txbuilder/options), and [coming from `MeshTxBuilder`](/apis/txbuilder/migration).
+
+## Which Part for What
+
+| Part | Use it to |
+|------|-----------|
+| `output`, `metadata`, `message`, `validity`, `guard.pubKey` | send assets, add metadata, set validity, require a signer |
+| `mint.native`, `mint.plutus` | mint and burn assets |
+| `spend.pubKey`, `collateral`, `collateralReturn` | spend a particular output, set the collateral |
+| `spend.plutus`, `spend.native`, `referenceInput` | lock and spend at a script, read an output |
+| `withdrawal.*` | take staking rewards out |
+| `certificate.*` | change what the chain records: stake keys, delegation of stake and votes, pools, DReps, the committee |
+| `vote`, `proposal.*` | take part in governance |
+
+For signing, UTxOs, time, plans, offline use, testing and errors, see the cards below.
+
+## Pick a Task
 
 <div className="grid md:grid-cols-2 gap-6 items-stretch">
   {linksTxbuilder.map((card) => (
@@ -67,6 +83,8 @@ const txHash = await wallet.submitTx(signedTx);
 
 ## Related
 
-- <Link href="/apis/txparser">Transaction Parser</Link> - Parse and test transactions
-- <Link href="/providers">Providers</Link> - Blockchain data providers
-- <Link href="/apis/wallets">Wallets</Link> - Wallet integration options
+- [Migrating to TxBuilder](/apis/txbuilder/migration) - move from the `MeshTxBuilder` chain
+- [Transaction Parser](/apis/txparser) - parse and test transactions
+- [Providers](/providers) - blockchain data providers
+- [Wallets](/apis/wallets) - wallet integration options
+- [Package README](https://github.com/MeshJS/mesh/tree/main/packages/mesh-transaction) - every part, option and error
